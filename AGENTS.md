@@ -202,7 +202,9 @@ wording (`progress.py`).
 
 ## Current state
 
-**Version 0.91.0 (2026-10-30, hotfix, owner: "support all the heads ... dont limit the save or hinder the editing"):** a
+**Version 0.91.0 (2026-10-30, hotfix, owner: "support all the heads ... dont limit the save or hinder the editing";
+released with the owner's go-ahead: commit 4b997b6, tag `v0.91.0`, GitHub release with `PuckPeakLegacyUpdater.exe`, the
+Linux tar.gz (Ubuntu / Fedora / Arch boxes passed) and `SHA256SUMS.txt`; no data pack or server change):** a
 tester's own player (Create Player record) wore head 20300, one of the game's 24 created heads but not one of the menu's
 15, and `faces.look_problems` refused every save. Now `faces.CREATED_HEADS` (all 24, or the roster's `vuqu` rows) are
 accepted, and what the source already held is never blamed: created head, skin vs tone (`look_problems`), Create Player
