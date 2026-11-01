@@ -19,9 +19,9 @@ painted on other shirts. Those are left as they are (`STANDARD_LAYOUT`).
 
 This season's jerseys (owner, 2026-10-16): the program carries the pack's kits and centre-ice logos of every team both games
 have, already moved into the PS3's two cuts (`art/lookpack.py`). `pack_team` and `looks_from` put them onto the
-player's own disc files: the dark default version gets the pack's dark kit, the light default its light one. The pack gives
-home and away only (owner, 2026-10-18): a third and every other version stays the game's own, also where the pack has a
-third kit.
+player's own disc files: the dark default version gets the pack's dark kit, the light default its light one, and (0.92.0)
+the lowest Alternate version the roster lists its third kit (`pack_versions`). Every other version stays the game's own, and
+so does the Alternate of a team the pack has no third for. A team whose roster lists no Alternate version has nowhere to put the pack's third.
 Style 1 (the NHL, AHL, CHL, some European clubs) goes the way of the player's own colour map, on the chassis' relief
 and number sheet; style 0 (the classic cut of most European clubs and the national teams) keeps the version's own file
 with a clean relief (`style0_relief`: the median of 11 clubs' reliefs, which drops their embossed crests) and its own
@@ -34,7 +34,7 @@ in only where the game shows it at that club's home games and nowhere else (`sho
 (one shared ice) and not the national teams' (the game's international ice).
 
 Every team of every league (owner, 2026-10-18) can have its jerseys chosen in the Roster editor's "Jerseys and ice" window
-(app/uniforms.py; `editable`, `team_versions`): an NHL team every version, any other team its home and away versions,
+(app/uniforms.py; `editable`, `team_versions`): an NHL team every version, any other team its home, away and Alternate versions,
 each the pack's, the game's own, made from the colours (style 1 on the shared layout only) or the player's own picture.
 Jerseys belong to an art id, not a slot: a team sharing its art id with a lower slot (the Winter Classic, EASHL and Top
 Prospects teams) is changed at that slot (`jersey_owner`).
@@ -66,7 +66,13 @@ NATIONAL_LEAGUE, NATIONAL_ICE = 8, 501
 ICE_PICTURE = "rendering/icesurface/icesurface_{a}_bm.rpsgl"      # the rink seen from above: the NHL teams' arenas have one
 DECAL = "rendering/logo/texlib_{a}_{s}_{v}.rpsgl"                  # the logo on the helmets (and shoulders) of a version
 PREVIEW = "fe/ion/artassets/jerseys/jersey_{s}_{a}_{v}.big"
-FONT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'fonts', 'SourceSans3-Bold.ttf')
+# the other files of one version, copied for a version the disc has no files for (`Borrow`; a club's has the first four)
+NAME = "rendering/jersey/name_{s}_{a}_{v}_cm.rpsgl"
+DECAL_NHL = "rendering/logo/texlib_3{a}_{s}_{v}.rpsgl"
+HELMET = "rendering/helmet/helmet_0_{a}_{v}_dm.rpsgl"
+POWER = ("rendering/effects/powerring_{a}_{v}.rpsgl", "rendering/effects/powerring_lighting_{a}_{v}.rpsgl")
+BORROWED = (NAME, DECAL, DECAL_NHL, HELMET) + POWER
+FONT =os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'fonts', 'SourceSans3-Bold.ttf')
 
 # version -> does it use the shared shirt layout? (nm-map correlation with Utah's, tools/look_preview.py --layouts)
 STANDARD_LAYOUT = {22: {1: (0, 1, 3, 4)}, 30: {1: (2, 3, 4, 5)}, 31: {1: (2, 3, 4, 5)}}
@@ -743,13 +749,17 @@ Look = namedtuple('Look', 'art kit logos arena ice_colour versions files centre 
 # 'game' (the game's own stays), 'pack:<member>#<check>' (the pack's, from the look pack) or the path of the player's own
 # picture; pack: (PackKit, ...) the pack's kits; style: the cut of the team's jerseys (1, or 0 for a team of the classic cut:
 # only its pack kits are made then)
-PackKit = namedtuple('PackKit', 'variant light member numbers crc menu scheme font', defaults=(None, None, None))
+PackKit = namedtuple('PackKit', 'variant light member numbers crc menu scheme font like', defaults=(None, None, None, None))
 # a version that gets the pack's kit: the look pack's picture `member` (its check sum `crc`), numbers (fill, outline) or None,
 # menu: the pack's own menu picture of the kit as '<member>#<check sum>' (None: the menu picture is the chassis' recoloured),
 # scheme: (ring, outer, name) of its number sheet (the digits' two rings, outer or None, and the colour of the names), or None
 # (a pack from before: the names wear the digits' colour); font: the pack's own number sheet as '<member>#<check sum>'
-# (None: the sheet is recoloured from the colours above)
-PACK = 'pack'                      # the choice "This season's" (edits.json 'uniforms' versions and 'ice' use)
+# (None: the sheet is recoloured from the colours above); like: the variant whose disc files a version the disc has none for
+# (a row `alternate_rows` added) starts from (`Borrow`), or None
+PACK = 'pack'                     # the choice "This season's" (edits.json 'uniforms' versions and 'ice' use)
+
+
+ALTERNATE = 2                      # `wgjx` locstring of the Alternate version (version_words)
 
 
 def roster_versions(R, art, style=STYLE):
@@ -793,8 +803,8 @@ def art_style(R, art):
 
 def pack_versions(R, art, style):
     """{role: (variant, light)}: the versions of a team the pack's kits go on: 'dark' and 'light', the default dark and
-    light versions of the team's cut. The pack gives home and away only (owner, 2026-10-18): the third (`locstring` 2) and
-    every other version stay the game's own, also where the look pack has a third kit."""
+    light versions of the team's cut, and (0.92.0, owner: the alternates too) 'third', the lowest Alternate version
+    (`locstring` 2) the roster lists in that cut. Every other version stays the game's own."""
     try:
         t = R.f['wgjx']
     except KeyError:
@@ -805,6 +815,15 @@ def pack_versions(R, art, style):
     out = {}
     for variant, light in rows:
         out.setdefault('light' if light else 'dark', (variant, light))
+    taken = {variant for variant, _light in out.values()}
+    alternates = sorted((t.get(i, 'variant'), bool(t.get(i, 'islightcolor')))
+                        for i in range(t.cur_rec)
+                        if t.get(i, 'teamartid') == art and t.get(i, 'style') == style and t.get(i, 'locstring') == ALTERNATE
+                        and not t.get(i, 'isdefault'))
+    for variant, light in alternates:
+        if variant not in taken:                     # a variant number a home or away row uses is never the third's
+            out['third'] = (variant, light)
+            break
     return out
 
 
@@ -829,13 +848,120 @@ def jersey_owner(R, slot):
 
 def team_versions(R, slot):
     """[(variant, light, isdefault)]: the versions of a team the Roster editor offers and the update makes: every style-1
-    version of an NHL team (Utah, Seattle and Vegas: DEFAULT_VERSIONS when the roster lists none), only the home and away
-    (default) versions of the team's cut elsewhere (owner, 2026-10-18: the others stay Legacy's own)."""
+    version of an NHL team (Utah, Seattle and Vegas: DEFAULT_VERSIONS when the roster lists none), the home and away
+    (default) versions of the team's cut elsewhere, and its Alternate versions (0.92.0; the others stay Legacy's own)."""
     art, style = team_art(R, slot)
     listed = roster_versions(R, art, style)
     if slot in NHL:
         return listed or [(v, light, False) for v, light in DEFAULT_VERSIONS.get(slot, ())]
-    return [row for row in listed if row[2]]
+    alternates = set(_alternate_variants(R, art, style))
+    return [row for row in listed if row[2] or row[0] in alternates]
+
+
+def _alternate_variants(R, art, style):
+    """The variant numbers of a team's Alternate rows (`locstring` 2) in cut `style`."""
+    try:
+        t = R.f['wgjx']
+    except KeyError:
+        return []
+    return [t.get(i, 'variant') for i in range(t.cur_rec)
+            if t.get(i, 'teamartid') == art and t.get(i, 'style') == style and t.get(i, 'locstring') == ALTERNATE
+            and not t.get(i, 'isdefault')]
+
+
+ROWS_MAX = 749                     # the most rows table wgjx holds (stock.ROSTER_MAX)
+ROW_VARIANT, ROW_FEVARIANT, ROW_INDEX, ROW_WORD, ROW_DEFAULT = 'TccF', 'XOdd', 'xnYt', 'gZuU', 'MSFy'
+
+
+def alternate_rows(R, look_pack):
+    """Give a team the look pack has a third kit for but the roster no Alternate version (Winnipeg, Chicago, a score of
+    AHL / CHL clubs, 0.92.0) a row of its own in `wgjx` (stockteamjerseys), in place: its away row with the next free variant
+    number, the next jersey index, the word Alternate (2) and not a default. The files come from `Borrow` (the away version's,
+    painted with the pack's third). Deterministic and done once: a roster that lists the Alternate (the game's or this row)
+    gets nothing. Returns [(slot, art, variant)] of the rows added."""
+    added = []
+    try:
+        t = R.f['wgjx']
+    except KeyError:
+        return added
+    for slot, team in sorted((getattr(look_pack, 'teams', None) or {}).items()):
+        if 'third' not in (team.get('kits') or {}) or slot >= R.T.cur_rec or not look_pack.holds(slot, R):
+            continue
+        art = R.T.get(slot, 'artid')
+        style = art_style(R, art)
+        if style is None or style != team.get('style') or jersey_owner(R, slot) != slot or pack_versions(R, art, style).get('third'):
+            continue
+        rows = [i for i in range(t.cur_rec) if t.get(i, 'teamartid') == art]
+        away = _away_row(R, art, style)
+        if away is None or t.cur_rec >= ROWS_MAX:
+            continue
+        variant = max(t.get(i, 'variant') for i in rows) + 1
+        if len(str(variant)) != len(str(t.get(away, 'variant'))):         # the files' names keep their length (Borrow)
+            continue
+        row = {f: t.get(away, f) for f in t.fields}
+        row.update({ROW_VARIANT: variant, ROW_FEVARIANT: variant, ROW_WORD: ALTERNATE, ROW_DEFAULT: 0,
+                    ROW_INDEX: max(t.get(i, 'jerseyindex') for i in rows) + 1})
+        t.add_record(row)
+        added.append((slot, art, variant))
+    return added
+
+
+def _away_row(R, art, style):
+    """The index in `wgjx` of a team's Away row (`locstring` 1, a default) in cut `style`, else its light default one, else
+    None."""
+    t = R.f['wgjx']
+    rows = [i for i in range(t.cur_rec) if t.get(i, 'teamartid') == art and t.get(i, 'style') == style and t.get(i, 'isdefault')]
+    return next((i for i in rows if t.get(i, 'locstring') == 1), next((i for i in rows if t.get(i, 'islightcolor')), None))
+
+
+def away_variant(R, art, style):
+    """The variant number of a team's Away version (_away_row), or None."""
+    i = _away_row(R, art, style)
+    return None if i is None else R.f['wgjx'].get(i, 'variant')
+
+
+def renamed_variant(raw, art, style, old, new):
+    """The texture file `raw` (bytes) of version `old` of art `art` with the version's number in the raster names of its
+    header (`jersey_1_23_6_cm`, `23_1_6`, `powerring_23_6`) changed to `new`: the same digit count, so nothing moves."""
+    if len(str(old)) != len(str(new)):
+        raise ValueError(f"{old} -> {new}: the numbers differ in length")
+    f = rpsgl.Rpsgl(raw)
+    data = bytearray(f.data)
+    data[:f.header] = re.sub(rf'(?<!\d)(3?{art})_((?:{style}_)?){old}(?!\d)'.encode(), rf'\g<1>_\g<2>{new}'.encode(),
+                             bytes(data[:f.header]))
+    return rpsgl.Rpsgl(rpsgl.pack(bytes(data)) if f.packed else bytes(data)).build()
+
+
+class Borrow:
+    """The disc as `Maker` reads it, with the files of a version the disc lacks (an Alternate version `alternate_rows` gave a
+    team) read from another version of the same team: a 3D texture with its number changed (`renamed_variant`), a menu
+    picture as it is. `lend` names the pairs; a file the disc has itself is never replaced."""
+
+    def __init__(self, disc):
+        self.disc = disc.disc if isinstance(disc, Borrow) else disc
+        self.lent = {}                                  # {path: the path it is read from}
+
+    def __getattr__(self, name):
+        return getattr(self.disc, name)
+
+    def lend(self, art, style, new, like):
+        for template in (JERSEY, PANT, SOCK, PREVIEW) + BORROWED:
+            mine, theirs = (template.format(s=style, a=art, v=v) for v in (new, like))
+            if not self.disc.has(mine) and self.disc.has(theirs):
+                self.lent[mine] = (theirs, art, style, like, new)
+
+    def has(self, inner):
+        return self.disc.has(self.lent[inner][0] if inner in self.lent else inner)
+
+    def find(self, inner):
+        return self.disc.find(self.lent[inner][0] if inner in self.lent else inner)
+
+    def render(self, inner):
+        if inner not in self.lent:
+            return self.disc.render(inner)
+        path, art, style, like, new = self.lent[inner]
+        raw = self.disc.render(path)
+        return None if raw is None else renamed_variant(raw, art, style, like, new)
 
 
 def club_logos(R, leagues):
@@ -1137,7 +1263,8 @@ class Maker:
     style 0's relief. `look_pack`: the program's pack pictures (art/lookpack.py), for looks with pack kits."""
 
     def __init__(self, disc, look_pack=None):
-        self.disc = clubart.AliasDisc(disc)     # art 900 / 901 (Coachella Valley, Henderson) are read from their donors' files
+        self.disc = Borrow(clubart.AliasDisc(disc))     # art 900 / 901 (Coachella Valley, Henderson) are read from their donors'
+                                                        # files, a version the roster gained (alternate_rows) from its `like`
         self.look_pack = look_pack
         self.chassis = Chassis(self.disc)
         self._mask = None
@@ -1179,12 +1306,33 @@ class Maker:
         return [p for p in (t.format(s=look.style, a=look.art, v=variant) for t in (JERSEY, PANT, SOCK, PREVIEW))
                 if self._has(p)]
 
+    def _lend(self, look, kit):
+        if kit.like is not None and kit.like != kit.variant:
+            self.disc.lend(look.art, look.style, kit.variant, kit.like)
+
+    def borrowed_paths(self, look, kit):
+        """The files of a kit's version the disc lacks and copies from its `like` version: the name sheet, the logo on the
+        helmet and the like (BORROWED); the jersey, pants, socks and menu picture are the kit's own paints."""
+        self._lend(look, kit)
+        return [p for p in (t.format(s=look.style, a=look.art, v=kit.variant) for t in BORROWED) if p in self.disc.lent]
+
     def pack_paths(self, look, kit):
-        """The files one pack kit writes: the jersey, the pants, socks and menu picture."""
-        return self.cut_paths(look, kit.variant)
+        """The files one pack kit writes: the jersey, the pants, socks and menu picture, and what a version new to the
+        roster copies from another."""
+        self._lend(look, kit)
+        return self.cut_paths(look, kit.variant) + self.borrowed_paths(look, kit)
 
     def pack_files(self, look, kit):
         """{path: bytes} of one version in the pack's kit (see the module's text)."""
+        self._lend(look, kit)
+        out = self._painted_files(look, kit)
+        for path in self.borrowed_paths(look, kit):
+            raw = self.disc.render(path)
+            if raw is not None:
+                out[path] = raw
+        return out
+
+    def _painted_files(self, look, kit):
         light = kit.light
         mine = _full_size(self.look_pack.picture(kit.member))
         palette = kit_palette(self.chassis_cm(light), mine, light)
@@ -1639,12 +1787,14 @@ def pack_team(R, slot, look_pack):
             menu, font = look_pack.menu_member(slot, role), look_pack.font_member(slot, role)
             kits[variant] = PackKit(variant, light, member, numbers, look_pack.crc(member),
                                     f"{menu}#{look_pack.crc(menu)}" if look_pack.has(menu) else None, scheme,
-                                    f"{font}#{look_pack.crc(font)}" if look_pack.has(font) else None)
+                                    f"{font}#{look_pack.crc(font)}" if look_pack.has(font) else None,
+                                    like=away_variant(R, art, style) if role == 'third' else None)
     # Utah's, Seattle's and Vegas's other home and away versions would be made from the colours (default_use): they wear the
     # pack's kit of the same lightness, so the game shows this season's whichever of them it picks (Play Now took Utah's
     # variant 0, 2026-10-27)
     listed = {(v, light) for v, light, _d in roster_versions(R, art, style)}
-    by_light = {k.light: k for _v, k in sorted(kits.items(), reverse=True)}
+    home_away = {v for role, (v, _l) in places.items() if role != 'third'}
+    by_light = {k.light: k for _v, k in sorted(kits.items(), reverse=True) if _v in home_away}      # never the alternate
     for variant, light in DEFAULT_VERSIONS.get(slot, ()) if style == STYLE else ():
         if variant not in kits and light in by_light and (variant, light) in listed:
             kits[variant] = by_light[light]._replace(variant=variant)
@@ -1917,7 +2067,7 @@ def path_art(key):
 @functools.lru_cache(maxsize=1)
 def _art_patterns():
     out = []
-    for template in (JERSEY, PANT, SOCK, CENTRE, ICE_PICTURE, DECAL, PREVIEW, clubart.NAME) + tuple(clubart.EXTRA):
+    for template in (JERSEY, PANT, SOCK, CENTRE, ICE_PICTURE, DECAL, PREVIEW, clubart.NAME) + tuple(clubart.EXTRA) + BORROWED:
         text = re.escape(template).replace(r'\{a\}', r'(\d+)')
         out.append(re.compile('^' + text.replace(r'\{s\}', r'\d+').replace(r'\{v\}', r'\d+') + '$'))
     return out

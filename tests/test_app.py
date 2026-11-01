@@ -575,6 +575,24 @@ def test_jerseys_and_ice_offer_this_seasons_where_the_look_pack_has_them(app, tm
     uni.undo()
 
 
+def test_jerseys_and_ice_offer_this_seasons_alternate_where_the_look_pack_has_a_third(app, tmp_path, monkeypatch, make_look_pack):
+    _host, _upd, ed, uni, _sd = app
+    made = make_look_pack(tmp_path, {27: ('nhl', 'TOR', 1, {'dark': (0, 40, 120), 'light': (240, 240, 240), 'third': (20, 20, 20)},
+                                          (0, 40, 120))})
+    monkeypatch.setenv('LEGACY_ROSTER_PACKS', os.path.dirname(made.path))
+    ed.opened()
+    idle(ed)
+    ed.pick_team(27)
+    ed.uniforms_open()
+    wait(lambda: uni.snapshot() and uni.snapshot()['loaded'])
+    rows = {r['variant']: r for r in uni.snapshot()['rows']}
+    assert rows[5]['mode'] == 'pack' and rows[5]['options'][0] == ['pack', "This season's"]       # Toronto's Alternate (v5)
+    assert rows[5]['label'].startswith('Alternate') and uni._collect() == ({}, {})
+    uni.pick(5, 'game')
+    assert uni._collect() == ({'versions': {'5': 'game'}}, {})
+    uni.undo()
+
+
 def test_jerseys_and_ice_open_for_every_league_with_home_and_away_only(app, tmp_path, monkeypatch, make_look_pack):
     from PIL import Image
     from legacy_roster.art import looks

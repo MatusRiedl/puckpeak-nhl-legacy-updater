@@ -111,7 +111,7 @@ EXPERIMENTAL = {'shl', 'del', 'nl', 'norway', 'ahl', 'chl', 'stock', 'positions'
                 'own art ids', 'jerseys every league', 'gear colours', 'farm clubs in the AHL',
                 'custom team kits', 'shared ice', 'picture numbers', 'own pictures on save',
                 'draft classes', 'new player records', 'no press start', 'real lines', 'club art 900',
-                'real captains', 'real equipment', 'new centre ice'}
+                'real captains', 'real equipment', 'new centre ice', 'alternate jerseys'}
 ALL_STEPS = CORE_STEPS      # what build() and update() run when no steps are given
 
 
@@ -576,6 +576,16 @@ def build(source, data, steps=ALL_STEPS, progress=None, check=True, art_registry
         log.append(['ALL', 'summary', "free-agent year set to age 27 (Be a GM shows UFA / RFA by it)", ufa, ''])
     pictures = art
     art = None
+    if pictures is not None and getattr(pictures, 'season_looks', False):
+        # a team without an Alternate version gets a jersey row for this season's third (lab round 57: only together with
+        # its files, a row alone draws a plain blue jersey); rows first, art_fit's (patch_roster) come after
+        from .art.looks import alternate_rows
+        from .art.lookpack import LookPack
+        look_pack = LookPack.open()
+        added = alternate_rows(R, look_pack) if look_pack is not None else []
+        if added:
+            log.section = SECTION_PLAYER_DATA
+            log.append(['ALL', 'summary', "teams given an Alternate jersey of this season's", len(added), ''])
     if pictures is not None:
         from .art import portraits
         say("Photos and logos: choosing the pictures")

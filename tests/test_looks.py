@@ -202,26 +202,65 @@ def test_pack_names_and_versions(base_dir):
     from legacy_roster.roster import Roster
     R = Roster(os.path.join(base_dir, 'SYS-DATA'))
     assert lookpack.norm('Färjestad BK') == 'farjestadbk' == lookpack.norm('FARJESTAD  bk')
-    # The pack gives home and away only (owner, 2026-10-18): no team's third is the pack's
-    assert looks.pack_versions(R, 27, 1) == {'dark': (4, False), 'light': (3, True)}                       # Toronto
+    # home, away and (0.92.0) the lowest Alternate version: the pack's third goes there
+    assert looks.pack_versions(R, 27, 1) == {'dark': (4, False), 'light': (3, True), 'third': (5, False)}  # Toronto
     assert looks.art_style(R, 27) == 1 and looks.art_style(R, R.T.get(135, 'artid')) == 0                  # Canada: classic
     # Pittsburgh's default dark v3 is the Winter Classic team's (slot 218, Pittsburgh's art): v0 is the club's own
-    assert looks.pack_versions(R, 23, 1) == {'dark': (0, False), 'light': (1, True)}
-    assert looks.pack_versions(R, 2, 1) == {'dark': (0, False), 'light': (1, True)}                        # Boston
+    assert looks.pack_versions(R, 23, 1) == {'dark': (0, False), 'light': (1, True), 'third': (6, False)}
+    assert looks.pack_versions(R, 2, 1) == {'dark': (0, False), 'light': (1, True), 'third': (2, False)}   # Boston
     assert looks.pack_versions(R, 22, 1) == {'dark': (3, False), 'light': (4, True)}                       # Utah
     assert looks.pack_versions(R, 36, 1) == {} and looks.pack_versions(R, 162, 1) == {'dark': (4, False), 'light': (3, True)}
 
 
-def test_the_pack_gives_home_and_away_only_and_every_other_version_stays_the_games_own(base_dir, tmp_path, make_look_pack):
+def test_the_pack_third_goes_on_the_alternate_version_and_every_other_version_stays_the_games_own(base_dir, tmp_path, make_look_pack):
     from legacy_roster.roster import Roster
     R = Roster(os.path.join(base_dir, 'SYS-DATA'))
     pack = make_look_pack(tmp_path, {2: ('nhl', 'BOS', 1, {'dark': (20, 20, 20), 'light': (240, 240, 240)}, None),
                                      23: ('nhl', 'PIT', 1, {'dark': (20, 20, 20), 'light': (240, 240, 240),
                                                             'third': (250, 180, 0)}, None)})
-    assert sorted(looks.pack_team(R, 2, pack).kits) == [0, 1]                  # Boston's third (v2) stays the game's own
-    assert sorted(looks.pack_team(R, 23, pack).kits) == [0, 1]                 # Pittsburgh's too, though the pack has one
+    assert sorted(looks.pack_team(R, 2, pack).kits) == [0, 1]                  # Boston: the pack has no third, its Alternate (v2) stays the game's own
+    assert sorted(looks.pack_team(R, 23, pack).kits) == [0, 1, 6]              # Pittsburgh: the third is on its Alternate version
     assert looks.default_use(2, 2, False, looks.pack_team(R, 2, pack).kits) == 'game'
-    assert looks.default_use(23, 6, False, looks.pack_team(R, 23, pack).kits) == 'game'
+    assert looks.default_use(23, 6, False, looks.pack_team(R, 23, pack).kits) == looks.PACK
+    assert looks.default_use(23, 5, False, looks.pack_team(R, 23, pack).kits) == 'game'       # another version of the team: still the game's
+
+
+def test_a_team_without_an_alternate_gets_a_row_for_the_packs_third_once(base_dir, tmp_path, make_look_pack):
+    from legacy_roster import gamepatch
+    from legacy_roster.roster import Roster
+    R = Roster(os.path.join(base_dir, 'SYS-DATA'))
+    kits = {'dark': (20, 20, 20), 'light': (240, 240, 240), 'third': (250, 180, 0)}
+    pack = make_look_pack(tmp_path, {1: ('nhl', 'WPG', 1, kits, None), 2: ('nhl', 'BOS', 1, kits, None)})
+    rows = R.f['wgjx'].cur_rec
+    assert looks.pack_versions(R, 1, 1) == {'dark': (3, False), 'light': (4, True)}       # Winnipeg: no Alternate
+    added = looks.alternate_rows(R, pack)
+    assert added == [(1, 1, 5)] and R.f['wgjx'].cur_rec == rows + 1                      # Boston has one: no row for it
+    assert looks.pack_versions(R, 1, 1)['third'] == (5, True)
+    mine = gamepatch.art_rows(R, 1)
+    away = next(r for r in mine if r['TccF'] == 4 and r['LQDG'] == 1 and r['RLVc'] == 1)
+    row = next(r for r in mine if r['TccF'] == 5)
+    assert row['gZuU'] == looks.ALTERNATE and row['MSFy'] == 0 and row['XOdd'] == 5
+    assert row['xnYt'] == max(r['xnYt'] for r in mine if r is not row) + 1
+    assert {k: v for k, v in row.items() if k not in ('TccF', 'XOdd', 'xnYt', 'gZuU', 'MSFy')} == \
+           {k: v for k, v in away.items() if k not in ('TccF', 'XOdd', 'xnYt', 'gZuU', 'MSFy')}
+    assert looks.alternate_rows(R, pack) == []                                           # done once
+    assert looks.alternate_rows(Roster(R.f.build()), pack) == []                         # also after a save and load
+    assert looks.pack_team(R, 1, pack).kits[5].like == 4                                 # its files start from the away version's
+
+
+def test_a_version_the_disc_lacks_borrows_the_files_of_another_with_its_own_number(disc):
+    raw = disc.render(looks.JERSEY.format(s=1, a=23, v=1))
+    f = rpsgl.Rpsgl(looks.renamed_variant(raw, 23, 1, 1, 9))
+    assert all('_23_9' in name for name in f.rasters if name.startswith(('jersey', 'font'))) and f.rasters
+    borrow = looks.Borrow(disc)
+    assert not borrow.has(looks.JERSEY.format(s=1, a=23, v=9))
+    borrow.lend(23, 1, 9, 1)
+    for template in (looks.JERSEY, looks.PANT, looks.SOCK, looks.PREVIEW, looks.NAME, looks.DECAL):
+        assert borrow.has(template.format(s=1, a=23, v=9)), template
+    again = rpsgl.Rpsgl(borrow.render(looks.JERSEY.format(s=1, a=23, v=9)))
+    assert list(again.rasters) == list(f.rasters) and disc.render(looks.JERSEY.format(s=1, a=23, v=1)) == raw
+    borrow.lend(23, 1, 1, 0)                                          # a file the disc has itself is never replaced
+    assert borrow.render(looks.JERSEY.format(s=1, a=23, v=1)) == raw
 
 
 def test_every_league_is_editable_where_the_game_has_jerseys_and_the_team_wears_its_own(base_dir):
@@ -229,8 +268,8 @@ def test_every_league_is_editable_where_the_game_has_jerseys_and_the_team_wears_
     R = Roster(os.path.join(base_dir, 'SYS-DATA'))
     assert looks.team_art(R, 36) == (162, 1) and looks.team_art(R, 135) == (R.T.get(135, 'artid'), 0)
     assert looks.editable(R, 36) is None and looks.editable(R, 135) is None and looks.editable(R, 23) is None
-    # outside the NHL only home and away; the NHL keeps every version
-    assert [(v, light) for v, light, _d in looks.team_versions(R, 36)] == [(3, True), (4, False)]
+    # outside the NHL home, away and the Alternate versions; the NHL keeps every version
+    assert [(v, light) for v, light, _d in looks.team_versions(R, 36)] == [(3, True), (4, False)]      # (this club has no Alternate)
     assert len(looks.team_versions(R, 2)) == 4
     # the Winter Classic team wears Pittsburgh's art; Coachella Valley has no jerseys in the game
     assert looks.jersey_owner(R, 218) == 23 and 'Pittsburgh' in looks.editable(R, 218)
@@ -303,7 +342,7 @@ def test_pack_looks_cover_every_league_and_leave_out_a_slot_holding_another_club
     skipped, no_ice = [], []
     made = {m.art: m for m in looks.looks_from(R, {}, {}, {}, look_pack=pack, skipped=skipped, no_ice=no_ice)}
     tor = made[27]
-    assert sorted((k.variant, k.light) for k in tor.pack) == [(3, True), (4, False)]     # the pack's third left out
+    assert sorted((k.variant, k.light) for k in tor.pack) == [(3, True), (4, False), (5, False)]     # the pack's third on the Alternate
     assert tor.centre.startswith('pack:i/27.webp#') and tor.versions == () and tor.style == 1
     utica, canada = made[R.T.get(32, 'artid')], made[R.T.get(135, 'artid')]
     assert utica.style == 1 and len(utica.pack) == 2 and canada.style == 0 and canada.centre == 'game'
@@ -318,7 +357,7 @@ def test_pack_looks_cover_every_league_and_leave_out_a_slot_holding_another_club
     # the player chose the game's own for Toronto's dark version and its ice: only the others stay the pack's
     edits = {27: {'uniforms': {'versions': {'4': 'game'}}, 'ice': {'use': 'game'}}}
     tor = next(m for m in looks.looks_from(R, edits, {}, {}, look_pack=pack) if m.art == 27)
-    assert sorted(k.variant for k in tor.pack) == [3] and tor.centre == 'game'
+    assert sorted(k.variant for k in tor.pack) == [3, 5] and tor.centre == 'game'      # the Alternate stays the pack's
     # without a pack the NHL teams keep the game's own (Utah, Seattle, Vegas: from their colours) and nothing else is made
     assert all(m.art in looks.NEW_TEAMS for m in looks.looks_from(R, {}, {}, {}, look_pack=None))
 
