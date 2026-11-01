@@ -67,7 +67,7 @@ The window carries the look and logo of **Puck Peak**, the owner's other NHL pro
    copy of the savedata folder, or `tools/window_shot.py` (it makes a fake RPCS3).
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -202,7 +202,9 @@ wording (`progress.py`).
 
 ## Current state
 
-**Version 0.92.0 (2026-11-01, built locally in phases, committed locally, not pushed, not released; plan docs/plans/eventual-baking-thacker.md, PLAN.md top):**
+**Version 0.92.0 (2026-11-01, released with the owner's go-ahead: commit c6b6433, tag `v0.92.0`, GitHub release with
+`PuckPeakLegacyUpdater.exe`, the Linux tar.gz (Ubuntu / Fedora / Arch boxes passed) and `SHA256SUMS.txt`; the data pack of
+2026-11-01 was published the same day, the game patch stays 0.26; plan docs/plans/eventual-baking-thacker.md, PLAN.md top):**
 (1) **Blank window** (01690f0): the page says "Starting..." before any script, `bridge.js` waits with a time limit and shows "Try again",
 `store.receive` shows an `{error}` reply, a Python watchdog in `window/main.py` reloads the page, restarts once with the GPU off, then
 opens the classic window by itself; `start.log` (last 20 starts) in the app folder; `web/manifest.txt` lists the page's files

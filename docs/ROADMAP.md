@@ -1,6 +1,6 @@
 # Status and roadmap
 
-**State on 2026-11-01: version 0.91.0 is released; 0.92.0 is built locally, waiting for its last checks and the owner's go**
+**State on 2026-11-01: version 0.92.0 is released, its data pack published**
 (blank window, signing through SignPath, alternate jerseys, custom teams in the normal layout; what is still open: PLAN.md
 top). The current state of everything is the "Current state"
 section of [AGENTS.md](../AGENTS.md) and [CHANGELOG.md](../CHANGELOG.md); the sections below are older records and
@@ -283,10 +283,9 @@ Plan docs/plans/ok-let-me-know-soft-wilkes.md (2026-10-22 version), notes docs/n
 
 ## Suggested order
 
-**From 2026-11-01:** (1) 0.92.0 as planned: the blank window (start log, watchdog; real cause still needs a tester's
-start.log), signing (SignPath application by the owner, then `.github/workflows/windows-release.yml`), alternate jerseys
-(lab round 57 first; not played on the patched game, nor with the thirds' number sheets), custom teams in the normal Jerseys
-layout; (2) the owner's go for push, release and publishing the look pack; (3) the rest of docs/notes/backlog-2026-11-01.md.
+**From 2026-11-01:** (1) what 0.92.0 left open: the blank window's real cause still needs a tester's start.log, signing
+(SignPath application by the owner, then `.github/workflows/windows-release.yml`, never run), alternate jerseys not played on
+the patched game nor with the thirds' number sheets; (2) the rest of docs/notes/backlog-2026-11-01.md.
 The list below is the order of 2026-10.
 
 1. In-game checks (above): the 0.6.0 checks (favourite-team logos, positions, the game's own
