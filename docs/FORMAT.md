@@ -233,11 +233,11 @@ Named by the team's numeric art id (22 Utah, 30 Seattle, 31 Vegas; the Arizona f
 `rendering/jersey/texlib_<style>_<art>_<variant>` (rasters `jersey_.._cm`, `_sm`, `_0_nm`, `font_..`; the same UV
 layout for every team; Utah has variants 0, 1, 3, 4 in styles 0 and 1, 3 and 4 the home and away), `name_<style>_<art>_<variant>_cm`,
 `pant/texlib_..`, `sock/sock_.._cm`, `icesurface/centerlogo_<art>_cm` (1024x1024 DXT5, the centre-ice logo;
-`exhibitionarena.centericelogo` is 0 in every row of the rosters seen and does not pick the file), `icesurface_<arena art>_bm` (rink picture), `banner_`,
-`crowd/prop_team_`. **Which centre-ice file a home game shows depends on the league** (lab round 31, RPCS3's log): the
-NHL and the DEL take the arena's art (`OEtS.arenaartid` of the team's `arenaid`: Seattle and Vegas show Nashville's 16,
-all DEL clubs the DEL's 197), the national teams always 501, every other league the home team's own art
-(`looks.shown_centre`; lab round 31). The menu previews of jerseys are
+`exhibitionarena.centericelogo` is 0 in every row of the rosters seen and the game does not read it, lab round 58), `icesurface_<arena art>_bm` (rink picture), `banner_`,
+`crowd/prop_team_`. **Which centre-ice file a home game shows depends on the league** (lab rounds 31 and 58, RPCS3's log):
+the DEL's clubs take their arena's art (`OEtS.arenaartid` of the team's `arenaid`: all 14 the DEL's 197), the national teams
+always 501, every other league the home team's own art, the NHL too (`looks.shown_centre`). A centre file the disc lacks draws as a plain blue square, no crash; an `arenaartid` with no stadium
+files crashes. The menu previews of jerseys are
 `fe/ion/artassets/jerseys/jersey_<style>_<art>_<variant>.big` (BIGF, readable as above). The game asks for
 `<game folder>/rendering/...` first (RPCS3 log) and loose files there are used (`cli rendering-test`, 0.9.0). The community roster already
 has Utah, Seattle and Vegas arenas (`exhibitionarena` rows 181, 186, 162) and colours; the game's own roster has

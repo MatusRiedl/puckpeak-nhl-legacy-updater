@@ -23,10 +23,7 @@ export function receive(message) {
     if (window.__lrFail) window.__lrFail(message.error);
     return;
   }
-  if (message.meta) {
-    meta = message.meta;
-    if (window.__lrOk) window.__lrOk();
-  }
+  if (message.meta) meta = message.meta;
   if (message.slices) {
     for (const [name, value] of Object.entries(message.slices)) slices[name] = value;
   }

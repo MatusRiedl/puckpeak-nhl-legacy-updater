@@ -206,16 +206,34 @@ wording (`progress.py`).
 (1) **Blank window** (01690f0): the page says "Starting..." before any script, `bridge.js` waits with a time limit and shows "Try again",
 `store.receive` shows an `{error}` reply, a Python watchdog in `window/main.py` reloads the page, restarts once with the GPU off, then
 opens the classic window by itself; `start.log` (last 20 starts) in the app folder; `web/manifest.txt` lists the page's files
-(`missing_files`); `tools/start_stress.py`. The tester's real cause is not known. (2) **Cleanup** (75d4641): the classic window follows the
+(`missing_files`); `tools/start_stress.py`. The tester's real cause is not known. **Second pass** (2026-11-01, table with what was
+reproduced in docs/notes/blank-window.md): `Guard` in `main.js` (an error while drawing left an empty window that nothing noticed),
+`__lrOk` after the first tab drew and `Api.page_up` (the watchdog waits for that, not for `ready_done`), `main.web_types` (the PC's
+registry names the local server's file types), a reload that really reloads (`load_url` of the same address did nothing and
+stopped pywebview answering), `startlog.listen` / `engine_failed` (pywebview's words into start.log, a dead engine wakes the watchdog),
+`startlog.watch_requests`, `check_engine` (mshtml: simple window), `watchdog.browser_folder` (`webview/<pid>`, a folder per start: a shared
+one gave a real blank start, WebView2 "0x800700AA ... in use", right after a close; `sweep` clears what dead starts left; a retry after an
+engine failure is not remembered as "graphics off", `AFTER_ENGINE`),
+`boot.js` `loadAgain` (a file that fails: the page loads itself again, 5 times at most, after `pywebviewready`, or pywebview forgets its
+first question; a second real blank start: Windows refused one connection to the page's own server, error 10055), `bridge.js` `firstData`
+(asks again at each `pywebviewready`: a page replaced while loading gets pywebview's setup twice), the watchdog's own address `?reloaded=1`,
+`WebHost._read` (a slice that fails is told once, `update` alone stops the start), the failure screen's two buttons (they never worked).
+Also `looks.ROWS_KEPT` (the alternate rows leave `art_fit` its 4). (2) **Cleanup** (75d4641): the classic window follows the
 game patch and says why it opened; `.github/workflows/windows-release.yml` signs through SignPath (written, not run: needs a push and
 the owner's SignPath account); Multiplayer.txt moved to `private/`. (3) **Alternate jerseys** (4506572): `looks.pack_versions` /
 `team_versions` take the pack's `third` kit for the team's Alternate row (`locstring` 2); a team with none gets a new `wgjx` row
 (`looks.alternate_rows`, run in `pipeline.build` only when this season's jerseys are being installed, before `gamepatch.art_fit`'s rows)
 whose files are borrowed from its Away version (`looks.Borrow`, `renamed_variant`; `'alternate jerseys'` experimental). Lab round 57
 (docs/notes/lab-round-57.md): a new row with files is listed and worn; a row without files draws a plain blue jersey (no crash). The
-pack with the thirds' number sheets (`private/build_looks.py`, `FONT_ROLES = ROLES`) is built (84 MB) but not in `private/packs`
-and not published. (4) **Custom teams**: the Jerseys & ice tab has an arena name field (`ice.arena`, `uniforms.set_arena`); typed team
-colours leave `layout.OWN_KIT` pieces alone (`custom_kit.hand_made`) unless the kit says `all` ("Paint everything").
+pack with the thirds' number sheets (`private/build_looks.py`, `FONT_ROLES = ROLES`) is published (2026-11-01, owner's go, 88 MB): the
+pictures of the pack before it, byte for byte, plus 89 `f/<slot>_third.webp`; those sheets are not seen in the game yet. Only 0.92.0
+wears the thirds (0.91.0's `pack_team` skips them, no redraw). (4) **Custom teams**: the Jerseys & ice tab has an arena name field (`ice.arena`, `uniforms.set_arena`); typed team
+colours leave `layout.OWN_KIT` pieces alone (`custom_kit.hand_made`) unless the kit says `all` ("Paint everything"). (5) **Centre ice** (lab round 58, docs/notes/lab-round-58.md):
+`looks.shown_centre` said the NHL shows its arena's art; it shows the team's own (`ARENA_ICE_LEAGUES` = the DEL). The DEL's 14 clubs
+keep their one shared file and the national teams theirs (501): the owner left a patch entry for the DEL out (2026-11-01, "not
+important"; its words, never played, are kept in that note, and the patch stays 0.26). (6) **Real lines after a late signing**
+(found by the data pack of 2026-11-01's second-run test): `contract_strays` deals a team again after `lines_from_games` took
+its place, so the team lost its real lines until the next update; it now lays them back on (`lines_from_games(teams=)`).
 
 **Version 0.91.0 (2026-10-30, hotfix, owner: "support all the heads ... dont limit the save or hinder the editing";
 released with the owner's go-ahead: commit 4b997b6, tag `v0.91.0`, GitHub release with `PuckPeakLegacyUpdater.exe`, the

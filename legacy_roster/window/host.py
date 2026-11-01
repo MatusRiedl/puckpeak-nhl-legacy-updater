@@ -10,10 +10,12 @@ import time
 import webbrowser
 
 from .. import savedata
+from ..app import jobs
 from . import startlog
 
 PUSH_EVERY = 0.04           # seconds between two pushes (25 a second at most)
 KEEP_LINES = 5000           # details lines kept for a reload of the page
+NEEDED = 'update'           # the slice the page cannot open without (the first tab waits for it)
 
 
 class WebHost:
@@ -26,6 +28,7 @@ class WebHost:
         self._lines, self._clear, self._events = [], False, []
         self.lines = []             # every details line of this run (the page asks for them on ready)
         self._pushing = False
+        self._broken = set()        # slices that failed, told once
         self.fallback = None        # why the simple window is to open once this one is closed (a start that failed)
 
     def attach(self, window):
@@ -121,6 +124,23 @@ class WebHost:
         threading.Thread(target=loop, daemon=True).start()
 
     # --- the pushes ---------------------------------------------------------------------------------
+    def _tell(self, name, err):
+        """Once for each: into the error log and the start log."""
+        if name not in self._broken:
+            self._broken.add(name)
+            startlog.note(f"the data of '{name}' failed: {jobs.log_unexpected(err)}")
+
+    def _read(self, name, slices, check=False):
+        """`slices[name]` = the slice's state, nothing when it fails: one tab's bug must not stop the others' pushes
+        (the push thread ended on the first error) or the whole window at start."""
+        try:
+            value = self.sources[name]()
+            if check:
+                json.dumps(value)
+            slices[name] = value
+        except Exception as err:
+            self._tell(name, err)
+
     def first(self):
         """Everything, for a page that has just loaded (also after a reload)."""
         with self._lock:
@@ -128,11 +148,13 @@ class WebHost:
             self._lines, self._clear = [], False
             lines = list(self.lines)
         slices = {}
-        for name, snapshot in self.sources.items():
+        for name in self.sources:
             began = time.monotonic()
-            slices[name] = snapshot()
+            self._read(name, slices, check=True)
             if time.monotonic() - began > 0.5:          # a slow slice is what keeps the page blue: say which
                 startlog.note(f"the first data of '{name}' took {time.monotonic() - began:.1f}s")
+        if NEEDED in self.sources and NEEDED not in slices:
+            raise RuntimeError("The program could not read its own state. It is in the error log.")
         return {'slices': slices, 'log': {'lines': lines, 'clear': True}}
 
     def start_pushing(self):
@@ -152,7 +174,10 @@ class WebHost:
             return None
         message = {}
         if dirty:
-            message['slices'] = {name: self.sources[name]() for name in dirty if name in self.sources}
+            message['slices'] = {}
+            for name in dirty:
+                if name in self.sources:
+                    self._read(name, message['slices'])
         if lines or clear:
             message['log'] = {'lines': lines, 'clear': clear}
         if events:
@@ -171,7 +196,11 @@ class WebHost:
             if message is None or self.window is None:
                 continue
             last = time.monotonic()
-            script = "window.LR && window.LR.receive(" + json.dumps(message) + ")"
+            try:
+                script = "window.LR && window.LR.receive(" + json.dumps(message) + ")"
+            except (TypeError, ValueError) as err:      # a value the page cannot read: the next pushes still go
+                self._tell(', '.join(sorted(message.get('slices', ()))) or 'a push', err)
+                continue
             try:
                 self.window.run_js(script)
             except Exception:           # the window is closing

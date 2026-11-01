@@ -935,6 +935,7 @@ class Builder:
             else:
                 self.lines_from_scratch(team)
         if any(t in L.NHL_PRIMARY for t in joined.values()):
+            self.lines_from_games({t for t in joined.values() if t in L.NHL_PRIMARY})
             self.sync_mirrors()
         self.contract_kept.update(joined)
         return len(joined)
@@ -1184,15 +1185,17 @@ class Builder:
                 self.deal_again(team)
         self.lines_from_games()
 
-    def lines_from_games(self):
+    def lines_from_games(self, teams=None):
         """Lay the real lines of the team's last games (data pack part `lines`) over the lines just dealt, group by group:
         the four lines and three pairs, the goalies, the power play (and its 4-skater units) and the penalty kill, each
         only when every slot of the group has a player who is on the team now. Overtime, the shootout and the extra
         attackers stay as dealt (a player the real lines took out of the 20 is swapped for a dressed one). Kept only
-        when check_lineup finds nothing; else the team keeps what it had. `self.real_lined` / `real_refused`: team codes."""
-        self.real_lined, self.real_refused = [], {}
+        when check_lineup finds nothing; else the team keeps what it had. `self.real_lined` / `real_refused`: team codes.
+        `teams`: only these, dealt again by a later step (contract_strays); the next run would lay the lines on again."""
+        if teams is None:
+            self.real_lined, self.real_refused = [], {}
         rows = {p['nhl_id']: p['row'] for p in self.api if p.get('nhl_id') and p['row'] is not None}
-        for team in sorted(L.NHL_PRIMARY):
+        for team in sorted(L.NHL_PRIMARY if teams is None else teams):
             code = L.SLOT_TO_API[team]
             real = self.data.real_lines.get(code) or {}
             wanted = real.get('slots')
@@ -1203,7 +1206,9 @@ class Builder:
             problems = self.real_line_up(team, wanted, rows)
             if problems:
                 self.real_refused[code] = problems
-            else:
+                if code in self.real_lined:
+                    self.real_lined.remove(code)
+            elif code not in self.real_lined:
                 self.real_lined.append(code)
         if self.lettered & set(L.NHL_PRIMARY):
             self.sync_mirrors()

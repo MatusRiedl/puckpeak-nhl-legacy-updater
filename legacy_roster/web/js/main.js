@@ -103,6 +103,9 @@ function App() {
     }
     return undefined;
   }, [tab, update]);
+  useEffect(() => {                               // the first tab has drawn: the window works ("Starting..." goes)
+    if (meta.version && tab && window.__lrOk) window.__lrOk();
+  }, [meta.version, tab]);
   useEffect(() => {                               // Python learns the tab in view (a team tab reads the roster then)
     if (meta.version && tab && !told.current) {
       told.current = true;
@@ -223,13 +226,36 @@ function App() {
   </div>`;
 }
 
+// After an error while drawing, React takes everything off the screen: the window would stay plain blue with no word
+// of it anywhere. This says what happened (boot.js) and leaves the way out on screen.
+class Guard extends window.React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error, info) {
+    if (window.__lrFail) {
+      window.__lrFail(`Error in the page: ${error && error.message || error}`, true, info && info.componentStack);
+    }
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 // the window never navigates away: links open in the player's browser (through Python)
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('drop', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => { if (!typingIn(e.target) && !e.target.closest('.selectable, pre')) e.preventDefault(); });
 if (params.has('still')) document.documentElement.classList.add('still');
 
-window.ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+window.ReactDOM.createRoot(document.getElementById('root')).render(html`<${Guard}><${App}/></${Guard}>`);
 connect().catch((err) => {
   if (window.__lrFail) window.__lrFail(String(err && err.message || err));
   else document.getElementById('root').textContent = 'The window could not start: ' + err;

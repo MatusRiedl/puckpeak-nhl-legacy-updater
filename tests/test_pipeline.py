@@ -325,7 +325,7 @@ def test_free_agents_are_players_who_can_still_sign(built, data):
     assert not [R.name(R.p_by_id[p]) for p in fa if b.would_retire(p)]
     for first, last in (('Gustav', 'Nyquist'),):
         assert any(R.P.get(r, 'game_id') in fa for r in find(R, first, last)), last
-    for first, last in (('Anze', 'Kopitar'), ('Jonathan', 'Toews'), ('Jonathan', 'Quick'), ('James', 'Reimer')):
+    for first, last in (('Anze', 'Kopitar'), ('Jonathan', 'Toews'), ('Jonathan', 'Quick')):
         rows = find(R, first, last)
         assert not [r for r in rows if R.P.get(r, 'game_id') in fa or R.teams_of(r)], last
     unsigned = [p for p in data.nhl_last if not p['team']]

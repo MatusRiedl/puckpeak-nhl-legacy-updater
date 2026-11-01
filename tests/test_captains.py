@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from legacy_roster import layout as L
-from legacy_roster import lines, pipeline, verify
+from legacy_roster import lines, pipeline, schema, verify
 from legacy_roster.builder import Data
 from legacy_roster.roster import Roster
 
@@ -147,6 +147,23 @@ def test_a_second_build_with_the_letters_changes_nothing(lettered, pack):
     full, result, _slot, _who = lettered
     again = pipeline.build(result.data, full, steps=pipeline.steps_for(pack))
     assert again.ok and again.data == result.data
+
+
+def test_the_real_lines_are_still_on_at_the_end_of_the_build(lettered):
+    """A step after lines_from_games that deals a team again lays them back on (contract_strays: with the pack of
+    2026-11-01 Anaheim and Buffalo played dealt lines until the second update)."""
+    full, result, _slot, _who = lettered
+    b = result.builder
+    rows = {p['nhl_id']: p['row'] for p in b.api if p.get('nhl_id') and p['row'] is not None}
+    seen = 0
+    for team in L.NHL_PRIMARY:
+        wanted = full.real_lines[L.SLOT_TO_API[team]]['slots']
+        named = {rows.get(wanted.get(n)) for n in schema.EVEN_STRENGTH}
+        if named <= {b.prow_of_entry(e) for e in b.entries_on(team)}:
+            slots, _letters = lines.lineup(b, team)
+            assert {b.prow_of_entry(slots[n]) for n in schema.EVEN_STRENGTH} == named, L.SLOT_TO_API[team]
+            seen += 1
+    assert seen > 20
 
 
 def test_verify_allows_any_letters_on_a_club(lettered):      # 0.81.0: the player's own choice (lab round 55)

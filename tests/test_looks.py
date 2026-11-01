@@ -248,6 +248,20 @@ def test_a_team_without_an_alternate_gets_a_row_for_the_packs_third_once(base_di
     assert looks.pack_team(R, 1, pack).kits[5].like == 4                                 # its files start from the away version's
 
 
+def test_the_alternate_rows_leave_room_for_coachella_and_henderson(base_dir, tmp_path, make_look_pack):
+    from legacy_roster import gamepatch
+    from legacy_roster.roster import Roster
+    R = Roster(os.path.join(base_dir, 'SYS-DATA'))
+    kits = {'dark': (20, 20, 20), 'light': (240, 240, 240), 'third': (250, 180, 0)}
+    pack = make_look_pack(tmp_path, {1: ('nhl', 'WPG', 1, kits, None)})
+    W = R.f['wgjx']
+    row = {f: W.get(0, f) for f in W.fields}
+    while W.cur_rec < looks.ROWS_MAX - looks.ROWS_KEPT:         # a roster with no spare row: a full table stops an update
+        W.add_record(row)
+    assert looks.alternate_rows(R, pack) == []
+    assert gamepatch.art_fit(R)
+
+
 def test_a_version_the_disc_lacks_borrows_the_files_of_another_with_its_own_number(disc):
     raw = disc.render(looks.JERSEY.format(s=1, a=23, v=1))
     f = rpsgl.Rpsgl(looks.renamed_variant(raw, 23, 1, 1, 9))
@@ -354,6 +368,7 @@ def test_pack_looks_cover_every_league_and_leave_out_a_slot_holding_another_club
     assert R.T.get(92, 'artid') not in made and sorted(s for s, _why in no_ice) == [91, 92, 135]
     assert looks.shown_centre(R, 91) == looks.shown_centre(R, 92) == 197 and looks.shown_centre(R, 135) == 501
     assert looks.shown_centre(R, 27) == 27 and looks.shown_centre(R, 158) == R.T.get(158, 'artid')
+    assert looks.shown_centre(R, 30) == 30 and looks.shown_centre(R, 31) == 31      # not their arena's art 16: lab round 58
     # the player chose the game's own for Toronto's dark version and its ice: only the others stay the pack's
     edits = {27: {'uniforms': {'versions': {'4': 'game'}}, 'ice': {'use': 'game'}}}
     tor = next(m for m in looks.looks_from(R, edits, {}, {}, look_pack=pack) if m.art == 27)

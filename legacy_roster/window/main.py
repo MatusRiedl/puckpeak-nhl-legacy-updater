@@ -147,11 +147,62 @@ def roomy_server():
     WSGIServer.request_queue_size = QUEUE
 
 
+WEB_TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
+             '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.json': 'application/json'}
+
+
+def web_types():
+    """The local server names each file's type from Python's `mimetypes`, which reads the Windows registry, where
+    another program can have changed it. A browser refuses a module of another type and the window stays one colour,
+    whatever is started again or deleted: the page's own types win."""
+    import mimetypes
+    for ending, kind in WEB_TYPES.items():
+        said = mimetypes.guess_type('file' + ending)[0]
+        if said != kind:
+            if said:
+                startlog.note(f"this PC says {ending} files are {said}: using {kind}")
+            mimetypes.add_type(kind, ending)
+
+
+def check_engine(renderer, host):
+    """Which browser engine pywebview took. Its last choice, Internet Explorer's, cannot run this page."""
+    startlog.note(f"the browser engine is {renderer}")
+    if renderer == 'mshtml':
+        host.use_classic("the only browser engine pywebview found is Internet Explorer's")
+
+
+def fail_on_purpose(webview, host):
+    """tools/start_stress.py: the ways a start can fail, on this PC."""
+    fail = os.environ.get('LEGACY_ROSTER_FAIL')
+    if fail == 'js-type':
+        import mimetypes
+        mimetypes.add_type('text/plain', '.js')
+    elif fail == 'engine':                      # a runtime folder with no browser in it
+        webview.settings['WEBVIEW2_RUNTIME_PATH'] = os.path.join(WEB, 'vendor')
+    elif fail == 'render':                      # what a state the page's code never expected looks like
+        host.sources['update'] = dict
+    elif fail in ('lost-file', 'lost-always', 'lost-stall'):    # the browser does not get one of the page's files
+        import bottle
+        import time
+        plain, lost = bottle.static_file, []
+
+        def patchy(name, *args, **kwargs):
+            if name.endswith('ui.js'):
+                lost.append(name)
+                if fail == 'lost-always' or len(lost) == 1:
+                    return bottle.HTTPError(500)
+                if fail == 'lost-stall' and len(lost) == 2:     # the page loaded itself again and now hangs: the watchdog's turn
+                    time.sleep(20)
+            return plain(name, *args, **kwargs)
+        bottle.static_file = patchy
+
+
 def main(argv=None, after=None):
     """`after(window, controllers)`: run in a thread once the window shows (tools/window_shot.py)."""
     argv = sys.argv[1:] if argv is None else argv
     startlog.begin(argv)
-    startlog.note(f"Python {sys.version.split()[0]}, WebView2 runtime {webview2.version() or 'not found'}")
+    startlog.note(f"Python {sys.version.split()[0]}, WebView2 runtime {webview2.version() or 'not found'}"
+                  + (", as administrator" if startlog.as_admin() else ""))
     startlog.note_processes()
     if '--classic' in argv:
         if not classic(None):
@@ -180,6 +231,7 @@ def main(argv=None, after=None):
             sys.exit("The window needs the 'pywebview' package:  pip install pywebview\n"
                      "(the command line works without it:  python -m legacy_roster list --rpcs3 <rpcs3.exe>)")
         return
+    startlog.listen()
 
     from ..app import selfupdate
     from ..app.update import UpdateController
@@ -231,7 +283,8 @@ def main(argv=None, after=None):
     host.register('online', online.snapshot)
     api = Api(host, update, editor, uniforms, equipment, lines, strategy, calendar, office, prospects, career, online)
     width, height, x, y = window_box(webview)
-    page = 'missing.html' if os.environ.get('LEGACY_ROSTER_FAIL') == 'blank' else 'index.html'    # tools/start_stress.py
+    blank = os.environ.get('LEGACY_ROSTER_FAIL') == 'blank' and not watchdog.retried()          # tools/start_stress.py
+    page = 'missing.html' if blank else 'index.html'
     window = webview.create_window(f"Puck Peak Legacy Updater {__version__}",
                                    url=os.path.join(WEB, page), js_api=api, width=width, height=height,
                                    x=x, y=y, min_size=MIN_SIZE, background_color=BACKGROUND, text_select=False)
@@ -239,7 +292,9 @@ def main(argv=None, after=None):
     window.events.closing += lambda: update.closing() and editor.closing() and career.closing() and online.closing()
     window.events.shown += lambda: dark_title_bar(window)
     window.events.shown += lambda: startlog.note("the window is shown", 'shown')
+    window.events.shown += lambda: check_engine(webview.renderer, host)
     window.events.loaded += lambda: startlog.note("the page is loaded", 'loaded')
+    startlog.watch_requests(window.events)
     watch = None
     update.start_up()
     host.every(15, update.tick)
@@ -249,7 +304,9 @@ def main(argv=None, after=None):
     controllers = {'host': host, 'update': update, 'editor': editor, 'uniforms': uniforms, 'equipment': equipment,
                    'lines': lines, 'strategy': strategy, 'calendar': calendar, 'office': office,
                    'prospects': prospects, 'career': career, 'online': online}
+    fail_on_purpose(webview, host)
     roomy_server()
+    web_types()
     watchdog.use_saved()
     if after is None and os.environ.get('LEGACY_ROSTER_SMOKE'):
         after = lambda win, _c: smoke(win, gui, float(os.environ['LEGACY_ROSTER_SMOKE']))   # noqa: E731
@@ -258,7 +315,7 @@ def main(argv=None, after=None):
     startlog.note("starting the window")
     try:
         webview.start(func=(lambda: after(window, controllers)) if after else (watch.start if watch else None), gui=gui,
-                      http_server=True, private_mode=True, storage_path=datasource.app_dir('webview'),
+                      http_server=True, private_mode=True, storage_path=watchdog.browser_folder(),
                       debug=os.environ.get('LEGACY_ROSTER_DEVTOOLS') == '1',
                       icon=os.path.join(DATA, 'app.ico' if os.name == 'nt' else 'app_256.png'))
     except Exception as err:

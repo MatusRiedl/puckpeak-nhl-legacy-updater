@@ -57,11 +57,11 @@ JERSEY = "rendering/jersey/texlib_{s}_{a}_{v}.rpsgl"
 PANT = "rendering/pant/texlib_{s}_{a}_{v}.rpsgl"
 SOCK = "rendering/sock/sock_{s}_{a}_{v}_cm.rpsgl"
 CENTRE = "rendering/icesurface/centerlogo_{a}_cm.rpsgl"
-# which centre-ice file a team's home games show (lab round 31, the files RPCS3's log names in Play Now): the NHL's and
-# the DEL's follow the arena's art (OEtS.arenaartid; the DEL's 14 clubs share one arena, so all show the DEL's own ice),
-# the national teams always show file 501, every other league the home team's own art (AHL, SHL, Liiga, Extraliga, NL,
-# Norway, OHL, WHL played; the QMJHL and the Top Prospects taken to do the same)
-ARENA_ICE_LEAGUES = (0, 4)
+# which centre-ice file a team's home games show (lab rounds 31 and 58, the files RPCS3's log names in Play Now): the DEL's
+# 14 clubs show their arena's art (OEtS.arenaartid; they share one, 197), the national teams always file 501, every other
+# league the home team's own art (NHL, AHL, SHL, Liiga, Extraliga, NL, Norway, OHL, WHL played; the QMJHL and the Top
+# Prospects taken to do the same)
+ARENA_ICE_LEAGUES = (4,)
 NATIONAL_LEAGUE, NATIONAL_ICE = 8, 501
 ICE_PICTURE = "rendering/icesurface/icesurface_{a}_bm.rpsgl"      # the rink seen from above: the NHL teams' arenas have one
 DECAL = "rendering/logo/texlib_{a}_{s}_{v}.rpsgl"                  # the logo on the helmets (and shoulders) of a version
@@ -870,6 +870,7 @@ def _alternate_variants(R, art, style):
 
 
 ROWS_MAX = 749                     # the most rows table wgjx holds (stock.ROSTER_MAX)
+ROWS_KEPT = sum(len(variants) for _, variants in L.CLUB_DONOR.values())     # gamepatch.art_fit adds these after us
 ROW_VARIANT, ROW_FEVARIANT, ROW_INDEX, ROW_WORD, ROW_DEFAULT = 'TccF', 'XOdd', 'xnYt', 'gZuU', 'MSFy'
 
 
@@ -893,7 +894,7 @@ def alternate_rows(R, look_pack):
             continue
         rows = [i for i in range(t.cur_rec) if t.get(i, 'teamartid') == art]
         away = _away_row(R, art, style)
-        if away is None or t.cur_rec >= ROWS_MAX:
+        if away is None or t.cur_rec >= ROWS_MAX - ROWS_KEPT:
             continue
         variant = max(t.get(i, 'variant') for i in rows) + 1
         if len(str(variant)) != len(str(t.get(away, 'variant'))):         # the files' names keep their length (Borrow)

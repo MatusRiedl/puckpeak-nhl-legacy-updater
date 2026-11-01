@@ -191,8 +191,9 @@ when the pack's layout changes in a way older exes cannot read, raise `PACK_FORM
    - with a fresh `LOCALAPPDATA` (a temporary folder): the Photos row downloads by itself ("Downloading
      automatically... %", then "Ready"); `python -m legacy_roster packs status` lists the packs; a second start
      without network still has them;
-   - `python tools\start_stress.py --exe dist\PuckPeakLegacyUpdater.exe --runs 30`: every start gets its data (0 BAD, no
-     WebView2 process left behind); `--fail ready-hang --runs 1` must end in the simple window (docs/notes/blank-window.md);
+   - `python tools\start_stress.py --exe dist\PuckPeakLegacyUpdater.exe --runs 30`: every start draws its first tab (0 BAD,
+     no WebView2 process left behind); then each of `--fail ready-hang|ready-error|blank|render|js-type|engine|lost-file|lost-always|lost-stall --runs 1`
+     must say what it expects (the tool checks start.log's lines; docs/notes/blank-window.md);
    - run one update into a **copy** of a savedata folder (`update --savedata <copy>`), or with
      `--dry-run`; with an EU roster in the copy, `--for both` must add an EU and an NA folder;
    - the game's own roster: a temporary folder with an empty `rpcs3.exe` and `config\games.yml`

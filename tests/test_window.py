@@ -2,6 +2,8 @@
 import os
 import re
 
+import pytest
+
 from legacy_roster.window.host import WebHost
 
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'legacy_roster', 'web')
@@ -172,20 +174,18 @@ def test_the_start_trace_keeps_the_last_starts(tmp_path):
 
 
 class FakeHost:
+    real_url = 'http://127.0.0.1:1/index.html'
+
     def __init__(self, fail_reload=False):
         self.reloaded, self.destroyed, self.fallback = 0, 0, None
         self.window = self
         self.fail_reload = fail_reload
 
-    def get_current_url(self):
-        return None if self.fail_reload else 'http://127.0.0.1:1/index.html'
-
     def load_url(self, url):
-        self.reloaded += 1
-
-    def evaluate_js(self, script):
         if self.fail_reload:
             raise RuntimeError('no page')
+        assert url != self.real_url                     # the browser ignores the address it already has
+        assert 'again=' not in url                      # ... and boot.js may have gone to one of those by itself
         self.reloaded += 1
 
     def destroy(self):
@@ -196,11 +196,12 @@ class FakeHost:
         self.destroyed += 1
 
 
-def test_a_page_that_gets_its_data_is_left_alone():
+def test_a_page_that_drew_its_data_is_left_alone():
     from legacy_roster.window import startlog, watchdog
     startlog.begin()
     startlog.ready_called.set()
     startlog.ready_done.set()
+    startlog.page_up.set()
     host = FakeHost()
     assert watchdog.Watchdog(host, 0.05, 0.05, restart=lambda: 1 / 0).run() == 'ok'
     assert host.reloaded == 0 and host.destroyed == 0 and host.fallback is None
@@ -224,20 +225,21 @@ def test_a_page_that_never_asks_is_loaded_again_then_the_program_starts_again_th
     assert 'threads' in open(startlog.path(), encoding='utf-8').read()
 
 
-def test_a_page_that_asked_and_got_nothing_goes_to_the_simple_window_without_a_reload():
+def test_a_page_that_asked_and_drew_nothing_goes_to_the_simple_window_without_a_reload():
     from legacy_roster.window import startlog, watchdog
     startlog.begin()
     startlog.ready_called.set()
+    startlog.ready_done.set()                           # the data was sent: only the page itself says it drew
     host = FakeHost()
     assert watchdog.Watchdog(host, 0.05, 0.05, restart=lambda: 1 / 0).run() == 'classic'
-    assert host.reloaded == 0 and 'did not arrive' in host.fallback
+    assert host.reloaded == 0 and 'did not draw' in host.fallback
 
 
 def test_a_late_answer_after_the_reload_is_a_start_that_worked():
     import threading
     from legacy_roster.window import startlog, watchdog
     startlog.begin()
-    threading.Timer(0.08, startlog.ready_done.set).start()
+    threading.Timer(0.08, startlog.page_up.set).start()
     host = FakeHost()
     assert watchdog.Watchdog(host, 0.05, 0.5, restart=lambda: 1 / 0).run() == 'reloaded'
     assert host.reloaded == 1 and host.fallback is None
@@ -247,7 +249,7 @@ def test_a_start_with_the_graphics_off_that_worked_is_remembered():
     import os
     from legacy_roster.window import startlog, watchdog
     startlog.begin()
-    startlog.ready_done.set()
+    startlog.page_up.set()
     os.environ.pop(watchdog.BROWSER_ARGS, None)
     try:
         assert watchdog.Watchdog(FakeHost(), 0.05, 0.05, was_retried=True).run() == 'ok'
@@ -257,6 +259,108 @@ def test_a_start_with_the_graphics_off_that_worked_is_remembered():
         os.environ.pop(watchdog.BROWSER_ARGS, None)
         from legacy_roster import datasource
         os.remove(datasource.app_dir(watchdog.NO_GPU_FILE))
+
+
+def test_a_browser_engine_that_gave_up_says_nothing_about_the_graphics():
+    import os
+    from legacy_roster import datasource
+    from legacy_roster.window import startlog, watchdog
+    startlog.begin()
+    startlog.page_up.set()
+    assert watchdog.Watchdog(FakeHost(), 0.05, 0.05, was_retried=watchdog.AFTER_ENGINE).run() == 'ok'
+    assert not os.path.exists(datasource.app_dir(watchdog.NO_GPU_FILE))     # it was busy once: the next start is normal
+
+
+def test_every_start_has_its_own_browser_folder_and_leftovers_go():
+    import os
+    from legacy_roster import datasource
+    from legacy_roster.window import watchdog
+    base = datasource.app_dir(watchdog.FOLDER)
+    assert watchdog.browser_folder() == os.path.join(base, str(os.getpid()))
+    gone = '99999996'                                                       # no such process (an ended one's number comes back soon)
+    assert watchdog.running(os.getpid()) and not watchdog.running(int(gone))
+    leftover, mine, other = (os.path.join(base, name) for name in (gone, str(os.getpid()), 'EBWebView'))
+    for folder in (leftover, mine, other):
+        os.makedirs(os.path.join(folder, 'Default'), exist_ok=True)
+    watchdog.sweep(base)
+    assert not os.path.exists(leftover)
+    assert os.path.isdir(mine) and os.path.isdir(other)                     # a copy still open keeps its own
+
+
+def test_a_browser_engine_that_gave_up_goes_straight_to_the_next_try():
+    import logging
+    import time
+    from legacy_roster.window import startlog, watchdog
+    startlog.begin()
+    startlog.listen()
+    logging.getLogger('pywebview').error("WebView2 initialization failed with exception:\n no runtime 0x80070002")
+    assert startlog.engine_failed.is_set()
+    started, host = [], FakeHost()
+    began = time.monotonic()
+    assert watchdog.Watchdog(host, 30, 30, restart=lambda: started.append(1) or True, was_retried=False).run() == 'again'
+    assert time.monotonic() - began < 5 and started == [1] and host.reloaded == 0
+    host = FakeHost()                                   # the second start too: the simple window, and why
+    assert watchdog.Watchdog(host, 30, 30, restart=lambda: 1 / 0, was_retried=True).run() == 'classic'
+    assert 'browser engine' in host.fallback
+    assert 'pywebview: WebView2 initialization failed' in open(startlog.path(), encoding='utf-8').read()
+
+
+def test_files_the_browser_got_no_answer_to_are_named():
+    from types import SimpleNamespace
+    from legacy_roster.window import startlog
+    startlog.begin()
+    held = {}
+
+    class Hook:
+        def __init__(self, name):
+            self.name = name
+
+        def __iadd__(self, handler):
+            held[self.name] = handler
+            return self
+
+    startlog.watch_requests(SimpleNamespace(request_sent=Hook('sent'), response_received=Hook('got')))
+    held['sent'](SimpleNamespace(url='http://127.0.0.1:1/js/main.js'))
+    held['sent'](SimpleNamespace(url='http://127.0.0.1:1/css/app.css'))
+    held['got'](SimpleNamespace(url='http://127.0.0.1:1/css/app.css'))
+    startlog.note_unanswered()
+    text = open(startlog.path(), encoding='utf-8').read().rsplit(startlog.HEADER, 1)[-1]
+    assert 'no answer yet to: main.js' in text and 'app.css' not in text
+
+
+def test_a_wrong_file_type_of_this_pc_does_not_reach_the_browser():
+    """The registry names .js text/plain: a browser refuses the page's modules and the window stays one colour."""
+    import mimetypes
+    from legacy_roster.window import main, startlog
+    startlog.begin()
+    before = mimetypes.guess_type('file.js')[0]
+    mimetypes.add_type('text/plain', '.js')
+    try:
+        main.web_types()
+        assert mimetypes.guess_type('file.js')[0] == 'text/javascript'
+        assert mimetypes.guess_type('file.woff2')[0] == 'font/woff2'
+        assert 'this PC says .js files are text/plain' in open(startlog.path(), encoding='utf-8').read()
+    finally:
+        mimetypes.add_type(before, '.js')
+
+
+def test_a_slice_that_fails_leaves_the_others_and_the_pushes_alone():
+    from legacy_roster.window.host import WebHost
+    from legacy_roster.window import startlog
+    startlog.begin()
+    host = WebHost()
+    good = {'value': 1}
+    host.register('update', lambda: good)
+    host.register('office', lambda: 1 / 0)
+    host.register('calendar', lambda: {'not json': object()})
+    assert host.first()['slices'] == {'update': good}
+    host.changed('update')
+    host.changed('office')
+    assert host.take()['slices'] == {'update': good}
+    assert open(startlog.path(), encoding='utf-8').read().count("the data of 'office' failed") == 1
+    host.register('update', lambda: 1 / 0)              # no first tab without this one: the page says so
+    with pytest.raises(RuntimeError):
+        host.first()
 
 
 def test_the_page_shows_what_failed_instead_of_staying_blue():
@@ -270,7 +374,17 @@ def test_the_page_shows_what_failed_instead_of_staying_blue():
     with open(os.path.join(WEB, 'js', 'bridge.js'), encoding='utf-8') as f:
         assert 'READY_WAIT' in f.read()
     from legacy_roster.window.api import Api
-    assert {'log_js', 'classic', 'open_start_log'} <= {n for n in dir(Api) if not n.startswith('_')}
+    assert {'log_js', 'classic', 'open_start_log', 'page_up'} <= {n for n in dir(Api) if not n.startswith('_')}
+    with open(os.path.join(WEB, 'js', 'main.js'), encoding='utf-8') as f:
+        script = f.read()
+    assert 'getDerivedStateFromError' in script and '<${Guard}><${App}/></${Guard}>' in script
+    assert script.index('window.__lrOk()') > script.index('function App()')    # after the first tab drew, not when data came
+    with open(os.path.join(WEB, 'js', 'boot.js'), encoding='utf-8') as f:
+        boot = f.read()                                                         # one lost file must not end the page
+    assert 'loadAgain()' in boot and boot.index('loadAgain()) return') < boot.index("__lrFail('A file of the program")
+    assert "addEventListener('pywebviewready', go" in boot      # a reload before the library is done loses the first answer
+    with open(os.path.join(WEB, 'js', 'bridge.js'), encoding='utf-8') as f:
+        assert "addEventListener('pywebviewready', ask)" in f.read()    # ... and when it happens all the same, the page asks again
 
 
 def test_a_file_the_build_listed_that_is_gone_is_told_at_start(tmp_path, monkeypatch):

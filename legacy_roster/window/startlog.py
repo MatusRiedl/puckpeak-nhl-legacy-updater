@@ -3,6 +3,7 @@ loaded, the page asking for its data, the data sent), so a window that stays blu
 Standard library only; nothing here may ever stop a start."""
 import datetime
 import faulthandler
+import logging
 import os
 import subprocess
 import sys
@@ -13,12 +14,16 @@ from .. import __version__, datasource
 
 KEEP = 20               # starts kept in the file
 HEADER = "== start "
+ENGINE_FAILED = 'initialization failed'     # pywebview's words when the browser engine cannot start
 
 _lock = threading.Lock()
 _t0 = time.monotonic()
 _seen = {}              # event name -> seconds after the start (the first time)
+_asked = {}             # page file asked for and not answered yet -> seconds after the start
 ready_called = threading.Event()        # the page asked for its data (Api.ready)
-ready_done = threading.Event()          # ... and got it
+ready_done = threading.Event()          # ... and Python sent it
+page_up = threading.Event()             # ... and the page drew it (Api.page_up): only this means the window works
+engine_failed = threading.Event()       # the browser engine gave up: nothing will ever load
 
 
 def path():
@@ -31,8 +36,9 @@ def begin(argv=()):
     global _t0
     _t0 = time.monotonic()
     _seen.clear()
-    ready_called.clear()
-    ready_done.clear()
+    _asked.clear()
+    for event in (ready_called, ready_done, page_up, engine_failed):
+        event.clear()
     try:
         old = ''
         if os.path.exists(path()):
@@ -67,6 +73,53 @@ def when(event):
     """Seconds after the start when `event` first happened, or None."""
     with _lock:
         return _seen.get(event)
+
+
+class _Trace(logging.Handler):
+    """pywebview tells its warnings and errors to stderr, which the exe does not have: they go here too."""
+
+    def emit(self, record):
+        try:
+            text = self.format(record)
+        except Exception:
+            return
+        note("pywebview: " + text[:800])
+        if ENGINE_FAILED in text:
+            engine_failed.set()
+
+
+def listen():
+    """After `import webview`, before it starts (pywebview adds its own handler on import)."""
+    log = logging.getLogger('pywebview')
+    if not any(isinstance(h, _Trace) for h in log.handlers):
+        log.addHandler(_Trace(logging.WARNING))
+
+
+def watch_requests(events):
+    """Keep track of the files the browser asked for and got no answer to (window.events): one stuck file keeps the
+    page from loading, and an antivirus or proxy between the browser and the program stops them where probe() cannot see."""
+    def sent(request):
+        _asked[request.url] = time.monotonic() - _t0
+
+    def got(response):
+        _asked.pop(response.url, None)
+    events.request_sent += sent
+    events.response_received += got
+
+
+def note_unanswered():
+    waiting = sorted(_asked.items(), key=lambda item: item[1])
+    note("every file the browser asked for was answered" if not waiting else
+         "no answer yet to: " + ", ".join(f"{url.rsplit('/', 1)[-1]} (+{seconds:.1f}s)" for url, seconds in waiting[:12]))
+
+
+def as_admin():
+    """The program runs as administrator: the browser then ignores the variable that turns its graphics off."""
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
 
 
 def dump_threads(why):

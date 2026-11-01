@@ -1,7 +1,8 @@
 # Status and roadmap
 
-**State on 2026-11-01: version 0.91.0 is released; 0.92.0 is being built** (plan: blank window fix, signing through
-SignPath, alternate jerseys, custom teams in the normal layout). The current state of everything is the "Current state"
+**State on 2026-11-01: version 0.91.0 is released; 0.92.0 is built locally, waiting for its last checks and the owner's go**
+(blank window, signing through SignPath, alternate jerseys, custom teams in the normal layout; what is still open: PLAN.md
+top). The current state of everything is the "Current state"
 section of [AGENTS.md](../AGENTS.md) and [CHANGELOG.md](../CHANGELOG.md); the sections below are older records and
 checklists, kept for the open checks. Update this file when something here changes.
 
@@ -282,8 +283,9 @@ Plan docs/plans/ok-let-me-know-soft-wilkes.md (2026-10-22 version), notes docs/n
 
 ## Suggested order
 
-**From 2026-11-01:** (1) 0.92.0 as planned: the blank window (start log, watchdog), signing (SignPath application by the owner,
-then `.github/workflows/windows-release.yml`), alternate jerseys (lab round 57 first), custom teams in the normal Jerseys
+**From 2026-11-01:** (1) 0.92.0 as planned: the blank window (start log, watchdog; real cause still needs a tester's
+start.log), signing (SignPath application by the owner, then `.github/workflows/windows-release.yml`), alternate jerseys
+(lab round 57 first; not played on the patched game, nor with the thirds' number sheets), custom teams in the normal Jerseys
 layout; (2) the owner's go for push, release and publishing the look pack; (3) the rest of docs/notes/backlog-2026-11-01.md.
 The list below is the order of 2026-10.
 
@@ -440,6 +442,8 @@ What each answer means:
 
 ## Ideas (not planned yet)
 
+- Each DEL club's own centre ice: a game-patch entry can do it, and the 14 pictures are already in the look pack. Left out by the
+  owner on 2026-11-01 ("not important"). The six words are in docs/notes/lab-round-58.md; they have never been played.
 - Grow the player table (needs an in-game test) so junior depth is not skipped.
 - Photos for players who show a silhouette: the National League's own headshots and NHL.com's (by name and birthdate)
   would give about 350 of the 1,373 one (docs/notes/missing-photos.md; owner 2026-10-20: not now).

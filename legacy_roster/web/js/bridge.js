@@ -17,6 +17,17 @@ function pywebviewReady() {
   });
 }
 
+// The window library sets itself up once per page load, and forgets what was asked before. A page reloaded while the one
+// before it was still loading gets it twice (the old page's turn lands here): the first question is never answered.
+function firstData() {
+  return new Promise((resolve, reject) => {
+    const ask = () => { api = window.pywebview.api; api.ready().then(answered, reject); };
+    const answered = (reply) => { window.removeEventListener('pywebviewready', ask); resolve(reply); };
+    window.addEventListener('pywebviewready', ask);
+    ask();
+  });
+}
+
 export async function connect() {
   if (window.__FIXTURE__) {           // tools/window_shot.py put the state into the page itself
     api = { ready: () => window.__FIXTURE__ };
@@ -25,7 +36,8 @@ export async function connect() {
     api = await demo.makeApi(params, receive);
   } else {
     await pywebviewReady();
-    api = window.pywebview.api;
+    receive(await firstData());
+    return;
   }
   receive(await api.ready());
 }

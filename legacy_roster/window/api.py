@@ -51,9 +51,16 @@ class Api:
         return message
 
     @_safe
+    def page_up(self):
+        """The page has drawn its first data: the window works (window/watchdog.py waits for this, not for `ready`)."""
+        if not startlog.page_up.is_set():
+            startlog.note("the page drew its data", 'page_up')
+            startlog.page_up.set()
+
+    @_safe
     def log_js(self, text):
         """A line from the page (an error, a file that did not load) for the start log."""
-        startlog.note("page: " + str(text)[:600])
+        startlog.note("page: " + str(text)[:1500])
 
     @_safe
     def classic(self):
