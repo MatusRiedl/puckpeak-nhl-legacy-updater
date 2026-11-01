@@ -9,6 +9,11 @@
 #
 # Uses its own virtual environment (.venv) so nothing is installed into your Python.
 #   powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+#   powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Sign      # also sign the exe with a certificate of your own:
+#       $env:SIGN_PFX = path to the .pfx, $env:SIGN_PFX_PASSWORD, or $env:SIGN_THUMBPRINT of one in the certificate store;
+#       skipped with a line when none is set. The signed releases come from GitHub (.github\workflows\windows-release.yml
+#       through SignPath; docs\MAINTAINING.md "Signing"), not from here.
+param([switch]$Sign)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -60,6 +65,19 @@ foreach ($old in 'NHLLegacyRosterUpdater-Photos.exe', 'NHLLegacyRosterUpdater-cl
     --collect-all webview --collect-all pythonnet --collect-all clr_loader --collect-all customtkinter `
     --name PuckPeakLegacyUpdater packaging\launcher.py
 if ($LASTEXITCODE -ne 0) { throw "building the window program failed" }
+
+if ($Sign) {
+    $tool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+    $how = if ($env:SIGN_PFX) { @('/f', $env:SIGN_PFX, '/p', $env:SIGN_PFX_PASSWORD) }
+           elseif ($env:SIGN_THUMBPRINT) { @('/sha1', $env:SIGN_THUMBPRINT) } else { $null }
+    if (-not $tool -or -not $how) {
+        Write-Host "Not signed: signtool.exe (Windows SDK) or a certificate (SIGN_PFX / SIGN_THUMBPRINT) is missing."
+    } else {
+        & $tool.FullName sign @how /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "Puck Peak Legacy Updater" dist\PuckPeakLegacyUpdater.exe
+        if ($LASTEXITCODE -ne 0) { throw "signing the program failed" }
+    }
+}
 
 # checksums of the programs, to attach to the release (the update check compares the download with them)
 Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |

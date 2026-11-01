@@ -1,4 +1,4 @@
-"""The "Play online" tab without a window toolkit (Multiplayer.txt; docs/notes/multiplayer.md, S1 results): the player's
+"""The "Play online" tab without a window toolkit (private/Multiplayer.txt; docs/notes/multiplayer.md, S1 results): the player's
 online account, the one-press setup, a lobby of two by code, the launch of RPCS3 into the game, and what RPCS3's log says.
 
 Nothing of the player's RPCS3 is changed except through patchinstall (the online entry of the game patch, with the backups

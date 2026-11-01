@@ -1,4 +1,4 @@
-"""The lobby client of online play (Multiplayer.txt sections 4 D3/D6 and 5 Phase 1): the app's side of the server's small HTTPS API.
+"""The lobby client of online play (private/Multiplayer.txt sections 4 D3/D6 and 5 Phase 1): the app's side of the server's small HTTPS API.
 Standard library only. One request per call, no retries (the tab polls every 2 s). The lobbies live in the server's memory; the
 ranks are worked out from the match reports the games send (0.90.0, docs/notes/online-match-reports.md).
 

@@ -46,7 +46,11 @@ def classic(reason):
                 f.write(f"The new window could not start ({reason}); the classic window was used.\n")
         except OSError:
             pass
-    old()
+    note = None
+    if reason:
+        note = ("The full window did not start on this PC, so the simple one opened. Updating a roster works the same.\n"
+                f"What happened is in {startlog.path()}")
+    old(note=note)
     return True
 
 

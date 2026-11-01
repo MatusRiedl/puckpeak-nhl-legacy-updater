@@ -1185,7 +1185,7 @@ INTRO_ENTRIES = (
 DATA_WORDS += (0x220a64c, 0x1cd411c)
 OTHER_INSTRUCTIONS += (0x220a64c, 0xfb2f24, 0x7e8d58)
 
-# Online play through our own server (Multiplayer.txt, docs/notes/multiplayer.md; the owner, 2026-10-25). The words are the
+# Online play through our own server (private/Multiplayer.txt, docs/notes/multiplayer.md; the owner, 2026-10-25). The words are the
 # community's "multiplayer patch" (Kaap0, in RPCS3's own patch.yml), the same for the EU and the NA disc: 1.00 skips a
 # crash on the online path, the roster check and the tuner check. Update 1.01 has its own addresses (one program for both
 # versions), given by that patch; the game's old words there are not known, so its lines say

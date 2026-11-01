@@ -1,6 +1,11 @@
 # Status and roadmap
 
-State on 2026-10-05, version 0.8.0 (released 2026-10-05). Update this file when something here changes.
+**State on 2026-11-01: version 0.91.0 is released; 0.92.0 is being built** (plan: blank window fix, signing through
+SignPath, alternate jerseys, custom teams in the normal layout). The current state of everything is the "Current state"
+section of [AGENTS.md](../AGENTS.md) and [CHANGELOG.md](../CHANGELOG.md); the sections below are older records and
+checklists, kept for the open checks. Update this file when something here changes.
+
+Older header (2026-10-05, version 0.8.0):
 
 **Game patch (2026-10-13, lab, not released):** the year 2026 and 32 teams in Season / Be a GM work in the lab (patch 0.7,
 round 10). Before a release: the All-Star game kept (stage J; the owner's call 2026-10-13), the draft for 32 (stage K), the
@@ -276,6 +281,11 @@ Plan docs/plans/ok-let-me-know-soft-wilkes.md (2026-10-22 version), notes docs/n
    junior leagues keep their depth, but needs an in-game test first.
 
 ## Suggested order
+
+**From 2026-11-01:** (1) 0.92.0 as planned: the blank window (start log, watchdog), signing (SignPath application by the owner,
+then `.github/workflows/windows-release.yml`), alternate jerseys (lab round 57 first), custom teams in the normal Jerseys
+layout; (2) the owner's go for push, release and publishing the look pack; (3) the rest of docs/notes/backlog-2026-11-01.md.
+The list below is the order of 2026-10.
 
 1. In-game checks (above): the 0.6.0 checks (favourite-team logos, positions, the game's own
    roster), then the new leagues; then remove them from `pipeline.EXPERIMENTAL`.

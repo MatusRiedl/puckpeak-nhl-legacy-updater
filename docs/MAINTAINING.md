@@ -191,6 +191,8 @@ when the pack's layout changes in a way older exes cannot read, raise `PACK_FORM
    - with a fresh `LOCALAPPDATA` (a temporary folder): the Photos row downloads by itself ("Downloading
      automatically... %", then "Ready"); `python -m legacy_roster packs status` lists the packs; a second start
      without network still has them;
+   - `python tools\start_stress.py --exe dist\PuckPeakLegacyUpdater.exe --runs 30`: every start gets its data (0 BAD, no
+     WebView2 process left behind); `--fail ready-hang --runs 1` must end in the simple window (docs/notes/blank-window.md);
    - run one update into a **copy** of a savedata folder (`update --savedata <copy>`), or with
      `--dry-run`; with an EU roster in the copy, `--for both` must add an EU and an NA folder;
    - the game's own roster: a temporary folder with an empty `rpcs3.exe` and `config\games.yml`
@@ -213,6 +215,26 @@ when the pack's layout changes in a way older exes cannot read, raise `PACK_FORM
    owner's PC: the release is made through GitHub's REST API with git's stored login (`git
    credential fill`; 0.6-0.8 did it that way). Pushing the tag also starts
    `.github/workflows/build.yml`, which only runs the tests on Linux and Windows (it attaches nothing since 0.80.1).
+
+## Signing (SignPath)
+
+The exe is not signed yet, so Windows SmartScreen warns (README "Good to know"). Plan (owner, 2026-11-01): SignPath's free
+open-source programme (https://signpath.org/). Written in 0.92.0, **not run**: it needs a push (rule 6) and SignPath's approval.
+
+1. **Apply** (the owner): the project is public, has an OSI licence (LICENSE) and a README; apply as a SignPath Foundation
+   open-source project, then in SignPath create the project, an artifact configuration for `PuckPeakLegacyUpdater.exe`
+   (a zip with the exe at its root) and a signing policy (e.g. `release-signing`).
+2. **Repository settings** (GitHub > Settings > Secrets and variables > Actions): secret `SIGNPATH_API_TOKEN`; variables
+   `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_POLICY_SLUG`.
+3. **Run** `.github/workflows/windows-release.yml` (Actions tab, by hand). It builds the exe with `packaging/build.ps1`, uploads it,
+   and, when the variables are set, has SignPath sign it and uploads `PuckPeakLegacyUpdater-signed` with a fresh
+   `SHA256SUMS.txt` (signing changes the file, so the sums of `dist\` no longer match; the update check compares them).
+   Without the variables it stops after the unsigned upload and says so.
+4. The release then carries the signed exe from that artifact instead of the one built on the owner's PC; the release
+   steps above (tests, smoke test, the Linux program) stay. When the first signed release is out, change README's
+   SmartScreen line (a signed exe from a new publisher can still show a warning until it has a reputation).
+5. `build.ps1 -Sign` signs a local build with a certificate of your own (`SIGN_PFX` + `SIGN_PFX_PASSWORD`, or
+   `SIGN_THUMBPRINT`); it is skipped with a line when none is set.
 
 ## The Linux program
 

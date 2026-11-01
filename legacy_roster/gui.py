@@ -978,7 +978,8 @@ class App:
             result = pipeline.update(folder, slot.folder, steps, name, lambda msg: self.queue.put(('say', msg)),
                                      art_rpcs3=art, my_edits=mine[0] or None, team_edits=mine[1] or None,
                                      targets=targets, disc=slot if getattr(slot, 'disc', False) else None,
-                                     in_place=in_place, restore_parts=parts, default=default)
+                                     in_place=in_place, restore_parts=parts, default=default,
+                                     rpcs3=None if self.rpcs3.plain else self.rpcs3)    # follows the game patch as the window does
             self.queue.put(('done', (result, savedata.running_rpcs3() is not None)))
         except (layout.LayoutError, datasource.Offline, FileNotFoundError, ArtError, StockError,
                 savedata.InPlaceError) as err:
@@ -1234,7 +1235,8 @@ class App:
             self.rpcs3.start()
 
 
-def main():
+def main(note=None):
+    """`note`: why this window opened instead of the full one (a start that failed): shown at the top of the Update tab."""
     ctk.set_appearance_mode('dark')
     root = ctk.CTk(fg_color=T.BG)
     if T.missing_files():
@@ -1251,7 +1253,9 @@ def main():
     icon = os.path.join(T.DATA, 'app.ico')
     if os.name == 'nt' and os.path.exists(icon):
         root.after(250, lambda: root.iconbitmap(icon))      # after the toolkit has set its own
-    App(root)
+    app = App(root)
+    if note:
+        root.after(800, lambda: app.show_banner(True, "This is the simple window", note.split('\n'), []))
     root.mainloop()
 
 

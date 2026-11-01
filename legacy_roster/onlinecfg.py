@@ -1,4 +1,4 @@
-"""Online play from the app (Multiplayer.txt, docs/notes/multiplayer.md): the pieces that need neither the server nor a
+"""Online play from the app (private/Multiplayer.txt, docs/notes/multiplayer.md): the pieces that need neither the server nor a
 running RPCS3, standard library only. The player's own RPCS3 files are only read:
 
     account(rpcs3)                  the RPCN name in config/rpcn.yml (never the password or the token)
