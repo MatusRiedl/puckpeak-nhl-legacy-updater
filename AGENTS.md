@@ -202,6 +202,21 @@ wording (`progress.py`).
 
 ## Current state
 
+**Version 0.92.0 (2026-11-01, built locally in phases, committed locally, not pushed, not released; plan docs/plans/eventual-baking-thacker.md, PLAN.md top):**
+(1) **Blank window** (01690f0): the page says "Starting..." before any script, `bridge.js` waits with a time limit and shows "Try again",
+`store.receive` shows an `{error}` reply, a Python watchdog in `window/main.py` reloads the page, restarts once with the GPU off, then
+opens the classic window by itself; `start.log` (last 20 starts) in the app folder; `web/manifest.txt` lists the page's files
+(`missing_files`); `tools/start_stress.py`. The tester's real cause is not known. (2) **Cleanup** (75d4641): the classic window follows the
+game patch and says why it opened; `.github/workflows/windows-release.yml` signs through SignPath (written, not run: needs a push and
+the owner's SignPath account); Multiplayer.txt moved to `private/`. (3) **Alternate jerseys** (4506572): `looks.pack_versions` /
+`team_versions` take the pack's `third` kit for the team's Alternate row (`locstring` 2); a team with none gets a new `wgjx` row
+(`looks.alternate_rows`, run in `pipeline.build` only when this season's jerseys are being installed, before `gamepatch.art_fit`'s rows)
+whose files are borrowed from its Away version (`looks.Borrow`, `renamed_variant`; `'alternate jerseys'` experimental). Lab round 57
+(docs/notes/lab-round-57.md): a new row with files is listed and worn; a row without files draws a plain blue jersey (no crash). The
+pack with the thirds' number sheets (`private/build_looks.py`, `FONT_ROLES = ROLES`) is built (84 MB) but not in `private/packs`
+and not published. (4) **Custom teams**: the Jerseys & ice tab has an arena name field (`ice.arena`, `uniforms.set_arena`); typed team
+colours leave `layout.OWN_KIT` pieces alone (`custom_kit.hand_made`) unless the kit says `all` ("Paint everything").
+
 **Version 0.91.0 (2026-10-30, hotfix, owner: "support all the heads ... dont limit the save or hinder the editing";
 released with the owner's go-ahead: commit 4b997b6, tag `v0.91.0`, GitHub release with `PuckPeakLegacyUpdater.exe`, the
 Linux tar.gz (Ubuntu / Fedora / Arch boxes passed) and `SHA256SUMS.txt`; no data pack or server change):** a

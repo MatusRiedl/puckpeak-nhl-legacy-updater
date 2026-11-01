@@ -65,7 +65,7 @@ class TeamKit:
         return self.crest() in (OWN, MINE)
 
     def shown(self):
-        return K.shown_colours(self.current, self.kit, self._drawn())
+        return K.shown_colours(self.current, self.kit, self._drawn(), self.slot)
 
     def value(self, part):
         if part in ('home', 'away'):
@@ -115,6 +115,7 @@ class TeamKit:
         """Every piece in the three team colours: the pieces set one by one start again (a crest picture keeps its
         colours)."""
         self.kit['colours'] = [_hex(c) for c in self.team()]
+        self.kit['all'] = True              # also what was made by hand for Coachella Valley / Henderson
         keep = {k: v for k, v in (self.kit.get('pieces') or {}).items()
                 if self.crest() == MINE and K.piece_key(k) and K.piece_key(k)[0] == K.CREST}
         if keep:

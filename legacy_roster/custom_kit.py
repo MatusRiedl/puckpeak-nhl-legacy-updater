@@ -12,7 +12,7 @@ jersey files of their own:
 The Roster editor keeps a team's look in edits.json (`teams[slot]['kit']`, edits.py) and `write` puts it into the
 roster. Standard library only.
 """
-from .layout import CLUB_ART
+from .layout import CLUB_ART, OWN_KIT
 
 SLOTS = range(222, 252)
 POOL_ART = 21000                    # + slot: a prospect pool's own menu logo (art/portraits.py; drawn there, not here)
@@ -181,7 +181,7 @@ def write(R, slot, kit, reserved=(), own_art=None):
     if kit.get('pieces'):
         words.append("colours in detail")
     rows, before = _rows(R, slot), colours(R, slot)
-    for key, zones in sorted(shown_colours(before, kit, drawn).items()):
+    for key, zones in sorted(shown_colours(before, kit, drawn, slot).items()):
         if zones != before[key]:
             _paint(R, rows[key], zones)
     return words, picture
@@ -202,18 +202,27 @@ def piece_key(key):
     return (piece, variant) if piece in PIECES and variant in (HOME, AWAY) else None
 
 
-def shown_colours(current, kit, drawn):
+def hand_made(current, slot):
+    """The pieces of `slot` that still wear the colours made by hand for it (layout.OWN_KIT: Coachella Valley, Henderson):
+    typed team colours leave them alone, only "Paint everything" (kit 'all') repaints them."""
+    return {key for key, zones in (OWN_KIT.get(slot) or {}).items()
+            if key in current and tuple(map(tuple, current[key])) == tuple(map(tuple, zones[:len(current[key])]))}
+
+
+def shown_colours(current, kit, drawn, slot=None):
     """{(piece, variant): zones} a custom team wears with `kit` on top of `current` (colours()): the three team colours
     paint every piece (the crest too when it is one of the game's logos, not a crest picture: `drawn`), then the pieces
-    the player set one by one. The window shows this, `write` puts it in."""
+    the player set one by one. A piece made by hand for `slot` keeps its colours unless the kit says 'all'. The window
+    shows this, `write` puts it in."""
     out = {key: list(zones) for key, zones in current.items()}
     team = team_colours(kit)
     if team:
         painted = fill(*team)
         if not drawn:                       # the game's logo takes the team's colours (zones 4-6: unused, white)
             painted.update({(CREST, v): tuple(team) + (WHITE,) * 3 for v in (HOME, AWAY)})
+        keep = set() if kit.get('all') or slot is None else hand_made(current, slot)
         for key, zones in painted.items():
-            if key in out:
+            if key in out and key not in keep:
                 out[key] = list(zones[:len(out[key])])
     pieces = kit.get('pieces') or {}
     for name in sorted(pieces):

@@ -157,9 +157,14 @@ class UniformsController:
         with self.lock:
             self.slot, self.name, self.R = slot, name, R
             self.team_kit = teamkit.TeamKit(R, slot, name, mine.get('kit'))
-            self.clean = self.team_kit.collect()
+            # the arena name: what an update keeps, or the one the player gave (a row other teams use is renamed for all)
+            self.base = {'arena': looks.team_arena(R, slot)}
+            self.arena = (mine.get('ice') or {}).get('arena') or self.base['arena']
+            self.ice = dict(mine.get('ice') or {})
+            self.clean = self._custom_collect()
             if draft and draft[0] == 'kit':
                 self.team_kit = teamkit.TeamKit(R, slot, name, copy.deepcopy(draft[1]))
+                self.arena = draft[2] if len(draft) > 2 else self.arena
             self.pictures, self.note, self.loaded = pictures, note, pictures is None
             self.thumbs, self._tokens = {}, {}
             self.host.changed(THUMBS)
@@ -284,13 +289,18 @@ class UniformsController:
     def _state(self):
         """What the shown team's form holds, to come back to: ('files', uniforms, ice, typed, arena) or ('kit', kit)."""
         if self.team_kit is not None:
-            return 'kit', copy.deepcopy(self.team_kit.collect())
+            return 'kit', copy.deepcopy(self.team_kit.collect()), self.arena
         return ('files',) + copy.deepcopy((self.uniforms, self.ice, self.typed, self.arena))
 
     def _dirty(self):
         if self.slot is None:
             return False
-        return (self.team_kit.collect() if self.team_kit is not None else self._collect()) != self.clean
+        return (self._custom_collect() if self.team_kit is not None else self._collect()) != self.clean
+
+    def _custom_collect(self):
+        """A custom team keeps its look (the kit) and the arena name it was given (the same `ice.arena` a normal team keeps)."""
+        arena = self.arena.strip()
+        return self.team_kit.collect(), ({'arena': arena} if arena and arena != self.base['arena'] else {})
 
     def _keep(self):
         if self.slot is None:
@@ -428,11 +438,11 @@ class UniformsController:
 
     def set_arena(self, text):
         with self.lock:
-            if self.slot is None or self.team_kit is not None:
+            if self.slot is None:
                 return
             self.arena = str(text or '')
             self.changed()
-            if self._ice_mode() == COLOURS:
+            if self.team_kit is None and self._ice_mode() == COLOURS:
                 self._ice_thumb()
 
     # --- pictures, made in worker threads ------------------------------------------------------------------
@@ -644,7 +654,7 @@ class UniformsController:
         """Keep the parts in edits.json (an empty part is dropped). A shared ice (ice_group) is the group's: the other
         teams of the group lose their own choice of it."""
         ed = self.editor
-        parts = {'kit': kit} if self.team_kit is not None else {'uniforms': uniforms, 'ice': ice}
+        parts = {'kit': kit, 'ice': ice} if self.team_kit is not None else {'uniforms': uniforms, 'ice': ice}
         with ed.lock:
             team = dict(ed.teams.get(str(self.slot)) or {})
             for key, value in parts.items():
@@ -677,12 +687,13 @@ class UniformsController:
                 return
             custom = self.team_kit is not None
             if custom:
-                self._save(kit=self.team_kit.collect())
+                kit, ice = self._custom_collect()
+                self._save(kit=kit, ice=ice)
             else:
                 self._save(*self._collect())
             tabbed = self.tabbed
             if tabbed:                      # the tab stays on the team
-                self.clean = self.team_kit.collect() if custom else self._collect()
+                self.clean = self._custom_collect() if custom else self._collect()
                 self.kept.pop(self.slot, None)
                 self.changed()
         self.host.changed(RAIL)
@@ -726,7 +737,7 @@ class UniformsController:
                 return {'why': self.why, 'loading': self.waiting, 'view': view} if self.tabbed else None
             if self.team_kit is not None:
                 out = self.team_kit.snapshot(self.note, self.loaded, self.pictures is not None)
-                return dict(out, view=view, dirty=self._dirty()) if isinstance(out, dict) else out
+                return dict(out, view=view, dirty=self._dirty(), arena=self.arena) if isinstance(out, dict) else out
             rows = []
             for variant, light, default in self.versions:
                 options = [[PACK, "This season's"]] if variant in self.kits else []

@@ -3,6 +3,26 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.92.0 (2026-11-01)
+
+**The window no longer stays blank.** Some PCs opened the program to a window that was only blue or black and could not be
+clicked. The page now says "Starting..." at once, waits for the program with a time limit and shows a message with a "Try
+again" button if it does not connect, and the program watches its own start: it reloads the page, then restarts without
+the graphics card, and if that fails too it opens the simple window by itself and says why. Every start is written to a
+small `start.log` in the program's folder (the last 20), so a window that still fails can be explained. If it happens to
+you, send that file.
+
+**Alternate jerseys.** This season's third jersey is now in the game for nearly all of the 89 teams that have one (NHL,
+AHL, OHL, WHL, QMJHL, Extraliga). Pick "Alternate" in Select Jerseys (and in the Jerseys & ice tab). Teams that had no
+third in the game get one added. They come with "Photos, logos and team names" (this season's jerseys). A team whose game
+third has no counterpart this season keeps the game's own, and a few clubs whose jersey layout differs keep theirs too.
+
+**Custom teams.** The Jerseys & ice tab of a custom team (Coachella Valley, Henderson, ...) has an arena name field like
+the other teams. A colour typed there leaves Coachella Valley's and Henderson's hand-made jerseys alone; "Paint everything
+with these colours" paints them too.
+
+**The simple window** (the one the program falls back to) now follows the game patch and tells you why it opened.
+
 ## 0.91.0 (2026-10-30)
 
 **Your own players are saved again.** A player made in the game's Create Player (or with another tool) could stop every

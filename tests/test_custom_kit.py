@@ -44,6 +44,30 @@ def test_write_puts_the_designs_colours_pieces_and_crest_in(base_bytes):
     assert K.design(R, 223) == before
 
 
+def test_typed_team_colours_repaint_a_plain_team_but_leave_the_hand_made_jerseys_alone(base_bytes):
+    colours = ['#102030', '#c0c0c0', '#ff8800']
+    R = Roster(base_bytes)
+    K.write(R, 222, {'colours': colours})
+    assert K.colours(R, 222)[(9, K.HOME)][0] == (16, 32, 48)            # the owner's first complaint: a colour changes the jersey
+    # Coachella Valley: the colours made by hand (layout.OWN_KIT) stay when only colours are typed
+    rows = K._rows(R, 234)
+    for key, zones in L.OWN_KIT[234].items():
+        K._paint(R, rows[key], zones)
+    assert K.hand_made(K.colours(R, 234), 234) == set(L.OWN_KIT[234])
+    K.write(R, 234, {'colours': colours})
+    for key, zones in L.OWN_KIT[234].items():
+        assert K.colours(R, 234)[key] == [tuple(z) for z in zones][:len(K.colours(R, 234)[key])], key
+    again = R.f.build()
+    K.write(R, 234, {'colours': colours})
+    assert R.f.build() == again                                           # a second run changes nothing
+    # "Paint everything" (kit 'all') repaints them as well
+    K.write(R, 234, {'colours': colours, 'all': True})
+    assert K.colours(R, 234)[(9, K.HOME)][0] == (16, 32, 48)
+    # a piece the player set by itself still wins over everything
+    K.write(R, 234, {'colours': colours, 'pieces': {'9/1': ['#000000']}})
+    assert K.colours(R, 234)[(9, K.HOME)][0] == (0, 0, 0)
+
+
 def test_a_kit_on_a_slot_of_the_games_own_roster_is_drawn_as_designed(base_bytes):
     source = Roster(base_bytes)
     source.T.set(236, 'jerseystyle', 0)         # the game's own roster: 0 on every custom slot (a plain jersey in the game)

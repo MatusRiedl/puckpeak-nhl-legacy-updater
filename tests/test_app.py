@@ -672,6 +672,8 @@ def test_a_custom_teams_look_and_a_shared_ice_are_kept_for_the_whole_group(app, 
     uni.kit('design', 'pants', 9)                                                  # refused: the game has 0-5
     uni.kit('colour', 0, '#102030')
     uni.kit('paint')
+    uni.set_arena('Firebird Dome')                                                 # a custom team has an arena field too
+    assert uni.snapshot()['arena'] == 'Firebird Dome' and uni.snapshot()['dirty']
     uni.kit('side', 2)
     uni.kit('zone', 9, 1, '#abcdef')
     uni.kit('zone', 11, 1, '#000000')                                              # refused: the crest's own colours
@@ -683,6 +685,7 @@ def test_a_custom_teams_look_and_a_shared_ice_are_kept_for_the_whole_group(app, 
     kit = ed.teams['234']['kit']
     assert kit['jersey'][0] == 4 and 'pants' not in kit and kit['colours'][0] == '#102030'
     assert kit['pieces'] == {'9/2': ['#abcdef'] + kit['pieces']['9/2'][1:]} and 'crest' not in kit
+    assert ed.teams['234']['ice'] == {'arena': 'Firebird Dome'} and kit['all'] is True
     # opened again: what was kept stays, a game logo can be picked, a crest picture brings its own colours
     s = pick(234)
     assert s['designs'][0]['value'] == 4

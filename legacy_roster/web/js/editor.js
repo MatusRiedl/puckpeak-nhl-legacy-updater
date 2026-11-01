@@ -610,7 +610,15 @@ function CustomKitBody({ u }) {
           </label>`)}
         </div>
         <div class="row"><${Button} small kind="pick" onClick=${() => kit('paint')}>Paint everything with these colours<//>
-          <span class="small-note faint">Home in the main colour, away on white. The pieces set one by one below start again.</span></div>
+          <span class="small-note faint">Home in the main colour, away on white. The pieces set one by one below start again.
+            A typed colour leaves Coachella Valley's and Henderson's hand-made jerseys alone; this button paints them too.</span></div>
+      </div>
+      <div class="eq-row">
+        <div class="t">Arena</div>
+        <label class="pc-row arena"><span>Arena name on the ice</span>
+          <${TextField} value=${u.arena} onChange=${(t) => call('uniforms_arena', t)} delay=${400}/></label>
+        <div class="small-note faint">The arena's name in the game's menus and intros. A team that shares its arena with another
+          team renames it for both. The centre ice at home games shows the crest.</div>
       </div>
       <div class="eq-row">
         <div class="t">Colours in detail</div>
