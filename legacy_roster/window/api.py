@@ -3,9 +3,13 @@ unexpected error is written to the error log and told to the page, it never take
 pywebview runs each call in a thread of its own; the controllers lock their state. Attributes start
 with an underscore so pywebview does not offer (or walk into) them."""
 import functools
+import os
+import threading
+import time
 
 from .. import __version__, datasource
 from ..app import jobs, texts as X
+from . import startlog
 
 
 def _safe(method):
@@ -31,10 +35,34 @@ class Api:
     @_safe
     def ready(self):
         """The page has loaded: everything it shows, then changes as they come."""
+        startlog.ready_called.set()
+        startlog.note("the page asked for its data", 'ready')
+        fail = os.environ.get('LEGACY_ROSTER_FAIL')         # tools/start_stress.py: the way out of a failed start, on purpose
+        if fail == 'ready-hang':
+            threading.Event().wait()
+        if fail == 'ready-error':
+            raise RuntimeError("failed on purpose (LEGACY_ROSTER_FAIL)")
+        began = time.monotonic()
         message = self._host.first()
         message['meta'] = {'version': __version__, 'tagline': X.TAGLINE, 'site_label': X.SITE_LABEL}
         self._host.start_pushing()
+        startlog.note(f"the data was ready after {time.monotonic() - began:.2f}s, sent", 'first')
+        startlog.ready_done.set()
         return message
+
+    @_safe
+    def log_js(self, text):
+        """A line from the page (an error, a file that did not load) for the start log."""
+        startlog.note("page: " + str(text)[:600])
+
+    @_safe
+    def classic(self):
+        """The page's own button when it could not start: close this window, open the simple one."""
+        self._host.use_classic("the player chose the simple window after a failed start")
+
+    @_safe
+    def open_start_log(self):
+        self._host.open_path(startlog.path())
 
     @_safe
     def open_site(self):

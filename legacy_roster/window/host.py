@@ -10,6 +10,7 @@ import time
 import webbrowser
 
 from .. import savedata
+from . import startlog
 
 PUSH_EVERY = 0.04           # seconds between two pushes (25 a second at most)
 KEEP_LINES = 5000           # details lines kept for a reload of the page
@@ -25,9 +26,16 @@ class WebHost:
         self._lines, self._clear, self._events = [], False, []
         self.lines = []             # every details line of this run (the page asks for them on ready)
         self._pushing = False
+        self.fallback = None        # why the simple window is to open once this one is closed (a start that failed)
 
     def attach(self, window):
         self.window = window
+
+    def use_classic(self, reason):
+        """Close the window; window/main.py then opens the simple one and writes `reason` into the error log."""
+        self.fallback = reason
+        if self.window is not None:
+            self.window.destroy()
 
     def register(self, name, snapshot):
         self.sources[name] = snapshot
@@ -119,8 +127,13 @@ class WebHost:
             self._dirty.clear()
             self._lines, self._clear = [], False
             lines = list(self.lines)
-        return {'slices': {name: snapshot() for name, snapshot in self.sources.items()},
-                'log': {'lines': lines, 'clear': True}}
+        slices = {}
+        for name, snapshot in self.sources.items():
+            began = time.monotonic()
+            slices[name] = snapshot()
+            if time.monotonic() - began > 0.5:          # a slow slice is what keeps the page blue: say which
+                startlog.note(f"the first data of '{name}' took {time.monotonic() - began:.1f}s")
+        return {'slices': slices, 'log': {'lines': lines, 'clear': True}}
 
     def start_pushing(self):
         if self._pushing:

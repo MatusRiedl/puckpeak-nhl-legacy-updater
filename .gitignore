@@ -24,6 +24,7 @@ __pycache__/
 .pytest_cache/
 
 # Build output
+legacy_roster/web/manifest.txt
 build/
 dist/
 

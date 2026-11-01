@@ -35,6 +35,7 @@ if ls "$data"/*.zip* >/dev/null 2>&1; then
     exit 1
 fi
 "$py" tools/clean_check.py || { echo "tools/clean_check.py found words that must not ship (see above)" >&2; exit 1; }
+"$py" packaging/make_manifest.py     # the page's file list: the window checks it at start (window/main.missing_files)
 
 # PIL._tkinter_finder: Pillow's bridge to Tk, imported only on a fallback path that PyInstaller does
 # not see; without it the classic window stops at start ("invalid command name PyImagingPhoto").

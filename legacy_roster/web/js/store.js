@@ -19,7 +19,14 @@ function subscribe(fn) {
 
 export function receive(message) {
   if (!message) return;
-  if (message.meta) meta = message.meta;
+  if (message.error) {            // Python could not build the first page (it is in the error log): say so, with the way out
+    if (window.__lrFail) window.__lrFail(message.error);
+    return;
+  }
+  if (message.meta) {
+    meta = message.meta;
+    if (window.__lrOk) window.__lrOk();
+  }
   if (message.slices) {
     for (const [name, value] of Object.entries(message.slices)) slices[name] = value;
   }

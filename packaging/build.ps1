@@ -50,6 +50,8 @@ $zips = Get-ChildItem $data -Filter '*.zip*' -ErrorAction SilentlyContinue
 if ($zips) { throw "legacy_roster\data holds $($zips.Name -join ', '): packs never go inside the program (private\packs)." }
 & $py tools\clean_check.py
 if ($LASTEXITCODE -ne 0) { throw "tools\clean_check.py found words that must not ship (see above)" }
+& $py packaging\make_manifest.py      # the page's file list: the window checks it at start (window\main.missing_files)
+if ($LASTEXITCODE -ne 0) { throw "could not list the page's files" }
 foreach ($old in 'NHLLegacyRosterUpdater-Photos.exe', 'NHLLegacyRosterUpdater-cli.exe', 'NHLLegacyRosterUpdater.exe') {
     $path = Join-Path $root "dist\$old"         # programs of earlier builds
     if (Test-Path $path) { Remove-Item -Force $path }

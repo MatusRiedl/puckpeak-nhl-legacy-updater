@@ -6,10 +6,14 @@ let api = null;
 export const params = new URLSearchParams(location.search);
 export const offline = params.has('demo') || params.has('fixture') || !!window.__FIXTURE__;
 
+const READY_WAIT = 10000;      // ms the window library has to offer the program's calls
+
 function pywebviewReady() {
-  return new Promise((resolve) => {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.ready) return resolve();
-    window.addEventListener('pywebviewready', () => resolve(), { once: true });
+  return new Promise((resolve, reject) => {
+    const there = () => window.pywebview && window.pywebview.api && window.pywebview.api.ready;
+    if (there()) return resolve();
+    const timer = setTimeout(() => reject(new Error('The window could not reach the program.')), READY_WAIT);
+    window.addEventListener('pywebviewready', () => { clearTimeout(timer); resolve(); }, { once: true });
   });
 }
 

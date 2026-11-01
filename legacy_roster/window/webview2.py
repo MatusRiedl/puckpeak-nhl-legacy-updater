@@ -6,22 +6,27 @@ CLIENT = r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9
 DOWNLOAD = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
 
 
-def available():
-    """True when the runtime is installed (or when this is not Windows: the question does not arise)."""
+def version():
+    """The installed runtime's version ("124.0.2478.97"), or None (not Windows, or not installed)."""
     if os.name != 'nt':
-        return True
+        return None
     import winreg
     places = [(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node" + CLIENT[len("SOFTWARE"):]),
               (winreg.HKEY_LOCAL_MACHINE, CLIENT), (winreg.HKEY_CURRENT_USER, CLIENT)]
     for root, key in places:
         try:
             with winreg.OpenKey(root, key) as k:
-                version, _kind = winreg.QueryValueEx(k, 'pv')
-                if version and version != '0.0.0.0':
-                    return True
+                found, _kind = winreg.QueryValueEx(k, 'pv')
+                if found and found != '0.0.0.0':
+                    return found
         except OSError:
             continue
-    return False
+    return None
+
+
+def available():
+    """True when the runtime is installed (or when this is not Windows: the question does not arise)."""
+    return os.name != 'nt' or version() is not None
 
 
 def message(title, text, ask=False):

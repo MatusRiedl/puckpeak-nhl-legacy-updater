@@ -231,5 +231,6 @@ if (params.has('still')) document.documentElement.classList.add('still');
 
 window.ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
 connect().catch((err) => {
-  document.getElementById('root').textContent = 'The window could not start: ' + err;
+  if (window.__lrFail) window.__lrFail(String(err && err.message || err));
+  else document.getElementById('root').textContent = 'The window could not start: ' + err;
 });
