@@ -91,7 +91,8 @@ PATCHED_NOTE = "every update makes a roster for it"
 PATCH_NEEDS_RPCS3 = f"The game patch needs RPCS3: pick {PROGRAM} in step 1."
 PATCH_NATIVE = "The game patch is for RPCS3. NHL Legacy Native cannot take it, so its Season and Be a GM stay at 30 teams."
 NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names and the editors all work here. It has no game patch and no "
-               "online play, so Season and Be a GM have 30 teams, and Coachella Valley, Henderson and the Vees are Custom teams.")
+               "online play, so Season and Be a GM have 30 teams. Coachella Valley, Henderson and the Vees are Custom teams "
+               "on a community roster, and left out of the game's own roster.")
 ONLINE_NATIVE = "Online play needs RPCS3: NHL Legacy Native has no online. Pick RPCS3 in Setup to play online."
 
 

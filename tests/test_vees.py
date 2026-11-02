@@ -99,6 +99,11 @@ def test_a_second_run_changes_nothing(vees, pack):
     assert res.problems == [] and res.data == vees.data
 
 
+def test_the_update_tab_does_not_call_them_left_out(pack):
+    assert 'Penticton Vees' in pack['leagues']['chl']['left_out']
+    assert 'Penticton' not in pipeline.left_out_note(pack, 'chl')
+
+
 def test_their_names_are_written(vees):
     names = pipeline.names_of(vees.data)
     assert names['cities']['PENTICTON'] == 'Penticton Vees'

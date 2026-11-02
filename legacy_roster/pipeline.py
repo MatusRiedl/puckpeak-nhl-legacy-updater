@@ -68,6 +68,11 @@ def with_own_teams(R, league, taken, mirrors):
     return dict(league, teams=list(league['teams']) + own)
 
 
+def vees_club(league):
+    """The Penticton Vees among a league's clubs without a slot of their own in the data pack, or None."""
+    return next((c for c in league.get('extra') or [] if c.get('art') == 'PEN' and c.get('players')), None)
+
+
 def with_vees(R, league, taken, mirrors, listed=True):
     """The CHL with the Penticton Vees in their own slot (layout.VEES): the club the data pack lists under `extra` goes
     into `teams`, its slot switched on. A player's own team named after them keeps them (clubs.own_teams), and a slot that
@@ -75,7 +80,7 @@ def with_vees(R, league, taken, mirrors, listed=True):
     a full update fills all 16 spare slots, so a roster updated before the Vees has one there; the league step moves it
     out as it does for a pool in a European club's slot. `listed` False: the game could never list them (layout.listed),
     a new Vees stays out, as Coachella Valley and Henderson do on such a roster (usable_clubs)."""
-    club = next((c for c in league.get('extra') or [] if c.get('art') == 'PEN' and c.get('players')), None)
+    club = vees_club(league)
     if club is None:
         return league
     T = R.T
@@ -158,7 +163,9 @@ def planned(pack):
 
 def left_out_note(pack, step):
     """A short line naming a league's clubs the game has no team slot for (None when all fit)."""
-    clubs = (pack.get('leagues', {}).get(step) or {}).get('left_out') or []
+    league = pack.get('leagues', {}).get(step) or {}
+    vees = vees_club(league)
+    clubs = [name for name in league.get('left_out') or [] if not vees or name != vees['full']]
     if not clubs:
         return None
     if len(clubs) <= 3:
