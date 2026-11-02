@@ -5,6 +5,7 @@
 <work>/dll/XINPUT1_4.dll and <work>/portpatch.zip come out; the zip goes into private/packs by hand."""
 import bisect
 import glob
+import hashlib
 import json
 import os
 import re
@@ -23,6 +24,11 @@ BASE = 0x140000000
 FUNC = re.compile(r'(?m)^void (?:__attribute__\(\(weak\)\) )?(func_[0-9A-F]{8})\(ppu_context\* ctx\) \{\n(.*?)^\}\n', re.S)
 EARLY = 'func_00010230'             # the game's entry: runs once the ELF is in guest memory, before anything reads it
 SKIP = {'func_0022E160'}            # a host shared by 7 rows; our change there is dead text
+# Online only (online.inc, proxy.cpp): what the DLL answers in the port's place, and the functions with the online entry's words.
+SIGN_IN = {'on_register_callback': 0xE7DCD3B4, 'on_request_ticket': 0x8297F1EC, 'on_get_ticket': 0x0968AA36,
+           'on_get_ticket_param': 0x58FA4FCD, 'on_get_network_time': 0xBDC07FD5, 'on_get_account_region': 0xB1E0718B,
+           'on_check_callback': 0x189A74DA}
+ONLINE_WORDS = {a: new for a, new, _ in G.ONLINE_101}   # each is a `cmpwi r3,0` straight after a call, made `cmpwi r3,1`
 
 # What each build of the exe keeps where: none of it is exported. Found with llvm-objdump, docs: README.md "A new build".
 BUILDS = {
@@ -30,10 +36,17 @@ BUILDS = {
         table=0x1429f000 + 746080, code_end=0x1a62e4c, tramp_off=0x4170,
         helpers=dict(vm_read8=0x140010c20, vm_read16=0x144f94b90, vm_read32=0x144f559c0, vm_read64=0x144f5a690,
                      vm_write8=0x1443d4cd0, vm_write16=0x144c5bfe0, vm_write32=0x144c55020, vm_write64=0x1443d47d0,
-                     ppu_ww_note_st16=0x144f942f0, ps3_indirect_call=0x1443d49f0, ppu_stdcx64=0x1443d4400),
+                     ppu_ww_note_st16=0x144f942f0, ps3_indirect_call=0x1443d49f0, ppu_stdcx64=0x1443d4400,
+                     ps3_hle_call=0x1451abdd0),
         data=dict(vm_base=0x154d776e0, g_vm_ld_gate=0x154ecca90, g_vm_st_gate=0x1571ef800, g_ww_hi=0x154ecca6c,
                   tls_index=0x1599410f8)),
 }
+
+
+def nid(name):
+    """The number a PS3 library export goes by."""
+    h = hashlib.sha1(name.encode() + bytes.fromhex('6759659904250490566427499489741a')).digest()
+    return struct.unpack('<I', h[:4])[0]
 
 
 class Exe:
@@ -138,6 +151,29 @@ def carr(b):
     return '{' + ','.join(str(x) for x in b) + '}'
 
 
+def online_copies(folder, bodies):
+    """The functions holding the online entry's words, as copies with those words in; the patch's own copy where there is one."""
+    out = {}
+    for a in sorted(ONLINE_WORDS):
+        call = f'ctx->lr = 0x{a:08X}; if (1) {{ ps3_indirect_call(ctx); DRAIN_TRAMPOLINE(ctx); }}\n'
+        found = [(n, b) for n, b in bodies.items() if call in b]
+        if not found:
+            for p in glob.glob(os.path.join(folder, 'ppu_recomp_[0-9]*.cpp')):
+                t = open(p, encoding='latin-1').read()
+                if call in t:
+                    found = [(m[1], m[0]) for m in FUNC.finditer(t) if call in m[0]]
+                    break
+        (name, text), = found
+        text = out.get(name, text)
+        at = text.index(call) + len(call)
+        line = text[at:text.index('\n', at)]
+        zero = '(int64_t)((int32_t)ctx->gpr[3]) == (int64_t)((int64_t)0)'
+        assert zero in line, line
+        out[name] = text[:at] + line.replace(zero, zero[:-2] + '1)') + text[at + len(line):]
+    head = re.compile(r'^void (?:__attribute__\(\(weak\)\) )?func_')
+    return {n: head.sub('extern "C" void on_func_', t, 1) for n, t in out.items()}
+
+
 def make(port, work, exe, build, patch, swap):
     """swap.cpp, ids.h and the compile script in <work>/dll."""
     R, OUT = os.path.join(work, 'recompiled'), os.path.join(work, 'dll')
@@ -153,6 +189,7 @@ def make(port, work, exe, build, patch, swap):
             if m[1] in want:
                 bodies[m[1]] = m[0]
     assert set(bodies) == want, want - set(bodies)
+    online = online_copies(R, bodies)
     old = 'extern "C" PPU_THREAD_LOCAL void (*g_trampoline_fn)(void*);'
     assert old in preamble
     preamble = preamble.replace(old,
@@ -175,7 +212,7 @@ def make(port, work, exe, build, patch, swap):
     for h in rows.values():
         share[h] = share.get(h, 0) + 1
     ext = set()
-    for b in bodies.values():
+    for b in list(bodies.values()) + list(online.values()):
         ext |= set(re.findall(r'func_[0-9A-F]{8}', b))
     ext = sorted(ext - want)
     order = sorted(want)
@@ -205,6 +242,8 @@ def make(port, work, exe, build, patch, swap):
           for a, v in data_words] + ['}']
     L += [f'void {n}(ppu_context* c) {{ __attribute__((musttail)) return p_{n}(c); }}' for n in ext]
     L += [seen(n, bodies[n]) for n in order]
+    L += list(online.values())
+    L += ['#define NID_bind 0x%08Xu' % nid('bind'), '#define NID_sendto 0x%08Xu' % nid('sendto'), '#include "online.inc"']
     L += ['struct Hook { unsigned rva; void (*fn)(ppu_context*); unsigned char head[16]; const char* name; };',
           'struct Link { void* p; unsigned rva; };', 'extern "C" {',
           f'extern const int nhl_hook_count = {len(hooks)}; extern const int nhl_link_count = {len(ext)};',
@@ -212,6 +251,15 @@ def make(port, work, exe, build, patch, swap):
     L += [f'  {{ 0x{r:x}, {n}, {carr(exe.read(r, 16))}, "{n}" }},' for n, r in hooks]
     L += ['  { 0 } };', 'extern const Link nhl_links[] = {']
     L += [f'  {{ &p_{n}, 0x{rows[int(n[5:], 16)] - BASE:x} }},' for n in ext]
+    L += ['  { 0 } };']
+    stubs = {e['nid']: int(e['stub'], 16) for e in json.load(open(os.path.join(port, 'nhl', 'out', 'EBOOT_v101.imports.json')))}
+    sign_in = dict(SIGN_IN, on_bind=nid('bind'), on_sendto=nid('sendto'))
+    taken = [(f, rows[stubs[hex(v)]]) for f, v in sign_in.items()]
+    taken += [(f'on_{n}', rows[int(n[5:], 16)]) for n in online]
+    for f, h in taken:
+        assert share[h] == 1 and hosts[bisect.bisect(hosts, h)] - h >= 14, f
+    L += [f'extern const int nhl_online_count = {len(taken)};', 'extern const Hook nhl_online[] = {']
+    L += [f'  {{ 0x{h - BASE:x}, {f}, {carr(exe.read(h - BASE, 16))}, "{f}" }},' for f, h in taken]
     L += ['  { 0 } };', '}']
     open(os.path.join(OUT, 'swap.cpp'), 'w', encoding='latin-1', newline='\n').write('\n'.join(L) + '\n')
     stamp, image = exe.id
@@ -220,7 +268,7 @@ def make(port, work, exe, build, patch, swap):
         I += [f'#define RVA_{k} 0x{v - BASE:x}', f'#define HEAD_{k} {carr(exe.read(v - BASE, 8))}']
     I += [f'#define RVA_{k} 0x{v - BASE:x}' for k, v in build['data'].items()]
     open(os.path.join(OUT, 'ids.h'), 'w', newline='\n').write('\n'.join(I) + '\n')
-    for f in ('proxy.cpp', 'proxy.def'):
+    for f in ('proxy.cpp', 'proxy.def', 'online.inc'):
         shutil.copy(os.path.join(HERE, f), OUT)
     shutil.copy(os.path.join(R, 'ppu_recomp.h'), OUT)
     RT = os.path.join(port, 'ps3recomp', 'ps3recomp-master')
