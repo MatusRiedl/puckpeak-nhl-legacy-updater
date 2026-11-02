@@ -3,6 +3,29 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.95.0 (not released yet)
+
+**NHL Legacy Native.** The program now works with the PC port as well as with RPCS3. Pick `NHLLauncher.exe` or the port's
+folder in the same place you pick `rpcs3.exe`; the program works out the rest. Rosters, the Roster editor, careers, photos,
+logos, team names, jerseys and centre ice all work. Your pictures go into a mod called "Puck Peak", so nothing of the
+game's is replaced. If you have both, a link on the Setup tab switches between them. The port cannot take our game patch:
+32 teams in Season and Be a GM, the year 2026 and online play need RPCS3, and the window says so.
+
+**The Penticton Vees.** On the patched game the Vees are in the WHL in Play Now and Roster Management, with their real
+roster, crest, jerseys and arena. Their 68 games are in the Calendar tab. Season, Be a GM and Be a Pro keep 22 WHL clubs, so
+the Vees are not in careers and do not play in the game's own WHL calendar. On the unpatched game and on NHL Legacy Native
+they are at the end of the custom teams, as **Custom Team 30** in Select Teams (the game numbers every custom team there),
+and from Starting Lineups on the game says Penticton Vees. A roster made from the game's own disc has no room for them
+there, so it has no Vees unless the game is patched.
+
+**Apply names.** The Team names row has a new button. It changes only the team names, in seconds: no roster is saved and no
+picture is looked at.
+
+**Be a Pro careers of update 1.01.** The Be a Pro careers view said "This save is damaged or not complete." for every
+career made with the game's update 1.01. They open and save now, on RPCS3 and on NHL Legacy Native.
+
+**Unpatch on one RPCS3 no longer touches another.** If you keep two copies of RPCS3, Unpatch took the patch out of both.
+
 ## 0.92.0 (2026-11-01)
 
 **The window no longer stays blank.** Some PCs opened the program to a window that was only blue or black and could not be

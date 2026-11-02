@@ -2,7 +2,7 @@
 
 # 🏒 Puck Peak Legacy Updater
 
-### The ultimate toolkit for **NHL Legacy Edition** on PS3 / RPCS3.
+### The ultimate toolkit for **NHL Legacy Edition** on PS3 / RPCS3 and **NHL Legacy Native** on PC.
 *One click and your 2014 game plays the 2026-27 season.*
 
 [**⬇ Download the latest version**](https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater/releases/latest)
@@ -19,7 +19,8 @@ Questions, news and help: **[gg.puckpeak.com](https://gg.puckpeak.com)**
 ## ✨ Highlights
 
 - 🏟 **Today's NHL, in your old game.** Every player on his real team, lines, captains, contracts, draft, ratings.
-- 🌍 **The whole hockey world.** National teams plus Liiga, Extraliga, SHL, DEL, National League, AHL and the CHL, with real rosters.
+- 🖥 **RPCS3 or the PC port.** Point it at RPCS3 or at NHL Legacy Native and it works out the rest.
+- 🌍 **The whole hockey world.** National teams plus Liiga, Extraliga, SHL, DEL, National League, AHL and the CHL, with real rosters, and the Penticton Vees in the WHL.
 - 📸 **Real faces, real logos, real names.** Today's photos and club logos in the game's menus; Utah, Seattle and Vegas as they should be.
 - 👕 **New jerseys and ice.** The new franchises get their own jerseys, helmets and centre-ice logo, and you can paint your own for any team of any league.
 - 🎮 **Multiplayer (beta).** Make a lobby with your roster, share a six-letter code or pick an open game, press **Ready**: RPCS3 starts on both PCs and goes straight to Select Teams. Europe and US, game 1.00 and update 1.01. Chat with your friend, climb the **ranks** and the public **leaderboard**, see **your stats** and a **box score** for every match ("Show me on the leaderboard" takes your name off), and on Windows see chat and the result card **over the game**.
@@ -41,7 +42,7 @@ Questions, news and help: **[gg.puckpeak.com](https://gg.puckpeak.com)**
 ## 🚀 Get started
 
 1. Download `PuckPeakLegacyUpdater.exe` (about 26 MB, Windows) or `PuckPeakLegacyUpdater-<version>-linux.tar.gz` (Linux) from the release page.
-2. In **Setup**, show it where `rpcs3.exe` is and pick a roster. In **Update**, switch on what you want and press **Update roster**.
+2. In **Setup**, show it where `rpcs3.exe` or NHL Legacy Native's `NHLLauncher.exe` is and pick a roster. In **Update**, switch on what you want and press **Update roster**.
 3. Start the game. That is all.
 
 No roster yet? It can start from the game's own. Built for the NHL Legacy community, by [Puck Peak](https://www.puckpeak.com).
@@ -121,6 +122,26 @@ itself; if it does not, press **Find RPCS3** in Setup and pick your RPCS3 AppIma
 - **Mac:** there is no Mac program (since 0.80.1). Run it from source (below) with Python 3.10 or newer and
   `pip install pywebview pillow`, or use **Export files to a folder** on another PC.
 
+## NHL Legacy Native (the PC port)
+
+NHL Legacy Native is a PC version of the game (the US game, update 1.01). The program works with it as it does with RPCS3:
+in **Setup**, under **Your game**, pick `NHLLauncher.exe` or `NHLLegacy.exe` (or the folder they are in). If you have both, a
+**Switch to ...** link takes you from one to the other with one press, and each keeps its own pictures.
+
+- **Rosters, the Roster editor, Be a Pro careers, the Calendar, Front office** all work as on RPCS3. A roster goes into the
+  port's own saves. In the game: **Customize > Save/Load/Delete > Load > Rosters**.
+- **Pictures and team names** go into a mod named **Puck Peak** in the port's `mods` folder, and the program applies it, so
+  you see them on the next start. Leave it switched on in the launcher. It must stay at the top of the mod list if another
+  mod changes the same files; the program puts it there.
+- **What the port cannot do:** the game patch and online play need RPCS3. On the port Season and Be a GM have 30 teams and
+  the year 2015, and Coachella Valley, Henderson and the Vees are custom teams (Custom Team 13, 14 and 30 in Select Teams; from
+  Starting Lineups on the game uses their names).
+- **Which roster:** start from a community roster copied into the port's saves. On a roster from the game's own disc the
+  port's lists cannot reach Coachella Valley, Henderson and the Vees, so they are left out there.
+- **Skip the intro:** the port has its own switch in the launcher's settings.
+- **Pictures from RPCS3:** if you installed the port from an RPCS3 folder, its import mod may hold our old pictures and our patched
+  game files, which do not fit the port. The Setup tab says so and tells you what to do.
+
 ## Without RPCS3 (a Mac, a Linux PC, CrossOver, Wine)
 
 Tick **"Export files to a folder"** in **Setup**, under **Where is RPCS3?**. It works on every system, with or
@@ -170,7 +191,12 @@ names then go into both games too.
   prospect pools. When a league gets its real clubs, pool players who are not on a real club move
   to spare custom teams named after their pool (under CUSTOM). There is room for 16 such teams of
   40. The best prospects keep their place; the rest become **free agents**, who keep their NHL
-  rights and can be signed.
+  rights and can be signed. Since 0.95.0 the last spare team is the **Penticton Vees**, so the 16th pool's
+  players join the other pools.
+- **Penticton Vees.** A real WHL club today, the 23rd in a league the game built for 22. With the game patch they
+  are in the WHL's lists in Play Now and Roster Management; without it they are the last custom team, Custom Team 30 in Select
+  Teams (without the patch a roster from the game's own disc has no Vees: the game's lists cannot reach them). Their 68 real games are in the
+  Calendar tab. Season, Be a GM and Be a Pro keep the WHL's 22 clubs, because careers have no place for a 23rd.
 - **Players who leave a club** become free agents too. Nobody is deleted from the save.
 - **Room for new players is limited.** The save has a fixed number of player records. New players take
   over blank records and those of long-retired, low-rated players (never legends, prospects or free
@@ -194,6 +220,9 @@ with it, so you download only what you want:
 | Photos and logos: This season's jerseys and centre ice | New jerseys with their own names and numbers, pants, socks and centre-ice logos; 30 NHL teams get centre-ice logos with the arenas' current names, the clubs this season's (Seattle and Vegas play at home on Nashville's) | about 88 MB |
 | Photos and logos: NHL arenas | Newer boards and banners in the 32 NHL arenas | about 13 MB |
 | Photos and logos: Team goalie masks | The goalie masks of the teams | about 3 MB |
+
+**Apply names** on the Team names row writes the team names from the picked roster in a few seconds. It looks at no picture
+and saves no roster, so changing a team's name no longer means waiting for your graphics (the game must be closed).
 
 Each row has its own **Restore** that puts back only its own files. Photos and logos give the players
 their current photo and the clubs their current logo. Team names give, for example: Kladno
@@ -360,7 +389,7 @@ roster** makes a new one. It is the same choice as on the Update tab.
 ## What you need
 
 - Windows and RPCS3 with NHL Legacy Edition, European (`BLES02153`) or North American
-  (`BLUS31540`), or both.
+  (`BLUS31540`), or both; or NHL Legacy Native (above).
 - A roster to start from: a **community roster** (the 2025-26 roster family or the community's
   2026-27 roster, also a file you put into a save folder by hand), or **the game's own roster**
   (see above). A roster you saved in the game without loading a community roster counts as the
@@ -373,8 +402,8 @@ The window has ten tabs in one row: **Setup**, **Update** and **Game patch**, th
 Ctrl+1 to Ctrl+9 and Ctrl+0 open a tab; Ctrl+PgUp and Ctrl+PgDn go to the tab on the left or right.
 
 1. Download `PuckPeakLegacyUpdater.exe` (Linux: the `-linux.tar.gz`) from the Releases page and start it.
-2. **Setup: Where is RPCS3?** Pick the file `rpcs3.exe` in your RPCS3 folder. The program finds your
-   saves from there, also when RPCS3 keeps its hard disk somewhere else or has several users. If
+2. **Setup: Your game.** Pick the file `rpcs3.exe` in your RPCS3 folder, or `NHLLauncher.exe` of NHL Legacy
+   Native. The program finds your saves from there, also when RPCS3 keeps its hard disk somewhere else or has several users. If
    RPCS3 is running, or you have used the program before, this is already filled in. **Downloads**
    shows whether the pictures are on your PC, and **This program** whether it is up to date.
 3. **Setup: Which roster do you work on?** Pick the roster to start from. The Update tab, the team tabs

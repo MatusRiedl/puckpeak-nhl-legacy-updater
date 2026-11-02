@@ -1,7 +1,7 @@
 # Quick start
 
-**Puck Peak Legacy Updater** brings the rosters of *NHL Legacy Edition* (PS3, played on RPCS3)
-up to today: NHL, European leagues, AHL, juniors and national teams. A free community project
+**Puck Peak Legacy Updater** brings the rosters of *NHL Legacy Edition* (PS3, played on RPCS3, or
+the PC port NHL Legacy Native) up to today: NHL, European leagues, AHL, juniors and national teams. A free community project
 from [Puck Peak](https://www.puckpeak.com).
 
 ## Main features
@@ -22,7 +22,7 @@ from [Puck Peak](https://www.puckpeak.com).
 - **Front office:** each NHL team's payroll, cap space and contracts; change a contract yourself.
 - **Real free agents and drafts:** retired players gone, unsigned NHL players there, every player's
   real draft, and draft prospects on real clubs where the game's draft finds them.
-- **Windows and Linux**, with RPCS3 or with just a folder of roster saves.
+- **Windows and Linux**, with RPCS3 or with just a folder of roster saves; on Windows also with NHL Legacy Native.
 - **Safe:** an update is saved only after it passes a safety check, and the roster it changes is first
   copied to a backup folder (or choose **Save as a new roster** and nothing existing is touched).
 
@@ -31,10 +31,10 @@ from [Puck Peak](https://www.puckpeak.com).
 1. Download from [Releases](https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater/releases/latest):
    **`PuckPeakLegacyUpdater.exe`** on Windows, **`...-linux.tar.gz`** on Linux (unpack it, start
    `PuckPeakLegacyUpdater` in the folder). The program is not signed: on Windows choose *More info > Run anyway*.
-2. **Close RPCS3** if you want photos and logos.
-3. **Setup tab, "Where is RPCS3?":** pick the file `rpcs3.exe` in your RPCS3 folder (on
-   Linux the program finds RPCS3 by itself). No RPCS3 on this computer? Tick **Export files to a
-   folder** and pick the roster file (README, "Without RPCS3").
+2. **Close the game** if you want photos and logos.
+3. **Setup tab, "Your game":** pick the file `rpcs3.exe` in your RPCS3 folder (on Linux the program
+   finds RPCS3 by itself), or `NHLLauncher.exe` of NHL Legacy Native. Neither on this computer? Tick
+   **Export files to a folder** and pick the roster file (README, "Without RPCS3").
 4. **Setup tab, "Which roster do you work on?":** pick the roster to start from. *The game's own
    roster* is at the end of the list if you have none yet.
 5. **Update tab:** leave everything switched on, or switch off what you don't want. Under **Save**,

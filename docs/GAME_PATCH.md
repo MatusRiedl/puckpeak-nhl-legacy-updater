@@ -323,7 +323,8 @@ What the patch itself leaves open:
   one uses 124, a drafted junior's 126. Crash sites: the front-end team list `0x12865c` (its no-Season path `0x128830`
   -> `0xdc5c48`, a read of 0x3) and `0x164cf0` -> `0x28cb30` -> `0x241044`. Guess: something of 128 indexed by key + 1,
   or a constant that puts the CHL at 64. Needs a round of its own with GDB; details in
-  [notes/lab-round-44.md](notes/lab-round-44.md).
+  [notes/lab-round-44.md](notes/lab-round-44.md). Round 59: a **drafted** junior whose career has 128 keys crashes too, on
+  the next simulated day after his first game (`0x128830` again, [notes/lab-round-59.md](notes/lab-round-59.md)).
 - **Smaller, no memory risk found:** `0x3bdd18` gives Seattle / Vegas Anaheim's staff tuning, `0x38fb94` team 29's
   computer-GM settings; StaffLogic's 30-loops `0x3bb500` / `0x3bb7a0`; WaiverBrain's claim list (30 words) overflows only
   if 31 teams claim one player; Vegas's rival is Vegas, Seattle / Vegas `artabbr` is EAS / WES.

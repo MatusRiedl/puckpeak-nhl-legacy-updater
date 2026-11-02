@@ -1,8 +1,10 @@
-"""The Penticton Vees in custom slot 251 (layout.VEES): a named team on every roster, in the WHL with art id 902 on a roster
-for the patched game (owner, 2026-11-02)."""
+"""The Penticton Vees in custom slot 251 (layout.VEES): in the WHL with art id 902 on a roster for the patched game, a custom
+team without the patch where the game's lists can reach them (owner, 2026-11-02; lab round 59)."""
+import os
+
 import pytest
 
-from legacy_roster import gamepatch, pipeline, schedule
+from legacy_roster import gamepatch, pipeline, schedule, stock
 from legacy_roster import layout as L
 from legacy_roster.app.calendar import VEES_NOTE
 from legacy_roster.builder import Data
@@ -53,6 +55,35 @@ def test_the_vees_get_the_last_custom_slot_on_every_roster(vees, pack):
     names = {(norm(R.P.get(r, 'firstname')), norm(R.P.get(r, 'lastname'))) for r in members(R, L.VEES)}
     assert len(names & {(norm(p['first']), norm(p['last'])) for p in club['players']}) >= 20
     assert not any('Penticton' in str(row[2]) and 'No slot' in str(row[2]) for row in vees.log)
+
+
+@pytest.fixture(scope='module')
+def stock_bytes():
+    disc = os.environ.get('LEGACY_ROSTER_DISC')
+    if not disc or not os.path.exists(disc):
+        pytest.skip("no game disc (set LEGACY_ROSTER_DISC to your NHL Legacy disc image)")
+    return stock.from_disc(disc)
+
+
+def test_the_game_s_own_roster_has_no_vees_for_the_unpatched_game(stock_bytes, pack):
+    """Lab round 59: the unpatched lists walk as many ids as teams are on, so with 222-233 off slot 251 was never reached
+    and an empty "Custom Team 1" appeared in its place."""
+    T = Roster(pipeline.build(stock_bytes, chl(pack), steps=['chl']).data).T
+    assert not T.get(L.VEES, 'NYKk')
+    assert not any(T.get(t, 'NYKk') for t in range(L.TEAM_COUNT - 30, L.TEAM_COUNT))
+
+
+def test_the_game_s_own_roster_has_them_for_the_patched_game_whose_lists_skip_slots_that_are_off(stock_bytes, pack):
+    res = pipeline.build(stock_bytes, chl(pack), steps=['chl'], game_patch=True)
+    R = Roster(res.data)
+    assert L.is_vees(R.T) and not L.listed(R.T, L.VEES) and len(members(R, L.VEES)) >= 20
+    assert not any(row[2] == "Penticton Vees" for row in res.log)
+
+
+def test_they_are_listed_once_every_slot_before_them_is_on(vees):
+    T = Roster(vees.data).T
+    assert not L.listed(T, L.VEES)      # the CHL alone leaves the prospect pools' slots off, and the list of changes says so
+    assert any(row[2] == "Penticton Vees" for row in vees.log)
 
 
 def test_their_arena_is_their_own(vees):

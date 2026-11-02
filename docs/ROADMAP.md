@@ -1,6 +1,6 @@
 # Status and roadmap
 
-**State on 2026-11-01: version 0.92.0 is released, its data pack published**
+**State on 2026-11-02: 0.95.0 is built and committed locally, waiting for the owner's final check.** **State on 2026-11-01: version 0.92.0 is released, its data pack published**
 (blank window, signing through SignPath, alternate jerseys, custom teams in the normal layout; what is still open: PLAN.md
 top). The current state of everything is the "Current state"
 section of [AGENTS.md](../AGENTS.md) and [CHANGELOG.md](../CHANGELOG.md); the sections below are older records and
@@ -455,6 +455,8 @@ What each answer means:
   like a wrong birth year) applied after the feeds.
 - Linux and Steam Deck: RPCS3's folders there (`~/.config/rpcs3`), a build per system.
 - The window in other languages (French, German, Swedish, Finnish, Czech).
+- **Done in 0.95.0 (docs/notes/native-port.md):** the backlog entry below. **Open, the owner's call:** on the game's own roster
+  the unpatched game and the port cannot list slots 234, 235 and 251 (lab round 59); moving those teams to low slots would.
 - **Backlog (owner, 2026-10-29: not a priority): the native PC port of the game** (US 1.01, a Windows program made by
   static recompilation). Setup would ask "Which NHL Legacy?" RPCS3 / Native; Native keeps its saves in the same
   savedata folders as RPCS3 and reads loose files from its own mods (`mods/<name>/USRDIR`), so rosters, the editor,
@@ -549,7 +551,8 @@ Notes docs/notes/lab-round-44.md. Played by the agent in the lab with a hand-mad
 - **Played:** made-up juniors on OHL and Liiga clubs are in a new Be a GM's 2027 pool and drafted by potential (a tier-1
   player went 2nd overall); AHL and teamless players are not pooled; the game fits potential into a band per growth tier
   (`draftclass.TIER_BANDS`). Be a NHL Pro lists NHL roster players, Be a CHL Pro the juniors.
-- **Bug, not fixed:** Be a CHL Pro with an undrafted junior crashes in the patched game (GAME_PATCH.md section 6). Until
+- **Bug, not fixed:** Be a CHL Pro crashes in the patched game, with an undrafted junior and (lab round 59) a drafted one when
+  the career has 128 team keys (GAME_PATCH.md section 6). Until
   it is fixed, a made-up pro in the patched game should be on an NHL club or a drafted junior.
 - **Built (engine only, `'draft classes'` / `'new player records'` experimental):** `draftclass.py`, records held for
   new players (`edits.records_needed`, `Builder.hold_records`), `verify` checks the class. Not played: the second draft

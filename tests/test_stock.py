@@ -86,11 +86,12 @@ def test_clubs_in_switched_off_custom_slots_are_left_out(stock_bytes, pack):
     assert {'Coachella Valley Firebirds', 'Henderson Silver Knights'} <= set(ahl['left_out'])
 
 
-def test_the_vees_are_on_the_games_own_roster(stock_built):
+def test_the_vees_stay_out_of_the_games_own_roster_for_the_unpatched_game(stock_built):
+    """The unpatched lists cannot reach slot 251 here (lab round 59; tests/test_vees.py has the patched side)."""
     from legacy_roster import layout as L
     R = Roster(stock_built[0].data)
-    assert L.is_vees(R.T) and R.T.get(L.VEES, 'JkmY') == 'Penticton Vees'
-    assert sum(R.U.get(e, 'team') == L.VEES for e in range(R.U.cur_rec)) >= 20
+    assert not L.is_vees(R.T) and not R.T.get(L.VEES, 'NYKk')
+    assert not any(R.U.get(e, 'team') == L.VEES for e in range(R.U.cur_rec))
 
 
 def _rows(R, first, last):

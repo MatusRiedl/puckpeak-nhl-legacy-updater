@@ -110,7 +110,7 @@ def starter_league(slot):
         return 'SHL'
     if slot in L.LIIGA or slot in L.EXTRALIGA:
         return 'LIIGA'
-    return 'CHL' if slot in L.CHL else 'OTHER'
+    return 'CHL' if slot in L.CHL or slot == L.VEES else 'OTHER'
 
 
 def starter_pay(slot, overall):

@@ -170,6 +170,13 @@ OWN_KIT = {
 }
 
 
+def listed(T, slot):
+    """Does the unpatched game list this custom slot? Its team lists count the switched-on teams and walk ids 0, 1, 2 ...
+    that far (0x12865c, 0x128348; lab round 41), so a team shows only when every slot before it is on. Each slot off on the
+    way adds an empty "Custom Team N" (lab round 59). The patch's stage Y skips the slots that are off."""
+    return all(T.get(t, 'NYKk') for t in range(slot))
+
+
 def is_vees(T):
     """Does the team table `T` hold the Penticton Vees in their slot (art id 902 on a roster for the patched game), and not
     a team of the player's own?"""
