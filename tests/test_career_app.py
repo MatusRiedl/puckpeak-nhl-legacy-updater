@@ -139,7 +139,7 @@ def test_cancel_and_a_running_rpcs3_leave_the_career_alone(careers, monkeypatch)
     car.editor.update.answer('cancel')
     car.editor.update.running = True                # seen at the last scan: no question at all
     car.save()
-    assert car.editor.update.dialog is None and car.note == {'text': CA.CLOSED, 'tone': 'warn'}
+    assert car.editor.update.dialog is None and car.note == {'text': f"Close RPCS3 first: {CA.CLOSED}", 'tone': 'warn'}
     car.editor.update.running = False
     monkeypatch.setattr(savedata, 'running_rpcs3', lambda: 'rpcs3.exe')        # started since: update_career says so
     car.save()

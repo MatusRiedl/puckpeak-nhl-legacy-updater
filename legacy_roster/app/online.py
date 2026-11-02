@@ -28,6 +28,7 @@ from ..roster import Roster
 from ..stock import StockError
 from . import jobs
 from . import settings as S
+from . import texts as X
 
 SLICE = 'online'
 POLL = 2.0                              # seconds between asking the server while a lobby is open
@@ -213,7 +214,11 @@ class OnlineController:
     # --- what the PC and the server say ---------------------------------------------------------------------------
     def rpcs3(self):
         rpcs3 = getattr(self.update, 'rpcs3', None)
-        return None if rpcs3 is None or getattr(rpcs3, 'plain', False) else rpcs3
+        return None if rpcs3 is None or getattr(rpcs3, 'plain', False) or getattr(rpcs3, 'native', False) else rpcs3
+
+    def no_rpcs3(self):
+        """What the tab says when no RPCS3 is picked (the port has no online play)."""
+        return X.ONLINE_NATIVE if getattr(getattr(self.update, 'rpcs3', None), 'native', False) else NO_RPCS3
 
     def refresh(self):
         """Look again: the account, the patch, the online roster and the server (in the background)."""
@@ -1348,7 +1353,7 @@ class OnlineController:
         with self.lock:
             role = (self._member() or {}).get('role')
             bring, bring_why = self.bring()
-            return {'state': self.view(), 'account': self.account, 'title': self.title, 'busy': self.busy or self.copying,
+            return {'state': self.view(), 'no_rpcs3': self.no_rpcs3(), 'account': self.account, 'title': self.title, 'busy': self.busy or self.copying,
                     'note': self.note, 'checked': self.checked, 'server': self.server, 'marks': self.marks(),
                     'roster': self.roster['name'] if self.roster else None, 'brought': self.brought,
                     'bring': bring, 'bring_why': bring_why, 'patch': self.patch_word(), 'hint': self.hint(),

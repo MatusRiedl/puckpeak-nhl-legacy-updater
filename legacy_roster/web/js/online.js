@@ -295,7 +295,7 @@ export function OnlineTab({ s }) {
   return html`<div class="columns online">
     <div class="col">
       ${s.state === 'no-rpcs3'
-        ? html`<${Card} title="You" style=${{ '--i': 0 }}><div class="card-body"><div class="small-note">Pick RPCS3 in Setup first.</div></div><//>`
+        ? html`<${Card} title="You" style=${{ '--i': 0 }}><div class="card-body"><div class="small-note">${s.no_rpcs3}</div></div><//>`
         : html`<${YouCard} s=${s}/>`}
       ${s.note && html`<div class=${cls('om-note', s.note.tone)}>${s.note.text}</div>`}
       ${s.busy && html`<div class="small-note">${s.busy}</div>`}

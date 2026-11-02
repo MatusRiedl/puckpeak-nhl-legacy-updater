@@ -1354,7 +1354,7 @@ class EditorController:
                 self.set_status("The Update tab is working. Save when it is done.", 'bad')
                 return
             if in_place and savedata.running_rpcs3():
-                self.set_status("Close RPCS3 first: a roster can only be updated while the game is closed.", 'bad')
+                self.set_status(f"{savedata.close_first()}: a roster can only be updated while the game is closed.", 'bad')
                 return
             if not in_place:
                 try:
@@ -1453,7 +1453,7 @@ class EditorController:
             return
         in_place = upd.in_place(source)
         if in_place and savedata.running_rpcs3():
-            self.set_status("Close RPCS3 first: a roster can only be updated while the game is closed.", 'bad')
+            self.set_status(f"{savedata.close_first()}: a roster can only be updated while the game is closed.", 'bad')
             return
         targets = [source.title_id] if in_place else upd.save_targets(source) or [source.title_id]
         typed_name = self.name.strip()

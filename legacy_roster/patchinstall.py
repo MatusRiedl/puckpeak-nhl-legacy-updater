@@ -69,7 +69,7 @@ def carry_over(rpcs3):
     there, config_file) moved into RPCS3's own file and out of the old one, so a game patched then is patched now: its
     patch file and db files are in already. Done also while RPCS3 runs (it reads the file when a game starts); the old
     file's other lines stay, the file goes when nothing is left. Returns True when something moved."""
-    if savedata.WINDOWS or rpcs3 is None or rpcs3.plain:
+    if savedata.WINDOWS or rpcs3 is None or not rpcs3.patchable:
         return False
     stray = os.path.join(rpcs3.folder, 'config', 'patch_config.yml')
     old = _read(stray)
@@ -387,8 +387,9 @@ def find_disc(rpcs3, titles):
 # --- in, state, out -------------------------------------------------------------------------------
 def check(rpcs3, titles):
     """Raise PatchError, with what to do, when the patch cannot be put in now."""
-    if rpcs3 is None or rpcs3.plain:
-        raise PatchError("The game patch needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows), not a folder of saves.")
+    if rpcs3 is None or not rpcs3.patchable:
+        raise PatchError("The game patch needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves or "
+                         "NHL Legacy Native cannot take it.")
     if savedata.running_rpcs3():
         raise PatchError("Close RPCS3 first: the game patch can only be put in or taken out while RPCS3 is closed.")
     if not find_disc(rpcs3, titles):
@@ -470,8 +471,9 @@ def set_online(rpcs3, titles, on, say=print):
     update 1.01 alike; the patch file is written first when it is not there. It works without the 32-team patch and
     leaves that and the intro switches as they are. RPCS3 closed; no disc needed. Returns the titles changed."""
     titles = [t for t in gamepatch.HASHES if t in titles]
-    if rpcs3 is None or rpcs3.plain:
-        raise PatchError("Online play needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows), not a folder of saves.")
+    if rpcs3 is None or not rpcs3.patchable:
+        raise PatchError("Online play needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves or "
+                         "NHL Legacy Native cannot play online.")
     if savedata.running_rpcs3():
         raise PatchError("Close RPCS3 first: the game patch can only be put in or taken out while RPCS3 is closed.")
     if on:
@@ -629,8 +631,8 @@ def refresh_db(rpcs3, titles, roster, say=print):
 
 
 def patched_titles(rpcs3):
-    """The versions of the game patched in `rpcs3` (title ids), [] for none or no RPCS3."""
-    if rpcs3 is None or getattr(rpcs3, 'plain', False):
+    """The versions of the game patched in `rpcs3` (title ids), [] for none, no RPCS3 or NHL Legacy Native."""
+    if rpcs3 is None or not getattr(rpcs3, 'patchable', True):
         return []
     return [t for t, s in state(rpcs3).items() if s['patched']]
 
@@ -638,7 +640,7 @@ def patched_titles(rpcs3):
 def stale_titles(rpcs3):
     """The versions of the game whose patch in `rpcs3` is not for the game version RPCS3 runs (a patch put in before
     this program knew update 1.01): Patch again."""
-    if rpcs3 is None or getattr(rpcs3, 'plain', False):
+    if rpcs3 is None or not getattr(rpcs3, 'patchable', True):
         return []
     return [t for t, s in state(rpcs3).items() if s['stale']]
 
@@ -670,7 +672,7 @@ def state(rpcs3):
     the bits the game's db description gives the player rights (gamepatch.meta_rights; None without one)}} for both
     versions of the game."""
     out = {}
-    real = rpcs3 is not None and not rpcs3.plain
+    real = rpcs3 is not None and rpcs3.patchable
     text = _read_config(rpcs3) if real else ''
     for title in gamepatch.HASHES:
         game = game_version(rpcs3, title) if real else gamepatch.VERSIONS[0]
@@ -702,7 +704,9 @@ def installed_rights(rpcs3, title):
 
 def installed(rpcs3):
     """Is anything of the patch in (a switch, our patch file, a db file): what Unpatch would take out."""
-    text = _read_config(rpcs3) if rpcs3 is not None and not rpcs3.plain else ''
+    if rpcs3 is not None and not rpcs3.patchable:
+        return False
+    text = _read_config(rpcs3) if rpcs3 is not None else ''
     if any(ticked(text, t, v) for t in gamepatch.HASHES for v in gamepatch.VERSIONS):
         return True
     if any(install.load_manifest(STORE)['games'].values()):

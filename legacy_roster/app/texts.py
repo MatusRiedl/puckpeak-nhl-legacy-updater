@@ -76,6 +76,8 @@ PICTURE_SIZES = {pack: PICTURE_ROWS[key][2] for pack, key in (('photos', 'photos
                                                                       ('masks', 'team_masks'))}
 PICTURE_SIZES['ice'] = 6 * 1000 * 1000      # the new centre ice, downloaded with this season's (0.80.0); about how big, before the server says
 PICTURE_NAMES_OFF = "Off: the game keeps its own team names."
+NAMES_TIP = "Writes the team names of the roster you picked now. Your rosters and your graphics are not touched."
+NAMES_DONE = "Team names are in. Your graphics were not touched."
 PICTURE_NO_DOWNLOAD = "Nothing to download."
 SAVED_DESPITE = ("The roster is saved: you can load it in the game. The details of what went wrong are in {log}; "
                  "send that file with a bug report.")
@@ -87,6 +89,10 @@ PATCH_SUB = "Seattle and Vegas in Season and Be a GM: 32 NHL and 32 AHL teams, 8
 NOT_PATCHED = "Not patched: updates make rosters for the game as it is."
 PATCHED_NOTE = "every update makes a roster for it"
 PATCH_NEEDS_RPCS3 = f"The game patch needs RPCS3: pick {PROGRAM} in step 1."
+PATCH_NATIVE = "The game patch is for RPCS3. NHL Legacy Native cannot take it, so its Season and Be a GM stay at 30 teams."
+NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names and the editors all work here. It has no game patch and no "
+               "online play, so Season and Be a GM have 30 teams, and Coachella Valley, Henderson and the Vees are Custom teams.")
+ONLINE_NATIVE = "Online play needs RPCS3: NHL Legacy Native has no online. Pick RPCS3 in Setup to play online."
 
 
 def linux_pick(folders):
@@ -230,6 +236,9 @@ def rpcs3_note(rpcs3, slots):
         n = len(saves)
         return (f"Found {n} roster{'s' if n != 1 else ''} of NHL Legacy in this folder. Without RPCS3 the new roster "
                 "is saved next to them; photos and the game's own roster need RPCS3.")
+    if rpcs3 is not None and rpcs3.native:
+        return None if saves else ("No roster is saved yet. Start from the game's own roster (listed below): it is made "
+                                   "from your game and brought up to today.")
     if not saves and not slots:
         return ("No roster is saved in RPCS3 yet, and RPCS3 does not say where your game is. Pick the game "
                 "(its .iso file or its folder): the program then starts from the game's own roster, made from "

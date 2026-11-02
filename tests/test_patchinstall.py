@@ -72,7 +72,7 @@ def test_update_101_is_one_hash_for_both_versions_each_with_its_own_lines():
 def _fake_rpcs3(tmp_path):
     root = tmp_path / 'rpcs3'
     game = lambda title: str(root / 'dev_hdd0' / 'game' / title / 'USRDIR')
-    return SimpleNamespace(folder=str(root), plain=False, dev_hdd0=str(root / 'dev_hdd0'), game_folder=game,
+    return SimpleNamespace(folder=str(root), plain=False, patchable=True, dev_hdd0=str(root / 'dev_hdd0'), game_folder=game,
                            game_disc=lambda title: 'disc.iso' if title == EU else None)
 
 
@@ -280,7 +280,7 @@ def test_unpatch_gets_past_db_files_of_a_game_folder_that_is_gone(tmp_path, monk
 def test_a_patch_needs_rpcs3_and_the_game(tmp_path, monkeypatch):
     monkeypatch.setattr(savedata, 'running_rpcs3', lambda: None)
     with pytest.raises(patchinstall.PatchError, match="needs RPCS3"):
-        patchinstall.check(SimpleNamespace(plain=True), [EU])
+        patchinstall.check(SimpleNamespace(plain=True, patchable=False), [EU])
     rpcs3 = _fake_rpcs3(tmp_path)
     rpcs3.game_disc = lambda title: None
     with pytest.raises(patchinstall.PatchError, match="where your copy of the game is"):
@@ -483,7 +483,7 @@ def test_online_play_needs_rpcs3_closed_and_a_real_rpcs3(tmp_path, monkeypatch):
     with pytest.raises(patchinstall.PatchError):
         patchinstall.set_online(rpcs3, [EU], True)
     with pytest.raises(patchinstall.PatchError):
-        patchinstall.set_online(SimpleNamespace(plain=True), [EU], True)
+        patchinstall.set_online(SimpleNamespace(plain=True, patchable=False), [EU], True)
 
 
 def test_the_online_start_is_ticked_for_one_launch_only_and_needs_the_screens_and_game_1_00(tmp_path, monkeypatch):

@@ -9,13 +9,15 @@ PARAM.SFO differs only in TITLE and the folder name. So a roster can be saved fo
 version too (install(title_id=...)).
 
 The window asks for RPCS3 itself (find_rpcs3); the command line also takes a save folder
-directly (find_savedata).
+directly (find_savedata). NHL Legacy Native, the PC port, is picked the same way (class Native): it has no RPCS3, no game
+patch and no online play, keeps its saves under its user folder, and its pictures are a mod.
 
 Where RPCS3 keeps its data depends on the system: on Windows next to rpcs3.exe; on Linux in
 ~/.config/rpcs3 (the Flatpak: ~/.var/app/net.rpcs3.RPCS3/config/rpcs3), on a Mac in
 ~/Library/Application Support/rpcs3 (data_folders()). The program itself may be rpcs3.exe, the
 rpcs3 program or AppImage, or RPCS3.app; the player may also point at the data folder.
 """
+import configparser
 import contextlib
 import datetime
 import glob
@@ -40,7 +42,7 @@ GAMES = {'BLES02153': 'EU', 'BLUS31540': 'NA'}
 TITLES = {'BLES02153': "NHL™ Legacy Edition", 'BLUS31540': "NHL® Legacy Edition"}
 WINDOWS, MAC = os.name == 'nt', sys.platform == 'darwin'
 # what the player is asked to pick, in his system's words
-PICK_RPCS3 = ("Pick the file rpcs3.exe in your RPCS3 folder." if WINDOWS else
+PICK_RPCS3 = ("Pick the file rpcs3.exe in your RPCS3 folder, or NHLLauncher.exe in your NHL Legacy Native folder." if WINDOWS else
               "Pick RPCS3.app, or RPCS3's folder (~/Library/Application Support/rpcs3)." if MAC else
               "Pick the rpcs3 program or AppImage, or RPCS3's folder (~/.config/rpcs3).")
 
@@ -287,6 +289,9 @@ class Rpcs3:
     when the player pointed at the data folder), `root` the folder with RPCS3's data (default: the
     program's folder, as on Windows)."""
     plain = False                       # SaveFolder: roster saves without RPCS3
+    native = False                      # Native: the PC port
+    patchable = True                    # can it take the game patch and play online?
+    name = 'RPCS3'                      # what the window calls it
 
     def __init__(self, exe, savedata, user, root=None, games=None):
         self.exe = exe
@@ -339,6 +344,10 @@ class Rpcs3:
         dev_hdd0/game/<TITLEID>/USRDIR. It may not exist yet."""
         return os.path.join(self.dev_hdd0, 'game', title_id, 'USRDIR')
 
+    def holds(self, folder):
+        """Is this game folder one of this RPCS3's? (Pictures of another copy of RPCS3 must be taken away first.)"""
+        return _inside(folder, self.dev_hdd0)
+
     def games(self):
         """The versions of NHL Legacy this RPCS3 has (title ids, Europe first): listed in its games
         list, or with saves in the save folder."""
@@ -375,6 +384,108 @@ class Rpcs3:
         return None
 
 
+NATIVE_EXE, NATIVE_LAUNCHER = 'NHLLegacy.exe', 'NHLLauncher.exe'
+NATIVE_INI = 'nhl_settings.ini'
+NATIVE_TITLE = 'BLUS31540'              # the port is built from the North American version's update 1.01
+NATIVE_MOD = 'Puck Peak'                # our mod: every file the program writes for the port is in it
+NATIVE_USER = '00000001'
+
+
+def read_ini(path):
+    """{section: {key: value}} of an ini file, {} when it cannot be read. Keys keep their case (mod names)."""
+    parser = configparser.RawConfigParser(strict=False, delimiters=('=',), comment_prefixes=('#', ';'))
+    parser.optionxform = str
+    try:
+        with open(path, encoding='utf-8-sig', errors='replace') as f:
+            parser.read_file(f)
+    except (OSError, configparser.Error):
+        return {}
+    return {name: dict(parser[name]) for name in parser.sections()}
+
+
+class Native(Rpcs3):
+    """NHL Legacy Native, the PC port of the game: one install folder, no emulator. The game runs the North American
+    version's update 1.01 and has no patch loader and no network, so it plays as the unpatched game does: no game patch, no
+    online. nhl_settings.ini says where its folders are (relative to the install, or full paths).
+
+    Saves are in <user>/gamedata/dev_hdd0/home/00000001/savedata, as on RPCS3. Files never go into `data` (its hdd0 is hard
+    links to the update and the mods): they go into our mod, mods/Puck Peak/USRDIR, which the launcher joins with the update
+    (native.compose, and PLAY). `update_folder` holds the update's own files, only read."""
+    native = True
+    patchable = False
+    name = 'NHL Legacy Native'
+
+    def __init__(self, folder, games=None):
+        self.folder = os.path.abspath(folder)
+        self.exe = os.path.join(self.folder, NATIVE_EXE)
+        self.launcher = os.path.join(self.folder, NATIVE_LAUNCHER)
+        self.ini = os.path.join(self.folder, NATIVE_INI)
+        self.where = self.launcher if os.path.isfile(self.launcher) else self.exe
+        self.picked = dict(games or {})
+        paths = read_ini(self.ini).get('paths', {})
+        self.disc_folder = self._path(paths.get('disc'), 'game')
+        self.user_folder = self._path(paths.get('user'), 'user')
+        self.dev_hdd0 = os.path.join(self.user_folder, 'gamedata', 'dev_hdd0')
+        self.user = self._save_user()
+        self.savedata = os.path.join(self.dev_hdd0, 'home', self.user, 'savedata')
+
+    def _path(self, value, default):
+        value = (value or default).strip().strip('"')
+        return os.path.normpath(value if os.path.isabs(value) else os.path.join(self.folder, value))
+
+    def _save_user(self):
+        home = os.path.join(self.dev_hdd0, 'home')
+        users = sorted(u for u in os.listdir(home) if re.fullmatch(r'\d{8}', u)) if os.path.isdir(home) else []
+        return next((u for u in users if list_rosters(os.path.join(home, u, 'savedata'))),
+                    NATIVE_USER if NATIVE_USER in users or not users else users[0])
+
+    @property
+    def extra_savedata(self):
+        """Rosters the launcher has put aside (its "Use roster" moves them to user/rosters/<name>): they come back, so the
+        pictures they use are taken (art/install.scan_claims). Only read."""
+        return [f for f in sorted(glob.glob(os.path.join(glob.escape(self.user_folder), 'rosters', '*'))) if os.path.isdir(f)]
+
+    @property
+    def mods(self):
+        return os.path.join(self.folder, 'mods')
+
+    @property
+    def mod(self):
+        return os.path.join(self.mods, NATIVE_MOD)
+
+    def update_folder(self):
+        """The update's own files (USRDIR): the game reads them where a mod has no file of the same name."""
+        return os.path.join(self.folder, 'data', 'update', 'USRDIR')
+
+    def game_folder(self, title_id):
+        return os.path.join(self.mod, 'USRDIR')
+
+    def holds(self, folder):
+        return _inside(folder, self.folder)
+
+    def installed(self):
+        """Has the launcher finished its Install (the game's program and the update are there)?"""
+        return os.path.isfile(os.path.join(self.folder, 'data', 'eboot.elf')) and os.path.isdir(self.update_folder())
+
+    def games(self):
+        return [NATIVE_TITLE]
+
+    def game_disc(self, title_id):
+        if title_id != NATIVE_TITLE:
+            return None
+        for where in (self.disc_folder, self.picked.get(title_id)):
+            if where and os.path.isdir(os.path.join(where, 'PS3_GAME')):
+                return where
+        return None
+
+    def command(self):
+        """The launcher: its PLAY joins the mods with the update, and the game alone would run what was joined last."""
+        return [self.launcher if os.path.isfile(self.launcher) else self.exe]
+
+    def launch_dir(self):
+        return self.folder
+
+
 class SaveFolder(Rpcs3):
     """Roster saves without RPCS3: a savedata folder (or one roster save) the player picks himself,
     for example when the program runs in CrossOver or Wine and RPCS3 is the Mac or Linux one, or the
@@ -382,6 +493,7 @@ class SaveFolder(Rpcs3):
     roster goes next to the others; the game's own roster and the photos need RPCS3 (its games list
     and game folder), so they are not offered."""
     plain = True
+    patchable = False
 
     def __init__(self, savedata):
         self.exe, self.user, self.dev_hdd0 = None, None, None
@@ -402,6 +514,11 @@ def open_saves(path):
     or a file in one. FileNotFoundError (with what to do) when there are none."""
     folder, preselected = find_savedata(path)
     return SaveFolder(folder), preselected
+
+
+def _inside(path, folder):
+    path, folder = os.path.normcase(os.path.abspath(path)), os.path.normcase(os.path.abspath(folder))
+    return path.startswith(folder.rstrip(os.sep) + os.sep)
 
 
 def _dev_hdd0(root):
@@ -455,16 +572,60 @@ def _program_in(folder):
     return None
 
 
+def _is_native(folder):
+    return os.path.isfile(os.path.join(folder, NATIVE_EXE)) and (os.path.isfile(os.path.join(folder, NATIVE_INI))
+                                                                 or os.path.isfile(os.path.join(folder, NATIVE_LAUNCHER)))
+
+
+def native_folder(path):
+    """The NHL Legacy Native install `path` is in or is: its exe or launcher, its folder or any folder inside. None otherwise."""
+    if os.path.isfile(path):
+        if os.path.basename(path).lower() not in (NATIVE_EXE.lower(), NATIVE_LAUNCHER.lower()):
+            return None
+        path = os.path.dirname(path)
+    folder = path
+    while os.path.isdir(folder):
+        if _is_native(folder):
+            return folder
+        if os.path.dirname(folder) == folder:
+            break
+        folder = os.path.dirname(folder)
+    return None
+
+
+def _native_below(path):
+    """The port's install in a folder of `path` (the release's zip unpacks into a folder of its own), or None."""
+    try:
+        names = sorted(os.listdir(path)) if os.path.isdir(path) else []
+    except OSError:
+        return None
+    return next((os.path.join(path, n) for n in names if _is_native(os.path.join(path, n))), None)
+
+
+def _found_native(folder, games):
+    found = Native(folder, games)
+    if not found.installed():
+        raise Rpcs3Error("NHL Legacy Native is not installed yet. Open NHLLauncher.exe, press Install, then pick it here.")
+    if not found.game_disc(NATIVE_TITLE) and not list_rosters(found.savedata):
+        raise NoGameError("NHL Legacy Native was found, but its game folder is missing. Pick the game (its folder with "
+                          "PS3_GAME) and the program starts from the game's own roster.", found)
+    return found
+
+
 def find_rpcs3(path, games=None):
     """Resolve RPCS3 to its NHL Legacy saves. `path`: the program (rpcs3.exe, rpcs3, an AppImage,
     RPCS3.app), the folder holding it or a folder inside that one (such as a save folder remembered
-    by version 0.1), or RPCS3's data folder (~/.config/rpcs3 on Linux).
+    by version 0.1), or RPCS3's data folder (~/.config/rpcs3 on Linux). NHL Legacy Native (NHLLauncher.exe, NHLLegacy.exe
+    or a folder of it) gives a Native.
 
     `games`: {title id: the game's .iso or folder} the player pointed at (found when RPCS3 does not list it).
 
     Raises Rpcs3Error with a message for the user when it is not RPCS3, and NoGameError (it holds the
     RPCS3 found) when it has no roster yet and no game to start from."""
     path = os.path.abspath(os.path.expanduser((path or '').strip().strip('"')))
+    native = None if is_program(path) else native_folder(path)
+    if native:
+        return _found_native(native, games)
     exe = root = None
     if is_program(path):
         exe = path
@@ -479,6 +640,9 @@ def find_rpcs3(path, games=None):
                 break
             folder = os.path.dirname(folder)
     if exe is None and root is None:
+        native = _native_below(path)
+        if native:
+            return _found_native(native, games)
         raise Rpcs3Error("That is not RPCS3. " + PICK_RPCS3)
     if root is None:            # the program: its data is next to it (Windows, a portable copy), else in the usual place
         places = [os.path.dirname(os.path.normpath(exe))] + data_folders()
@@ -537,13 +701,19 @@ def _windows_processes():
 
 
 def running_rpcs3():
-    """Full path of a running RPCS3, or None (never raises)."""
+    """Full path of a running RPCS3 or NHL Legacy Native game, or None (never raises)."""
     if not WINDOWS:
         return _running_posix()
     for _pid, path in _windows_processes():
-        if os.path.basename(path).lower() == 'rpcs3.exe':
+        if os.path.basename(path).lower() in ('rpcs3.exe', NATIVE_EXE.lower()):
             return path
     return None
+
+
+def close_first():
+    """How a refusal starts while the game runs: what the player has to close."""
+    return ("Close NHL Legacy first" if os.path.basename(str(running_rpcs3())).lower() == NATIVE_EXE.lower()
+            else "Close RPCS3 first")
 
 
 @contextlib.contextmanager
@@ -596,7 +766,7 @@ def _appimage_of(proc, pid):
 
 def _running_posix(proc='/proc'):
     """A running RPCS3 on Linux (`proc`: /proc) or a Mac (ps)."""
-    is_rpcs3 = lambda cmd: (os.path.basename(cmd).lower() == 'rpcs3'
+    is_rpcs3 = lambda cmd: (os.path.basename(cmd).lower() == 'rpcs3' or cmd.lower().endswith(NATIVE_EXE.lower())
                             or ('rpcs3' in cmd.lower() and cmd.lower().endswith('.appimage')))
     try:
         if os.path.isdir(proc):
@@ -653,7 +823,7 @@ def update_in_place(savedata, slot, sys_data, name=None, expected=None, backup_r
     if getattr(slot, 'disc', False) or not SLOT_NAME.match(folder) or not is_roster_folder(path)             or os.path.islink(path) or os.path.realpath(os.path.dirname(path)) != os.path.realpath(savedata):
         raise InPlaceError("That is not a roster save, so it was not changed.")
     if running_rpcs3():
-        raise InPlaceError("Close RPCS3 first: a roster can only be updated while the game is closed.")
+        raise InPlaceError(f"{close_first()}: a roster can only be updated while the game is closed.")
     target = os.path.join(path, 'SYS-DATA')
     with open(target, 'rb') as f:
         current = f.read()
@@ -728,7 +898,7 @@ def update_career(savedata, folder, data, expected, backup_root, now=None, label
             or os.path.realpath(os.path.dirname(path)) != os.path.realpath(savedata):
         raise InPlaceError("That is not a Be a Pro career, so it was not changed.")
     if running_rpcs3():
-        raise InPlaceError("Close RPCS3 first: a career can only be saved while the game is closed.")
+        raise InPlaceError(f"{close_first()}: a career can only be saved while the game is closed.")
     files = careersave.data_files(path)
     if not careersave.Save(path).settled(now):
         raise InPlaceError("The game is still saving this career. Try again in a moment.")
@@ -851,7 +1021,7 @@ def trash_save(savedata, folder):
             or os.path.realpath(os.path.dirname(path)) != os.path.realpath(savedata):
         raise DeleteError("That is not a roster save, so it was not removed.")
     if running_rpcs3():
-        raise DeleteError("Close RPCS3 first: a roster can only be removed while the game is closed.")
+        raise DeleteError(f"{close_first()}: a roster can only be removed while the game is closed.")
     _recycle(path)
     if os.path.exists(path):
         raise DeleteError("The roster is still there, so it was not removed.")

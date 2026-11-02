@@ -10,14 +10,19 @@ const goTo = (tab) => window.dispatchEvent(new CustomEvent('lr-tab', { detail: t
 // --- Setup ------------------------------------------------------------------------------------------------
 function RpcsCard({ r, exp, busy }) {
   const note = r.note;
-  return html`<${Card} n="1" title="Where is RPCS3?" style=${{ '--i': 0 }}>
+  return html`<${Card} n="1" title="Where is your game?" aside=${r.kind || ''} style=${{ '--i': 0 }}>
     <div class="card-body">
       <div class="row">
         <${PathText} path=${r.path} unset="Not set yet"/>
         <${Button} kind=${r.path ? 'ghost' : 'primary'} disabled=${!r.enabled} onClick=${() => call('pick_rpcs3')}>
           ${r.path ? 'Change' : r.find_label}</${Button}>
       </div>
+      ${r.other && html`<div class="row" style=${{ marginTop: '8px' }}>
+        <${Button} small disabled=${!r.enabled} onClick=${() => call('switch_host')}>Switch to ${r.other}</${Button}>
+      </div>`}
       ${note && html`<div class=${cls('note', note.tone)}>${note.text}</div>`}
+      ${r.native && html`<div class="note info">${r.native}</div>`}
+      ${r.warnings.map((w) => html`<div key=${w} class="note amber">${w}</div>`)}
       ${r.needs_game && html`<div class="row" style=${{ marginTop: '10px' }}>
         <${Button} kind="primary" disabled=${busy} onClick=${() => call('pick_game', false)}>Pick the game (.iso)...</${Button}>
         <${Button} disabled=${busy} onClick=${() => call('pick_game', true)}>or its folder...</${Button}>
@@ -153,6 +158,8 @@ function StepRow({ row }) {
       ${row.warn && html`<div class="warn">${row.warn}</div>`}
       ${row.hint && html`<div class="hint">${row.hint}</div>`}
     </div>
+    ${row.action && html`<${Button} small disabled=${!row.action.enabled} title=${row.action.tip}
+        onClick=${() => call(row.action.call)}>${row.action.label}</${Button}>`}
     ${row.restore && html`<${Button} small kind=${row.restoring ? 'amber' : 'ghost'} disabled=${!row.restore_enabled}
         title=${row.restoring ? 'Press again to keep it as it is' : 'Put this part back as the game had it, in the next save'}
         onClick=${() => call('toggle_restore', row.key)}>${row.restoring ? 'Restoring' : 'Restore'}</${Button}>`}

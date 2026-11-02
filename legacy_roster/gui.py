@@ -18,7 +18,7 @@ except ImportError:      # only when run from source without the window's one ex
 
 from . import __version__, datasource, layout, packs, pipeline, restore, savedata
 from . import theme as T
-from .art.install import ArtError, installed as art_installed, remove as remove_art
+from .art.install import ArtError, installed as art_installed, remove as remove_art, use_host
 from .editor.view import EditorTab
 from . import edits as my_edits
 from .progress import fraction
@@ -540,6 +540,7 @@ class App:
             if path:
                 try:
                     found = savedata.find_rpcs3(path, games=self.settings.get('games'))
+                    use_host(found)
                 except savedata.NoGameError as err:         # RPCS3 itself is fine: it only needs the game
                     found = err.rpcs3
                 except (savedata.Rpcs3Error, OSError) as err:

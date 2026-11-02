@@ -53,7 +53,7 @@ export function Header({ meta }) {
   return html`<header class="header">
     <img class="logo" src="img/logo.png" alt="Puck Peak" draggable="false" onClick=${() => call('open_site')}/>
     <div class="tagline">${meta.tagline} · <a onClick=${() => call('open_site')}>${meta.site_label}</a></div>
-    <div class="titleline"><b>LEGACY UPDATER</b><span class="sep">|</span><span>NHL Legacy Edition on RPCS3</span>
+    <div class="titleline"><b>LEGACY UPDATER</b><span class="sep">|</span><span>NHL Legacy Edition on RPCS3 and NHL Legacy Native</span>
       <span class="sep">|</span><span>version ${meta.version}</span></div>
   </header>`;
 }

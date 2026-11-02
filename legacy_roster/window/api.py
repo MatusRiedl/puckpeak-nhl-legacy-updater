@@ -118,6 +118,14 @@ class Api:
         self._update.pick_rpcs3()
 
     @_safe
+    def switch_host(self):
+        self._update.switch_host()
+
+    @_safe
+    def apply_names(self):
+        self._update.apply_names()
+
+    @_safe
     def pick_game(self, folder=False):
         self._update.pick_game(bool(folder))
 

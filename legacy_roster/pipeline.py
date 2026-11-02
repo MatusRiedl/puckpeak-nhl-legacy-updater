@@ -10,7 +10,7 @@ from collections import Counter
 
 from . import contracts, datasource, draft, gamepatch, restore, savedata, schedule, sticks, stock
 from . import layout as L
-from .builder import FREE_AGENTS, Builder, drop_removed_player
+from .builder import FREE_AGENTS, Builder, Data, drop_removed_player
 from .leagues import clubs, pools
 from .roster import Roster
 from .verify import verify
@@ -768,7 +768,7 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
         if restore.CALENDAR in parts:
             steps = [s for s in steps if s != SCHEDULE]
         if (restore.PICTURES in parts or restore.pictures_of(parts)) and not dry_run and savedata.running_rpcs3():
-            raise savedata.InPlaceError("Close RPCS3 first: the game's own pictures can only be put back while the game is closed.")
+            raise savedata.InPlaceError(f"{savedata.close_first()}: the game's own pictures can only be put back while the game is closed.")
         if restore.PATCH in parts and not dry_run and savedata.running_rpcs3():
             raise savedata.InPlaceError("Close RPCS3 first: the game patch can only be taken out while RPCS3 is closed.")
     if in_place and disc is not None:
@@ -786,6 +786,12 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
     if restore.ROSTERS in parts:
         source = default                # the update starts from the game's own roster
     targets = sorted(set(targets or [source.title_id]), key=lambda t: (t != source.title_id, t))
+    host = art_rpcs3 or rpcs3
+    if getattr(host, 'native', False):
+        if game_patch:
+            raise L.LayoutError("NHL Legacy Native cannot take the game patch: it plays the unpatched game.")
+        game_patch = False
+        targets = [savedata.NATIVE_TITLE]   # the one version the port runs
     if game_patch is None:              # as RPCS3 is
         stale = [t for t in targets if t in patchinstall.stale_titles(rpcs3)]
         if stale:
@@ -806,7 +812,7 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
         raise savedata.InPlaceError("A roster is updated in place in its own version of the game only: "
                                     "save a new roster for the other version.")
     if in_place and not dry_run and savedata.running_rpcs3():
-        raise savedata.InPlaceError("Close RPCS3 first: a roster can only be updated while the game is closed.")
+        raise savedata.InPlaceError(f"{savedata.close_first()}: a roster can only be updated while the game is closed.")
     if not in_place and not dry_run:
         for title_id in targets:        # every version has room before anything is built or saved
             savedata.next_free(folder, title_id)
@@ -907,7 +913,7 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
     title = f"{saved[0].folder}_{stamp}"
     report = then("The list of changes could not be written", lambda: report_as(title))
     db_note = None
-    if game_patch and rpcs3 is not None and not rpcs3.plain:   # the patched game's db files carry its next seasons
+    if game_patch and rpcs3 is not None and rpcs3.patchable:   # the patched game's db files carry its next seasons
         db_note = then("The game patch could not be brought up to date",
                        lambda: patchinstall.refresh_db(rpcs3, targets, result.data, say))
     art, look_teams = own_note, 0
@@ -947,6 +953,10 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
             done.restored.append("The game's own pictures are back for what you restored." if n else
                                  "Nothing of that was installed: the pictures are the game's own.")
         then("The game's own pictures could not be put back", unparts)
+    host = art_rpcs3 or rpcs3
+    if getattr(host, 'native', False) and (restore.PICTURES in parts or restore.pictures_of(parts) or pictures is not None):
+        from . import native
+        then("The game could not be told about the new files", lambda: native.settle(host, say))
     if restore.ROSTERS in parts:
         done.restored.insert(0, "The rosters start from " + restore.describe(default)[0].lower() + restore.describe(default)[1:])
     if restore.CALENDAR in parts:
@@ -967,6 +977,43 @@ def looks_teams(team_edits):
             except (TypeError, ValueError):
                 continue
     return frozenset(out)
+
+
+def names_of(source, team_edits=None):
+    """What art.portraits.names gives the roster `source` (bytes of a SYS-DATA) with the player's own team names
+    `team_edits`, as an update of it would give. The roster is only read: nothing here is saved."""
+    from . import edits
+    from .art import portraits
+    R = Roster(source)
+    kind = L.check_base(R)
+    if gamepatch.is_patch_roster(R):    # names go by the teams as the builder knows them, as in build()
+        gamepatch.unleague(R)
+        gamepatch.unart(R)
+    b = Builder(R, Data(season_year=2026), layout=kind)
+    for key, entry in (team_edits or {}).items():
+        if 0 <= int(key) < R.T.cur_rec:
+            edits.team_name(b, int(key), entry)
+    return portraits.names(b)
+
+
+def apply_names(rpcs3, source, title_id, targets=None, team_edits=None, say=print):
+    """The team names of the roster `source` (bytes of a SYS-DATA) and the main menu into the game now: no roster is
+    saved, no pack is read, no picture is looked at. The Team names row's "Apply names" and `cli names apply`. Raises
+    install.ArtError when they cannot go in (the game runs, no disc)."""
+    from . import native
+    from .art import install
+    if savedata.running_rpcs3():
+        raise install.ArtError(f"{savedata.close_first()}: team names can only go in while the game is closed.")
+    if rpcs3.native:                    # the port has one version, whatever a copied roster says
+        title_id, targets = savedata.NATIVE_TITLE, None
+    targets = list(targets or [title_id])
+    names = names_of(source, team_edits)
+    plainly = lambda line: say(line.removeprefix('Photos and logos: '))
+    install.install(rpcs3, title_id, {}, {}, plainly, names=names, also=[t for t in targets if t != title_id], pack=False,
+                    cache=False, pictures=False)
+    if rpcs3.native:
+        native.settle(rpcs3, say)
+    return len(names['teams'])
 
 
 class Pictures:

@@ -123,6 +123,21 @@ def pretend_rpcs3(folder, disc=None, full=False):
     return exe
 
 
+def pretend_native(folder):
+    """An install of NHL Legacy Native with the base roster saved for the game (--native: every state on the port)."""
+    root = os.path.join(folder, 'NHL Legacy Native')
+    for sub in ('game/PS3_GAME', 'data/update/USRDIR'):
+        os.makedirs(os.path.join(root, sub))
+    for name in ('NHLLegacy.exe', 'NHLLauncher.exe'):
+        open(os.path.join(root, name), 'wb').close()
+    open(os.path.join(root, 'data', 'eboot.elf'), 'wb').close()
+    with open(os.path.join(root, 'nhl_settings.ini'), 'w', encoding='utf-8') as f:
+        f.write('[paths]\ndisc = game\nuser = user\n[launcher]\n')
+    sd = os.path.join(root, 'user', 'gamedata', 'dev_hdd0', 'home', '00000001', 'savedata')
+    shutil.copytree(BASE, os.path.join(sd, os.path.basename(BASE).replace('BLES02153', 'BLUS31540')))
+    return os.path.join(root, 'NHLLauncher.exe')
+
+
 def capture(hwnd, out):
     """The window (its handle) as it paints itself, cropped to its visible frame."""
     from PIL import Image
@@ -642,6 +657,7 @@ def main():
     ap.add_argument('--team', type=lambda v: v if v == 'FA' else int(v),
                     help="the editor's team slot (default Edmonton; 36 Charlotte, 135 Canada; FA the free agents)")
     ap.add_argument('--saves', action='store_true')
+    ap.add_argument('--native', action='store_true', help="on a pretend NHL Legacy Native, with a pretend RPCS3 to switch to")
     ap.add_argument('--live', action='store_true')
     ap.add_argument('--browser', action='store_true')
     args = ap.parse_args()
@@ -660,7 +676,11 @@ def main():
             copied = os.path.join(work, 'copied saves')
             shutil.copytree(os.path.join(os.path.dirname(exe), 'dev_hdd0', 'home', '00000001', 'savedata'), copied)
             exe = copied
-        S.load = lambda: {} if args.state == 'none' else {'rpcs3': exe}
+        hosts = {}
+        if args.native:
+            hosts = {'hosts': {'rpcs3': exe}}
+            exe = pretend_native(work)
+        S.load = lambda: {} if args.state == 'none' else {'rpcs3': exe, **hosts}
         S.save = lambda values: None
         savedata.running_rpcs3 = lambda: None         # a running RPCS3 on this PC must not be picked up
         savedata.default_rpcs3 = lambda: None         # nor one in its usual place
@@ -671,6 +691,9 @@ def main():
             return
         host, c = controllers()
         upd = c['update']
+        if args.native:
+            chosen = upd.select
+            upd.select = lambda folder: chosen(folder.replace('BLES02153', 'BLUS31540'))
         tab, details = drive(args, c, work)
         time.sleep(0.3)
         message = host.first()

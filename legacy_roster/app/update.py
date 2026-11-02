@@ -8,8 +8,9 @@ import tempfile
 import threading
 import time
 
-from .. import __version__, datasource, export, gamepatch, layout, packs, patchinstall, pipeline, restore, savedata
+from .. import __version__, datasource, export, gamepatch, layout, native, packs, patchinstall, pipeline, restore, savedata
 from .. import edits as my_edits
+from ..art import install as art_install
 from ..art import parts as P
 from ..art.install import ArtError, installed as art_installed, remove as remove_art
 from ..gui_state import is_current_scan
@@ -417,7 +418,8 @@ class UpdateController:
                 return
             start = self.rpcs3.folder if self.rpcs3 else os.path.expanduser('~')
         if savedata.WINDOWS:
-            path = self.host.ask_open("Where is rpcs3.exe?", ['RPCS3 (rpcs3.exe)', 'Programs (*.exe)'], start)
+            path = self.host.ask_open("Where is rpcs3.exe, or NHLLauncher.exe in NHL Legacy Native?",
+                                      ['Programs (*.exe)', 'All files (*.*)'], start)
         elif savedata.MAC:      # RPCS3.app is a folder to the file dialog; RPCS3's data folder will do as well
             path = self.host.ask_folder("Where is RPCS3.app, or RPCS3's folder? (" + ", ".join(savedata.data_folders()) + ")", start)
         else:                   # Linux: the program (an AppImage or the rpcs3 binary) or RPCS3's folder; the Flatpak has only a folder
@@ -482,7 +484,7 @@ class UpdateController:
                         patchy.add(s.folder)
                     rights[s.folder] = checked[key][2]
                 slots = slots + found.disc_slots()
-                if not found.plain:
+                if found.patchable:
                     state = patchinstall.state(found)
             running = savedata.running_rpcs3() is not None if found else False
             self._scanned(found, slots, usable, versions, problem, quiet, running, checked, picked, scan_id, patchy, state,
@@ -517,7 +519,10 @@ class UpdateController:
             if found and not temporary(found.where):
                 self.settings['rpcs3'] = found.where
                 self.settings.pop('folder', None)
+                if not found.plain:         # the last RPCS3 and the last port, one press apart (Setup's "Switch to")
+                    self.settings.setdefault('hosts', {})['native' if found.native else 'rpcs3'] = found.where
                 S.save(self.settings)
+            art_install.use_host(found)
             self.art_installed = art_installed()
             keep = self.selected if self.slot_of(self.selected) and self.usable.get(self.selected) is None else None
             first = next((s.folder for s in slots if usable[s.folder] is None and not getattr(s, 'disc', False)),
@@ -527,6 +532,25 @@ class UpdateController:
                 self._fit_check = False
                 self._ask_fit()
             self.changed()
+
+    def _other_host(self):
+        """(what it is called, where it is) of the other game the player picked before, None without one."""
+        if self.rpcs3 is None or self.rpcs3.plain:
+            return None
+        kind, name = ('rpcs3', 'RPCS3') if self.rpcs3.native else ('native', 'NHL Legacy Native')
+        path = (self.settings.get('hosts') or {}).get(kind)
+        return (name, path) if path and os.path.exists(path) else None
+
+    def switch_host(self):
+        """Setup's "Switch to": the other game picked before."""
+        with self.lock:
+            other = None if self.busy or self.scanning else self._other_host()
+        if other:
+            self.set_rpcs3(other[1])
+
+    def _named(self, text):
+        """A text about RPCS3 in the words of the game in use."""
+        return text.replace('RPCS3', self.rpcs3.name) if self.rpcs3 is not None and self.rpcs3.native else text
 
     def misfit(self, s):
         """Why the game as RPCS3 has it now cannot load roster `s`, or None: a normal roster in a patched game, a
@@ -628,7 +652,7 @@ class UpdateController:
             if slot is None or getattr(slot, 'disc', False) or self.busy or self.scanning:
                 return
             if savedata.running_rpcs3():
-                self.show_result(False, "Close RPCS3 first", ["A roster can only be removed while the game is closed."])
+                self.show_result(False, savedata.close_first(), ["A roster can only be removed while the game is closed."])
                 return
             self.ask(f"Move \"{slot.name}\" to the {X.BIN_NAME}?",
                      [f"{slot.region} game, folder {slot.folder}, saved {X.friendly_date(slot.modified)}.",
@@ -698,6 +722,8 @@ class UpdateController:
         """None when Patch / Unpatch can run now, else why not (shown on the card)."""
         if self.export_mode or self.rpcs3 is None or self.rpcs3.plain:
             return X.PATCH_NEEDS_RPCS3
+        if not self.rpcs3.patchable:
+            return X.PATCH_NATIVE
         if not self.versions:
             return X.PATCH_NEEDS_GAME
         return None                     # RPCS3 running: Patch / Unpatch say so when pressed
@@ -705,7 +731,7 @@ class UpdateController:
     def patch(self):
         """Step 2's Patch button: the game patch into every version RPCS3 has (the first time after a question)."""
         with self.lock:
-            if self.busy or self.scanning or self.rpcs3 is None or self.rpcs3.plain:
+            if self.busy or self.scanning or self.rpcs3 is None or not self.rpcs3.patchable:
                 return
             if savedata.running_rpcs3():
                 self.running = True
@@ -725,7 +751,7 @@ class UpdateController:
 
     def _patch(self):
         with self.lock:
-            if self.busy or self.rpcs3 is None or self.rpcs3.plain:
+            if self.busy or self.rpcs3 is None or not self.rpcs3.patchable:
                 return
             rpcs3, titles, intro, login = self.rpcs3, list(self.versions), self.skip_intro, self.no_login
             self._begin("Patching...")
@@ -797,7 +823,7 @@ class UpdateController:
     def unpatch(self):
         """Step 2's Unpatch button: the game patch out of RPCS3, after a question."""
         with self.lock:
-            if self.busy or self.rpcs3 is None or self.rpcs3.plain:
+            if self.busy or self.rpcs3 is None or not self.rpcs3.patchable:
                 return
             if savedata.running_rpcs3():
                 self.running = True
@@ -933,7 +959,7 @@ class UpdateController:
             self.save_settings()
             in_place = fit or self.in_place(slot)
             if in_place and savedata.running_rpcs3():
-                self.show_result(False, "Close RPCS3 first", ["A roster can only be updated while the game is closed."])
+                self.show_result(False, savedata.close_first(), ["A roster can only be updated while the game is closed."])
                 return
             # the editor saving pictures writes the same lists of pictures as an update: one at a time
             if self.editor_busy() and (in_place or getattr(self.editor, 'saving_pictures', False)):
@@ -993,6 +1019,37 @@ class UpdateController:
             where = self.rpcs3.where if self.rpcs3 else None
         if not self.export_mode:
             self.set_rpcs3(where, quiet=True)
+
+    def apply_names(self):
+        """The Team names row's button: the picked roster's team names into the game now, nothing else."""
+        with self.lock:
+            slot = self.selected_slot()
+            if self._names_blocked(slot):
+                return
+            rpcs3, targets = self.rpcs3, self.save_targets(slot)
+            teams = my_edits.load_teams() if self.use_edits else None
+            self._begin("Writing the team names...")
+
+        def work():
+            messages = []
+            with open(slot.sys_data, 'rb') as f:
+                pipeline.apply_names(rpcs3, f.read(), slot.title_id, targets, teams, say=messages.append)
+            return messages
+
+        def done(messages):
+            self._finish()
+            self.say(*messages)
+            with self.lock:
+                self.art_installed = art_installed()
+                self.at = 1.0
+                self.status = (X.NAMES_DONE, 'good')
+                self.show_result(True, "Team names", [X.NAMES_DONE])
+
+        jobs.run(work, done=done, failed=self._failed, expected=(ArtError, OSError, ValueError))
+
+    def _names_blocked(self, slot):
+        return (self.busy or self.scanning or self.export_mode or slot is None or getattr(slot, 'disc', False)
+                or self.rpcs3 is None or self.rpcs3.plain)
 
     def _failed(self, message):
         self._finish()
@@ -1064,7 +1121,7 @@ class UpdateController:
         if self._backup:
             buttons.insert(1, ("Open backup folder", 'backup'))
         if not rpcs3_running and self.rpcs3 is not None and not self.rpcs3.plain:
-            buttons.append(("Start RPCS3", 'start_rpcs3'))
+            buttons.append((f"Start {self.rpcs3.name}", 'start_rpcs3'))
         name = result.slot.name
         if result.in_place:
             if self.editor is not None:
@@ -1341,7 +1398,7 @@ class UpdateController:
                           for s in self._fresh(export)],
                 'empty': None if self.slots else ("Looking for your rosters..." if self.scanning else
                                                   "No RPCS3 rosters are listed. Pick RPCS3 in step 1, or use a roster file." if export else
-                                                  "Pick RPCS3 first. Your rosters will be listed here."),
+                                                  "Pick your game first. Your rosters will be listed here."),
                 'rosters': [self._roster_view(s, hidden) for s in self.slots],
                 'room': self._room_view(room, export),
                 'selected': self.selected,
@@ -1418,29 +1475,34 @@ class UpdateController:
             needs_game = not self.export_games()
         else:
             needs_game = bool(self.rpcs3 and not self.rpcs3.plain and not self.rpcs3.disc_slots())
+        native_host = self.rpcs3 is not None and self.rpcs3.native
         return {'path': self.rpcs3.where if self.rpcs3 else None, 'note': {'text': note, 'tone': tone} if note else None,
-                'needs_game': needs_game, 'find_label': "Find rpcs3.exe" if savedata.WINDOWS else "Find RPCS3",
-                'enabled': not self.busy}
+                'needs_game': needs_game, 'find_label': "Find your game",
+                'enabled': not self.busy, 'kind': self.rpcs3.name if self.rpcs3 and not self.rpcs3.plain else None,
+                'native': X.NATIVE_NOTE if native_host else None, 'warnings': native.notes(self.rpcs3) if native_host else [],
+                'other': (self._other_host() or (None,))[0]}
 
     def _patch_view(self):
         """Step 2: is the game patched, the two small switches, Patch / Unpatch."""
         if self.export_mode:
             return self._patch_export_view()
         why = self.patchable()
+        port = why == X.PATCH_NATIVE
+        off = port or why == X.PATCH_NEEDS_RPCS3
         patched = [t for t, st in self.patch_state.items() if st.get('patched') or st.get('stale')] \
-            if why != X.PATCH_NEEDS_RPCS3 else []           # stale: patched before update 1.01 was known
+            if not off else []                              # stale: patched before update 1.01 was known
         old = [t for t in patched if self.patch_state[t].get('version') != gamepatch.TEAMS_VERSION
                or self.patch_state[t].get('stale')]
         missing = [t for t in self.versions if t not in patched]
         free = not self.busy and not self.scanning and why is None
-        if why == X.PATCH_NEEDS_RPCS3:
+        if off:
             state = {'text': why, 'tone': 'muted'}
         elif patched:
             state = {'text': X.patch_state(self.patch_state, old, missing), 'tone': 'amber' if old or missing else 'good'}
         else:
             state = {'text': X.NOT_PATCHED, 'tone': 'muted'}
         buttons = []
-        if why != X.PATCH_NEEDS_RPCS3 and self.versions:
+        if not off and self.versions:
             if old:
                 label = "Patch again"
             elif not patched:
@@ -1453,16 +1515,17 @@ class UpdateController:
                 buttons.append({'label': label, 'call': 'patch', 'enabled': free, 'kind': 'gold'})
             if patched:
                 buttons.append({'label': "Unpatch", 'call': 'unpatch', 'enabled': free, 'kind': 'gold-line'})
-        switch = not self.busy and why != X.PATCH_NEEDS_RPCS3
-        note = None if why == X.PATCH_NEEDS_RPCS3 else why
+        switch = not self.busy and not off
+        note = None if off else why
         return {'title': X.PATCH_TITLE, 'sub': X.PATCH_SUB, 'state': state,
                 'note': note,
                 'info': {'title': X.PATCH_INFO_TITLE,
                          'sections': [{'head': head, 'items': items} for head, items in X.PATCH_INFO]},
-                'checks': [{'key': S.SKIP_INTRO, 'label': "Skip the intro", 'on': self.skip_intro, 'enabled': switch},
-                           {'key': S.NO_LOGIN, 'label': "No pop ups at start", 'tip': X.NO_LOGIN_TIP,
-                            'on': self.no_login, 'enabled': switch}],
-                'buttons': buttons, 'patched': bool(patched), 'regions': self._patch_regions(patched, old)}
+                'checks': [] if port else     # the port's launcher has its own Skip the intro
+                [{'key': S.SKIP_INTRO, 'label': "Skip the intro", 'on': self.skip_intro, 'enabled': switch},
+                 {'key': S.NO_LOGIN, 'label': "No pop ups at start", 'tip': X.NO_LOGIN_TIP,
+                  'on': self.no_login, 'enabled': switch}],
+                'buttons': buttons, 'patched': bool(patched), 'regions': [] if port else self._patch_regions(patched, old)}
 
     def _patch_export_view(self):
         """The Game patch tab in an export: no Patch / Unpatch (they change RPCS3); a box puts the patch into the export."""
@@ -1580,7 +1643,7 @@ class UpdateController:
         every = len(kids)
         if offered and on and count < every:
             sub = f"{count} of {every} parts on. " + sub
-        return {'key': S.PICTURES, 'title': X.PHOTOS_TITLE, 'sub': sub, 'warn': None, 'hint': X.PHOTOS_HINT, 'featured': True,
+        return {'key': S.PICTURES, 'title': X.PHOTOS_TITLE, 'sub': sub, 'warn': None, 'hint': self._named(X.PHOTOS_HINT), 'featured': True,
                 'on': on, 'enabled': not self.busy and offered, 'restore': offered and not export,
                 'restore_enabled': restorable, 'restoring': any(k in self.marks for k in S.GROUP),
                 'bar': round(self.fetch_at, 3) if running else None, 'children': kids}
@@ -1613,10 +1676,13 @@ class UpdateController:
             sub = X.PHOTOS_RETRY
         else:
             sub = X.photos_will(size)
-        return {'key': key, 'title': title, 'sub': sub, 'warn': None, 'hint': hint,
+        return {'key': key, 'title': title, 'sub': sub, 'warn': None, 'hint': self._named(hint),
                 'on': on, 'enabled': not self.busy and offered, 'restore': offered and not export,
                 'restore_enabled': restorable, 'restoring': key in self.marks,
-                'bar': round(self.fetch_at, 3) if running else None}
+                'bar': round(self.fetch_at, 3) if running else None,
+                'action': {'label': "Apply names", 'call': 'apply_names', 'tip': X.NAMES_TIP,
+                           'enabled': not self._names_blocked(self.selected_slot())}
+                if key == S.NAMES and not export and not plain else None}
 
     def _save_view(self, slot, export, in_place, ready, any_step, full=()):
         if export:
@@ -1640,7 +1706,7 @@ class UpdateController:
                 'name': self.name, 'name_enabled': not self.busy,
                 'save_for': save_for,
                 'button': {'text': button, 'enabled': ready and any_step and not full},
-                'note': X.EXPORT_SAVE_NOTE if export else X.SAVE_NOTE}
+                'note': X.EXPORT_SAVE_NOTE if export else self._named(X.SAVE_NOTE)}
 
     def _status_view(self, slot, export, ready, any_step, full=()):
         if self.busy or (self.result is not None and self.status):
@@ -1655,7 +1721,7 @@ class UpdateController:
         else:
             text, tone = ("Looking for your rosters..." if self.scanning else
                           "Ready." if ready and any_step else
-                          "Start with step 1: find RPCS3." if self.rpcs3 is None else
+                          "Start with step 1: find your game." if self.rpcs3 is None else
                           "Switch on at least one thing to update." if slot is not None else
                           "None of the rosters found can be updated."), 'muted'
         return {'text': text, 'tone': tone}

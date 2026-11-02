@@ -82,6 +82,18 @@ ART_STORE, PATCH_STORE = 'art', 'patch'
 
 _REDIRECT = None            # export.py: a folder that holds the lists and kept copies instead of the program's own
 _READ_ONLY_DIRS = ()        # game folders (USRDIR) that are only read while exporting (the update's text files)
+_HOST = None                # use_host: the program's own lists and copies of NHL Legacy Native, away from RPCS3's
+_HOST_READS = ()            # the game folders of that host that are only read (the update)
+
+
+def use_host(rpcs3):
+    """The game the program works on now. RPCS3's pictures and the PC port's are kept apart, each port install with its own
+    lists and kept copies, so a player can have both and Restore takes away only the game picked. Set when a game is
+    found: every list in this file then is that game's."""
+    global _HOST, _HOST_READS
+    native = rpcs3 is not None and getattr(rpcs3, 'native', False)
+    _HOST = 'native-' + hashlib.sha1(os.path.normcase(rpcs3.folder).encode()).hexdigest()[:12] if native else None
+    _HOST_READS = (rpcs3.update_folder(),) if native else ()
 
 
 @contextlib.contextmanager
@@ -103,6 +115,8 @@ def _paths(store=ART_STORE):
         base = os.path.join(_REDIRECT, store)
         os.makedirs(base, exist_ok=True)
         return os.path.join(base, 'installed.json'), os.path.join(base, 'backup')
+    if _HOST:
+        store = os.path.join(_HOST, store)
     return datasource.app_dir(store, 'installed.json'), datasource.app_dir(store, 'backup')
 
 
@@ -398,22 +412,20 @@ def ours(entry, path):
         return False
 
 
-def _inside(path, folder):
-    path, folder = os.path.normcase(os.path.abspath(path)), os.path.normcase(os.path.abspath(folder))
-    return path.startswith(folder.rstrip(os.sep) + os.sep)
-
-
 def check(rpcs3, title_id, own=False):
     """Raise ArtError, with what to do, when the pictures cannot be installed now. `own`: only the player's own
     pictures (the Roster editor's), which go in with photos and logos off too."""
     if savedata.running_rpcs3():
-        raise ArtError("Close RPCS3 first: your own pictures go into the game while it is closed." if own else
-                       "Close RPCS3 first: photos and logos can only be installed while the game is closed. "
-                       "Or switch \"Photos and logos\" off.")
+        first = savedata.close_first()
+        raise ArtError(f"{first}: your own pictures go into the game while it is closed." if own else
+                       f"{first}: pictures and team names can only be installed while the game is closed. "
+                       "Or switch them off.")
     if not rpcs3.game_disc(title_id):
-        raise ArtError("RPCS3 does not say where your copy of the game is, so the photos cannot be made. "
+        raise ArtError("NHL Legacy Native's game folder is missing, so names and pictures cannot be made. Press Install in its "
+                       "launcher, then try again." if rpcs3.native else
+                       "RPCS3 does not say where your copy of the game is, so names and pictures cannot be made. "
                        "Start the game once from RPCS3's game list, then try again.")
-    if any(not _inside(d, rpcs3.dev_hdd0) and os.path.isdir(d) for d in load_manifest()['games']):
+    if any(not rpcs3.holds(d) and os.path.isdir(d) for d in load_manifest()['games']):
         raise ArtError("Photos and logos are installed for another copy of RPCS3. Press \"Restore the game's "
                        "own pictures\" first.")
 
@@ -495,7 +507,7 @@ def update_texts(game_dirs):
     jersey names) and newer ones. {} without the update."""
     from . import loc
     from .disc import EbArchive
-    for d in list(game_dirs) + list(_READ_ONLY_DIRS):
+    for d in list(game_dirs) + list(_READ_ONLY_DIRS) + list(_HOST_READS):
         path = os.path.join(d, UPDATE_ARCHIVE)
         if not os.path.isfile(path):
             continue
@@ -582,7 +594,7 @@ def install(rpcs3, title_id, portraits, logos, say=print, workers=WORKERS, pack=
     names and the menu (the "Team names" switch alone); the photos and logos are left as they are.
     Returns (written, already there, failed)."""
     check(rpcs3, title_id, own=not (menus or names))
-    if not _REDIRECT and os.path.exists(lab.manifest_path()):       # an export never touches the player's RPCS3
+    if not _REDIRECT and not _HOST and os.path.exists(lab.manifest_path()):     # an export never touches the player's RPCS3
         lab.remove(say=lambda msg: None)  # the one-off art test, if it is still installed
     say("Photos and logos: reading picture templates from your game")
     disc = Disc(rpcs3.game_disc(title_id))
@@ -668,7 +680,7 @@ def remove(say=print):
     Returns how many files were handled. The game patch's files are not pictures: they stay (patchinstall.remove)."""
     move_entries('db/', ART_STORE, PATCH_STORE)
     m = load_manifest()
-    lab_count = lab.remove(say=lambda msg: None) if os.path.exists(lab.manifest_path()) else 0
+    lab_count = lab.remove(say=lambda msg: None) if not _HOST and os.path.exists(lab.manifest_path()) else 0
     if not any(m['games'].values()):
         say("No photos or logos are installed." if not lab_count else "The art test was removed.")
         path, _ = _paths()
@@ -676,7 +688,7 @@ def remove(say=print):
             os.remove(path)
         return lab_count
     if savedata.running_rpcs3():
-        raise ArtError("Close RPCS3 first: photos and logos can only be removed while the game is closed.")
+        raise ArtError(f"{savedata.close_first()}: pictures can only be removed while the game is closed.")
     n, left = _put_back(m)
     _forget_handled(m, ART_STORE)
     say(f"The game's own pictures are back: {n} files put back as they were." + _left_line(left))
@@ -695,7 +707,7 @@ def remove_parts(parts, say=print):
         say("None of these pictures is installed.")
         return 0
     if savedata.running_rpcs3():
-        raise ArtError("Close RPCS3 first: pictures can only be removed while the game is closed.")
+        raise ArtError(f"{savedata.close_first()}: pictures can only be removed while the game is closed.")
     sub = dict(m)
     sub['games'] = {d: dict(files) for d, files in chosen.items()}
     n, left = _put_back(sub)

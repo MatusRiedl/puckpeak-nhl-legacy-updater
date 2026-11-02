@@ -118,18 +118,7 @@ def apply_teams(b, teams, say=None):
         slot, e = int(key), teams[key]
         if not 0 <= slot < T.cur_rec:
             continue
-        for field, part in (('fullname', 'full'), ('shortname', 'city'), ('abbrname', 'abbr')):
-            if e.get(part):
-                limit = T.field(field).bits // 8 - 1
-                text = e[part]
-                while len(text.encode('utf-8')) > limit:
-                    text = text[:-1]
-                if field == 'shortname':
-                    L.set_city(T, slot, text)       # a custom team's city is a key (layout.city_key)
-                else:
-                    T.set(slot, field, text)
-        if any(e.get(p) for p in ('full', 'city', 'abbr')):
-            b.team_names[slot] = True
+        team_name(b, slot, e)
         if e.get('logo'):
             b.logos[slot] = e['logo']
             b.own_logos.add(slot)
@@ -147,6 +136,23 @@ def apply_teams(b, teams, say=None):
         b.log.append(['edits', 'team edited', b.R.team_name(slot), ', '.join(sorted(e)), ''])
     if teams and say:
         say(f"My edits: {len(teams)} teams")
+
+
+def team_name(b, slot, e):
+    """The name, city and short code the player gave a team, into the roster."""
+    T = b.R.T
+    for field, part in (('fullname', 'full'), ('shortname', 'city'), ('abbrname', 'abbr')):
+        if e.get(part):
+            limit = T.field(field).bits // 8 - 1
+            text = e[part]
+            while len(text.encode('utf-8')) > limit:
+                text = text[:-1]
+            if field == 'shortname':
+                L.set_city(T, slot, text)       # a custom team's city is a key (layout.city_key)
+            else:
+                T.set(slot, field, text)
+    if any(e.get(p) for p in ('full', 'city', 'abbr')):
+        b.team_names[slot] = True
 
 
 def _team_colours_arena(b, slot, e):

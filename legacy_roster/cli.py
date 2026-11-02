@@ -45,7 +45,7 @@ from .builder import Data
 from .roster import Roster
 from .tdb import RosterFile
 
-RPCS3_HELP = ("your rpcs3.exe (or the folder it is in)" if savedata.WINDOWS else
+RPCS3_HELP = ("your rpcs3.exe or NHLLauncher.exe (or the folder it is in)" if savedata.WINDOWS else
               "your RPCS3: the rpcs3 program, its AppImage, RPCS3.app, or RPCS3's data folder")
 
 
@@ -57,7 +57,10 @@ def _find(args):
         if title not in savedata.GAMES:
             sys.exit(f"{path} is not a copy of NHL Legacy Edition (give the .iso file or the folder with PS3_GAME)")
         games[title] = path
-    return savedata.find_rpcs3(args.rpcs3, games=games or None)
+    from .art import install
+    found = savedata.find_rpcs3(args.rpcs3, games=games or None)
+    install.use_host(found)
+    return found
 
 
 def _folder(args):
@@ -488,6 +491,20 @@ def _download_packs(art_parts=None):
     return done
 
 
+def cmd_names(args):
+    """The picked roster's team names into the game: no roster saved, no picture touched."""
+    from . import edits
+    from .art.install import ArtError
+    folder, slot = _source(args)
+    with open(slot.sys_data, 'rb') as f:
+        data = f.read()
+    try:
+        count = pipeline.apply_names(_find(args), data, slot.title_id, team_edits=edits.load_teams() if args.edits else None)
+    except ArtError as err:
+        sys.exit(str(err))
+    print(f"Team names of {slot.name}: {count} teams. Your graphics were not touched.")
+
+
 def cmd_packs(args):
     from . import packs
     if args.action == 'download':
@@ -518,6 +535,9 @@ def cmd_game_patch(args):
             return
     except (RuntimeError, datasource.Offline, OSError) as err:     # RPCS3 running, no disc
         sys.exit(str(err))
+    if not rpcs3.patchable:
+        print("Not patched: the game patch needs RPCS3.")
+        return
     for title, st in patchinstall.state(rpcs3).items():
         if st['online']:
             print(f"{savedata.region(title)}: online play is set up")
@@ -659,6 +679,14 @@ def main(argv=None):
     p.add_argument('action', choices=('remove',))
     p.add_argument('--part', action='append', choices=('names', 'photos', 'looks', 'arenas', 'bright_ice', 'team_masks'),
                    help="take away only this part (repeat for more); default: all of them")
+    p = sub.add_parser('names', help="write the team names of a roster into the game, and nothing else")
+    p.set_defaults(fn=cmd_names)
+    p.add_argument('action', choices=('apply',))
+    p.add_argument('--rpcs3', required=True, help=RPCS3_HELP)
+    p.add_argument('--savedata', help=argparse.SUPPRESS)
+    p.add_argument('--game', action='append', metavar='ISO_OR_FOLDER', help="where your NHL Legacy game is, when RPCS3 does not list it")
+    p.add_argument('--source', help="roster save to take the names from (folder or roster name); default: the newest save")
+    p.add_argument('--edits', action='store_true', help="with your own team names from the window's Roster editor")
     p = sub.add_parser('packs', help="the pictures for --photos: download them now, show them, free the space")
     p.set_defaults(fn=cmd_packs)
     p.add_argument('action', choices=('download', 'status', 'remove'))

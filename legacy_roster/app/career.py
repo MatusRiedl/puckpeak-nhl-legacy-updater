@@ -27,7 +27,7 @@ ASK_LINES = ("The program changes this Be a Pro career in RPCS3's save folder. F
              "Then load it in the game: Career > Live the Life > Load Pro.")
 SAVED = ("Saved. Load it in the game: Career > Live the Life > Load Pro. The career as it was is in the program's "
          "backups.")
-CLOSED = "Close RPCS3 first: a career can only be saved while the game is closed."
+CLOSED = "a career can only be saved while the game is closed."
 NOT_SAVED_TITLE = "Career not saved"
 NOT_SAVED_LINES = ("Your changes to the Be a Pro career are not saved.",
                    "Close anyway (they are lost), or cancel and press Save this career.")
@@ -173,7 +173,7 @@ class CareerController:
             if self.career is None or not self.draft or self.busy:
                 return
             if getattr(self.editor.update, 'running', False):
-                self.note = {'text': CLOSED, 'tone': 'warn'}
+                self.note = {'text': f"{savedata.close_first()}: {CLOSED}", 'tone': 'warn'}
                 return self.changed()
         self.editor.update.ask(ASK_TITLE, list(ASK_LINES), [("Save this career", 'save', 'primary'),
                                                              ("Cancel", 'cancel', '')], {'save': self._save_now})
