@@ -16,8 +16,8 @@ BIO_INDEX = 4389
 RATINGS = [33 + i % 20 for i in range(len(K.RATINGS))]          # raw: 69 ... the game's value - 36
 
 
-def _chunk(kind, body):
-    return struct.pack('>IIII', kind, 1, len(body), crc32_bzip2(body)) + body
+def _chunk(kind, body, version=1):
+    return struct.pack('>IIII', kind, version, len(body), crc32_bzip2(body)) + body
 
 
 def pro_chunk():
@@ -30,9 +30,9 @@ def pro_chunk():
     return bytes(c8)
 
 
-def career_bytes(tail=b'', spent=(0, 0, 0)):
+def career_bytes(tail=b'', spent=(0, 0, 0), first=1):
     """A Be a Pro save's bytes: a small league database with the pro's bio and skater rows, then five chunks; chunk 24
-    holds the XP earned (699 / 678 / 623 more than `spent`) and spent."""
+    holds the XP earned (699 / 678 / 623 more than `spent`) and spent. `first`: the version of the first chunk."""
     other = {K.INDEX: 12, K.FIRST: 'Other', K.LAST: 'Player'}
     bio = _table(K.BIO, [(K.FIRST, 200, 1), (K.LAST, 200, 1), (K.INDEX, 13, 0)],
                  [other, {K.INDEX: BIO_INDEX, K.FIRST: 'Theo', K.LAST: 'Lpro1'}], 8)
@@ -42,7 +42,7 @@ def career_bytes(tail=b'', spent=(0, 0, 0)):
     raw = bytearray(save_bytes([bio, skater], magic=K.MAGIC))
     earned = [n + s for n, s in zip((699, 678, 623), spent)]
     xp = struct.pack('>11I', *earned, *spent, 0, 0, 0, 0xFFFFFFFF, 0xFFFFFFFF)
-    raw += _chunk(2, bytes(range(16))) + _chunk(K.PRO_CHUNK, pro_chunk()) + _chunk(20, struct.pack('>I', BIO_INDEX))
+    raw += _chunk(2, bytes(range(16)), first) + _chunk(K.PRO_CHUNK, pro_chunk()) + _chunk(20, struct.pack('>I', BIO_INDEX))
     raw += _chunk(K.XP_CHUNK, xp) + _chunk(29, b'\xff' * 20)
     end = len(raw)
     raw += tail
@@ -60,6 +60,16 @@ def test_a_career_comes_back_byte_for_byte_and_shows_the_pro():
     assert p.ratings['acceleration'] == 69 and p.ratings['passing'] == RATINGS[14] + 36
     assert p.xp == {'offense': 699, 'defense': 678, 'athletic': 623}
     assert c.bio_row() == 1 and c.skater_row() == 0
+
+
+def test_a_career_of_update_1_01_is_read_too():
+    """Its chunk 2 has version 2: the Native port's first career was called damaged (lab round 59)."""
+    raw = career_bytes(first=2)
+    c = K.Career(raw)
+    assert c.build() == raw and len(c.chunks) == 5 and c.pro.xp['offense'] == 699
+    c.set_xp({'offense': 5000})
+    new = c.build()
+    assert K.Career(new).pro.xp['offense'] == 5000 and career_problems(raw, new, ['xp']) == []
 
 
 def test_old_bytes_after_the_last_chunk_stay_and_the_header_crc_stops_before_them():

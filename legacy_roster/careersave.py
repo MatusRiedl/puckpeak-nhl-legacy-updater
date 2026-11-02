@@ -33,7 +33,8 @@ MAGIC = b'PS3BeAProFile'
 FOLDER = re.compile(r'^([A-Z]{4}\d{5})05(\d{2})$')
 DATA = re.compile(r'^DATA\d{4}$')
 PIECE = 1 << 20
-SETTLE = 5                      # seconds a save must be left alone before it is read (as seasonsave.SETTLE)
+VERSIONS = (1, 2)               # a chunk's second word; update 1.01 writes chunk 2 as 2 and the header's word at 0x20 too
+SETTLE = 5                     # seconds a save must be left alone before it is read (as seasonsave.SETTLE)
 RATING_BASE = 36                # chunk 8 and the tables keep a rating as value - 36
 
 PRO_CHUNK, XP_CHUNK = 8, 24
@@ -102,7 +103,7 @@ class Career:
         self.chunks, pos = [], 0x2C + size
         while pos + 16 <= len(raw):
             kind, flag, n, crc = struct.unpack_from('>IIII', raw, pos)
-            if flag != 1 or pos + 16 + n > len(raw):
+            if flag not in VERSIONS or pos + 16 + n > len(raw):
                 break
             body = raw[pos + 16:pos + 16 + n]
             if crc32_bzip2(body) != crc:
