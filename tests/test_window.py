@@ -236,11 +236,14 @@ def test_a_page_that_asked_and_drew_nothing_goes_to_the_simple_window_without_a_
 
 
 def test_a_late_answer_after_the_reload_is_a_start_that_worked():
-    import threading
     from legacy_roster.window import startlog, watchdog
     startlog.begin()
-    threading.Timer(0.08, startlog.page_up.set).start()
-    host = FakeHost()
+
+    class Late(FakeHost):                               # the page answers only after the reload
+        def load_url(self, url):
+            super().load_url(url)
+            startlog.page_up.set()
+    host = Late()
     assert watchdog.Watchdog(host, 0.05, 0.5, restart=lambda: 1 / 0).run() == 'reloaded'
     assert host.reloaded == 1 and host.fallback is None
 

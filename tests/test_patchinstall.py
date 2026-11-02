@@ -103,13 +103,13 @@ def test_patch_this_game_and_unpatch_leave_rpcs3_as_it_was(tmp_path, monkeypatch
     made = []
     monkeypatch.setattr(patchinstall, 'db_files', lambda disc, roster: made.append((disc, roster)) or (b'META', b'DB'))
     rpcs3 = _fake_rpcs3(tmp_path)
-    config = os.path.join(rpcs3.folder, 'config', 'patch_config.yml')
+    config = patchinstall.config_file(rpcs3)                # config/ on Windows, next to RPCS3's data elsewhere
     _write(config, CONFIG.encode())
     theirs = os.path.join(rpcs3.folder, 'patches', 'BLES02153_patch.yml')
     _write(theirs, b"Version: 1.2\n# someone's own patch\n")
     old_db = os.path.join(rpcs3.game_folder(EU), 'db', 'nhlng.db')
     _write(old_db, b'an older db')
-    assert patchinstall.config_file(rpcs3) == config and not patchinstall.installed(rpcs3)
+    assert not patchinstall.installed(rpcs3)
 
     assert patchinstall.install_patch(rpcs3, [NA, EU], b'roster', intro=True, login=False, say=lambda m: None) == [EU, NA]
     assert made == [('disc.iso', b'roster')]            # the EU disc makes NA's files too (the same files on both)
@@ -198,7 +198,7 @@ def test_entries_of_our_names_that_were_ticked_before_come_back_where_they_were(
     monkeypatch.setattr(savedata, 'running_rpcs3', lambda: None)
     monkeypatch.setattr(patchinstall, 'db_files', lambda disc, roster: (b'META', b'DB'))
     rpcs3 = _fake_rpcs3(tmp_path)
-    config = os.path.join(rpcs3.folder, 'config', 'patch_config.yml')
+    config = patchinstall.config_file(rpcs3)
     _write(config, before.encode())
     patchinstall.install_patch(rpcs3, [NA], b'roster', intro=True, login=False, say=lambda m: None)
     assert patchinstall.ticked(_read(config).decode(), NA) == {PLAYER, INTRO, NEWS}
