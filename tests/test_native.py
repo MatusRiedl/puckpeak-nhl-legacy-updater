@@ -1,11 +1,14 @@
 """NHL Legacy Native, the PC port, as a second place for the program to work in (savedata.Native, native.py)."""
+import json
 import os
 import shutil
+import struct
 import subprocess
+import zipfile
 
 import pytest
 
-from legacy_roster import native, patchinstall, pipeline, savedata
+from legacy_roster import native, packs, patchinstall, pipeline, savedata
 from legacy_roster.art import install
 
 INI = """[paths]
@@ -250,7 +253,7 @@ def window(port, tmp_path, monkeypatch, pack):
 
 def test_setup_says_which_game_it_is_and_what_it_cannot_do(window):
     view = window.snapshot()['rpcs3']
-    assert view['kind'] == 'NHL Legacy Native' and 'no game patch' in view['native'] and view['other'] == 'RPCS3'
+    assert view['kind'] == 'NHL Legacy Native' and 'no online' in view['native'] and view['other'] == 'RPCS3'
     assert view['warnings'] == [] and not view['needs_game']
 
 
@@ -259,6 +262,9 @@ def test_the_game_patch_tab_explains_itself_on_the_port(window):
     view = window.snapshot()['patch']
     assert view['state']['text'] == X.PATCH_NATIVE
     assert view['buttons'] == [] and view['checks'] == [] and view['regions'] == []
+    told = ' '.join(item for section in view['info']['sections'] for item in section['items'])
+    assert 'next to NHLLegacy.exe' in told and 'launcher' in told
+    assert not any(word in told for word in ('patches folder', 'EU and NA', 'Skip the intro', 'Online play still works'))
     window.patch()
     assert not window.busy and window.dialog is None
 
@@ -300,3 +306,130 @@ def test_a_roster_saved_for_the_port_is_the_north_american_one(port, base_bytes,
     assert done.slot.folder.startswith('BLUS315400')
     assert os.path.isfile(os.path.join(found.savedata, done.slot.folder, 'SYS-DATA'))
     assert done.patch is None
+
+
+def build_of(port, stamp=0x6ae7cb75, image=0x1a657000):
+    """The pretend install's NHLLegacy.exe as a build of the program: only the two numbers savedata.exe_id reads."""
+    head = bytearray(0x200)
+    head[:2] = b'MZ'
+    struct.pack_into('<I', head, 0x3c, 0x80)
+    head[0x80:0x84] = b'PE\0\0'
+    struct.pack_into('<I', head, 0x88, stamp)
+    struct.pack_into('<I', head, 0xd0, image)
+    (port / 'NHLLegacy.exe').write_bytes(bytes(head))
+
+
+@pytest.fixture
+def patched_port(port, tmp_path, monkeypatch):
+    """A port our patch file fits, with the patch file's pack at hand and no network, launcher or disc work."""
+    build_of(port)
+    folder = tmp_path / 'packs'
+    folder.mkdir()
+    with zipfile.ZipFile(folder / 'portpatch.zip', 'w') as z:
+        z.writestr('index.json', json.dumps({'version': '0.26', 'stamp': '6ae7cb75', 'image': '1a657000'}))
+        z.writestr(patchinstall.PORT_FILE, b'our patch file')
+    monkeypatch.setenv('LEGACY_ROSTER_PACKS', str(folder))
+    monkeypatch.setattr(packs, 'sync', lambda wanted=None: ([], None))
+    monkeypatch.setattr(patchinstall, 'db_files', lambda disc, roster: (b'meta', b'db'))
+    monkeypatch.setattr(patchinstall, 'installed_rights',
+                        lambda rpcs3, title: 6 if os.path.isfile(os.path.join(rpcs3.game_folder(title), 'db', 'nhlng-meta.xml')) else None)
+    monkeypatch.setattr(native, 'compose', lambda host, say=print: True)
+    monkeypatch.setattr(savedata, 'running_rpcs3', lambda: None)
+    found = savedata.find_rpcs3(str(port))
+    install.use_host(found)
+    yield found
+
+
+def test_only_the_build_the_patch_file_was_made_for_can_be_patched(port):
+    assert not savedata.find_rpcs3(str(port)).patchable             # not a program at all
+    build_of(port, stamp=1)
+    assert not savedata.find_rpcs3(str(port)).patchable
+    build_of(port)
+    assert savedata.find_rpcs3(str(port)).patchable
+
+
+def test_patch_and_unpatch_on_the_port(patched_port, port):
+    title = savedata.NATIVE_TITLE
+    assert patchinstall.state(patched_port) == {title: patchinstall.state(patched_port)[title]}
+    assert not patchinstall.state(patched_port)[title]['patched'] and not patchinstall.installed(patched_port)
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    st = patchinstall.state(patched_port)[title]
+    assert st['patched'] and st['version'] == '0.26' and st['game'] == '01.01' and not st['stale'] and st['news']
+    assert (port / patchinstall.PORT_FILE).read_bytes() == b'our patch file'
+    assert (port / 'mods' / 'Puck Peak' / 'USRDIR' / 'db' / 'nhlng.db').read_bytes() == b'db'
+    assert patchinstall.patched_titles(patched_port) == [title]
+    assert not (port / 'patches').exists() and not (port / 'config').exists()
+    patchinstall.remove(patched_port, say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists() and not (port / 'mods' / 'Puck Peak').exists()
+    assert not patchinstall.patched_titles(patched_port) and not patchinstall.installed(patched_port)
+
+
+def test_the_launcher_must_be_closed_it_holds_the_patch_file(patched_port, port, monkeypatch):
+    title = savedata.NATIVE_TITLE
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    launcher = str(port / savedata.NATIVE_LAUNCHER)
+    monkeypatch.setattr(savedata, 'WINDOWS', True)
+    monkeypatch.setattr(savedata, '_windows_processes', lambda: [(1, launcher)])
+    with pytest.raises(patchinstall.PatchError, match='launcher'):
+        patchinstall.remove(patched_port, say=lambda line: None)
+    with pytest.raises(patchinstall.PatchError, match='launcher'):
+        patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    assert (port / patchinstall.PORT_FILE).exists() and patchinstall.patched_titles(patched_port) == [title]
+    monkeypatch.setattr(savedata, '_windows_processes', lambda: [(1, r'D:\another\NHLLauncher.exe')])   # another install's
+    patchinstall.remove(patched_port, say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists()
+
+
+def test_a_file_of_that_name_that_was_there_comes_back(patched_port, port):
+    (port / patchinstall.PORT_FILE).write_bytes(b'somebody else\'s')
+    patchinstall.install_patch(patched_port, [savedata.NATIVE_TITLE], roster=b'roster', say=lambda line: None)
+    patchinstall.remove(patched_port, say=lambda line: None)
+    assert (port / patchinstall.PORT_FILE).read_bytes() == b'somebody else\'s'
+
+
+def test_a_pack_for_another_build_changes_nothing(patched_port, port, tmp_path):
+    with zipfile.ZipFile(tmp_path / 'packs' / 'portpatch.zip', 'w') as z:
+        z.writestr('index.json', json.dumps({'version': '0.26', 'stamp': '00000001', 'image': '1a657000'}))
+        z.writestr(patchinstall.PORT_FILE, b'our patch file')
+    with pytest.raises(patchinstall.PatchError, match='not the one'):
+        patchinstall.install_patch(patched_port, [savedata.NATIVE_TITLE], roster=b'roster', say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists() and not (port / 'mods').exists()
+
+
+def test_no_pack_says_so_and_changes_nothing(patched_port, port, monkeypatch):
+    monkeypatch.delenv('LEGACY_ROSTER_PACKS')
+    monkeypatch.setattr(packs, 'path', lambda name: None)
+    with pytest.raises(patchinstall.PatchError, match='could not be downloaded'):
+        patchinstall.install_patch(patched_port, [savedata.NATIVE_TITLE], roster=b'roster', say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists()
+
+
+def test_a_port_that_changed_under_the_patch_can_only_be_unpatched(patched_port, port):
+    title = savedata.NATIVE_TITLE
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    build_of(port, stamp=2)
+    st = patchinstall.state(patched_port)[title]
+    assert st['stale'] and not st['patched'] and patchinstall.stale_titles(patched_port) == [title]
+    with pytest.raises(patchinstall.PatchError, match='not the one'):
+        patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    patchinstall.remove(patched_port, say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists()
+
+
+def test_the_port_never_takes_the_online_entry(patched_port):
+    with pytest.raises(patchinstall.PatchError, match='Online play needs RPCS3'):
+        patchinstall.set_online(patched_port, [savedata.NATIVE_TITLE], True)
+    assert not patchinstall.auto_start(patched_port, savedata.NATIVE_TITLE)
+
+
+def test_the_game_patch_tab_patches_a_port_that_fits(window, port, monkeypatch):
+    from legacy_roster.app import texts as X
+    from .test_app import wait
+    assert window.snapshot()['patch']['state']['text'] == X.PATCH_NATIVE       # the pretend program is no build of ours
+    build_of(port)
+    window.rescan() if hasattr(window, 'rescan') else window.set_rpcs3(str(port))
+    wait(lambda: not window.scanning and window.rpcs3.patchable)
+    view = window.snapshot()['patch']
+    assert [b['label'] for b in view['buttons']] == ["Patch the game"] and view['checks'] == []
+    assert not any('Skip the intro' in item for section in view['info']['sections'] for item in section['items'])
+    assert not any('RPCS3' in item for section in view['info']['sections'] for item in section['items'])

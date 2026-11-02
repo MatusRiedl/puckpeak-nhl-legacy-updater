@@ -265,6 +265,9 @@ the browser.
 - The patch covers 1.00 (EU, NA) and the game's update 1.01, which is one program for EU and NA. After a stage change, run
   `python tools/port_patch.py <1.00 ELF> <1.01 ELF> --write` (it writes `legacy_roster/patch101.py`), then audit the
   1.01 ELF too. To get the update and decrypt it, see docs/notes/update-101.md.
+- `TEAMS_VERSION` changed, or NHL Legacy Native has a new version: build its patch file again and play it on a copy
+  (`tools/native_patch/README.md`). With an old pack the window shows "Patch again" for ever; a port version the pack was not
+  made for is refused, and its players stay at 30 teams until then.
 - A new RPCS3 release: check that it still applies every entry (the log names each one with "Applied patch") and still
   knows `calloc`.
 - A new season: the 32-team calendar comes from the data pack's `schedule` part like the 30-team one; the year entry moves

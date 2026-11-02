@@ -290,7 +290,7 @@ class Rpcs3:
     program's folder, as on Windows)."""
     plain = False                       # SaveFolder: roster saves without RPCS3
     native = False                      # Native: the PC port
-    patchable = True                    # can it take the game patch and play online?
+    patchable = True                    # can it take the game patch?
     name = 'RPCS3'                      # what the window calls it
 
     def __init__(self, exe, savedata, user, root=None, games=None):
@@ -389,6 +389,7 @@ NATIVE_INI = 'nhl_settings.ini'
 NATIVE_TITLE = 'BLUS31540'              # the port is built from the North American version's update 1.01
 NATIVE_MOD = 'Puck Peak'                # our mod: every file the program writes for the port is in it
 NATIVE_USER = '00000001'
+NATIVE_PATCHED = {(0x6ae7cb75, 0x1a657000)}     # the builds of NHLLegacy.exe our patch file is made for (exe_id): 1.0.0
 
 
 def read_ini(path):
@@ -403,16 +404,29 @@ def read_ini(path):
     return {name: dict(parser[name]) for name in parser.sections()}
 
 
+def exe_id(path):
+    """(time stamp, image size) of a Windows program, which tell one build from another without reading its 350 MB; None
+    when it is not one."""
+    try:
+        with open(path, 'rb') as f:
+            head = f.read(4096)
+        at = struct.unpack_from('<I', head, 0x3c)[0]
+        if head[:2] != b'MZ' or head[at:at + 4] != b'PE\0\0':
+            return None
+        return struct.unpack_from('<I', head, at + 8)[0], struct.unpack_from('<I', head, at + 80)[0]
+    except (OSError, struct.error):
+        return None
+
+
 class Native(Rpcs3):
     """NHL Legacy Native, the PC port of the game: one install folder, no emulator. The game runs the North American
-    version's update 1.01 and has no patch loader and no network, so it plays as the unpatched game does: no game patch, no
-    online. nhl_settings.ini says where its folders are (relative to the install, or full paths).
+    version's update 1.01 and has no patch loader and no network: the game patch goes in as a compiled file of ours next to its
+    program (patchinstall.py), only for the builds in `NATIVE_PATCHED`; no online. nhl_settings.ini says where its folders are (relative to the install, or full paths).
 
     Saves are in <user>/gamedata/dev_hdd0/home/00000001/savedata, as on RPCS3. Files never go into `data` (its hdd0 is hard
     links to the update and the mods): they go into our mod, mods/Puck Peak/USRDIR, which the launcher joins with the update
     (native.compose, and PLAY). `update_folder` holds the update's own files, only read."""
     native = True
-    patchable = False
     name = 'NHL Legacy Native'
 
     def __init__(self, folder, games=None):
@@ -438,6 +452,11 @@ class Native(Rpcs3):
         users = sorted(u for u in os.listdir(home) if re.fullmatch(r'\d{8}', u)) if os.path.isdir(home) else []
         return next((u for u in users if list_rosters(os.path.join(home, u, 'savedata'))),
                     NATIVE_USER if NATIVE_USER in users or not users else users[0])
+
+    @property
+    def patchable(self):
+        """Is this the build of the game's program our patch file was made for?"""
+        return exe_id(self.exe) in NATIVE_PATCHED
 
     @property
     def extra_savedata(self):
@@ -708,6 +727,14 @@ def running_rpcs3():
         if os.path.basename(path).lower() in ('rpcs3.exe', NATIVE_EXE.lower()):
             return path
     return None
+
+
+def launcher_running(rpcs3):
+    """True while the launcher of the port `rpcs3` runs. It loads our patch file too, so the file cannot be replaced or removed."""
+    if not WINDOWS:
+        return False
+    want = os.path.normcase(os.path.abspath(os.path.join(rpcs3.folder, NATIVE_LAUNCHER)))
+    return any(os.path.normcase(os.path.abspath(path)) == want for _pid, path in _windows_processes())
 
 
 def close_first():

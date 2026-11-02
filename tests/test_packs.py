@@ -141,6 +141,13 @@ def test_only_the_wanted_packs_are_downloaded_and_a_pack_the_server_lacks_is_fin
     assert packs.missing(listed) == ['photos', 'looks']                  # the rest still waits for its switch
 
 
+def test_the_ports_patch_is_downloaded_only_when_asked_for(site):
+    publish(site, {'photos': b'P' * 300, 'portpatch': b'D' * 100})
+    listed = packs.manifest()
+    assert packs.missing(listed) == ['photos']
+    assert packs.missing(listed, ['portpatch']) == ['portpatch']
+
+
 def test_a_developers_own_pack_wins_and_is_not_downloaded(site, tmp_path, monkeypatch):
     own = tmp_path / 'own'
     own.mkdir()

@@ -484,7 +484,7 @@ class UpdateController:
                         patchy.add(s.folder)
                     rights[s.folder] = checked[key][2]
                 slots = slots + found.disc_slots()
-                if found.patchable:
+                if found.patchable or found.native:
                     state = patchinstall.state(found)
             running = savedata.running_rpcs3() is not None if found else False
             self._scanned(found, slots, usable, versions, problem, quiet, running, checked, picked, scan_id, patchy, state,
@@ -561,7 +561,7 @@ class UpdateController:
                 or self.usable.get(s.folder) is not None:
             return None
         if self.patch_state.get(s.title_id, {}).get('stale'):
-            return X.MISFIT_STALE
+            return X.MISFIT_PORT if self.rpcs3.native else X.MISFIT_STALE
         patched, made = s.title_id in self._patched(), s.folder in self.patch_rosters
         if patched and made:
             game, own = self.patch_state.get(s.title_id, {}).get('rights'), self.roster_rights.get(s.folder)
@@ -735,10 +735,10 @@ class UpdateController:
                 return
             if savedata.running_rpcs3():
                 self.running = True
-                self.show_result(False, "Close RPCS3 first", ["The game can only be patched while RPCS3 is closed."])
+                self.show_result(False, self._named("Close RPCS3 first"), [self._named("The game can only be patched while RPCS3 is closed.")])
                 return
-            if not self.settings.get(S.PATCH_ASKED):
-                self.ask("32 teams and the year 2026", X.PATCH_ASK,
+            if not self.settings.get(S.PATCH_ASKED) or self.rpcs3.native:
+                self.ask("32 teams and the year 2026", X.PATCH_ASK_NATIVE if self.rpcs3.native else X.PATCH_ASK,
                          [("Patch the game", 'yes', 'primary'), ("Cancel", 'no', 'plain')], {'yes': self._patch_asked})
                 return
         self._patch()
@@ -783,7 +783,7 @@ class UpdateController:
         with self.lock:
             self.at = 0.0
             self.status = ("The game is not patched.", 'bad')
-            self.show_result(False, "The game was not patched", [message, "Nothing in RPCS3 was changed."])
+            self.show_result(False, "The game was not patched", [message, self._named("Nothing in RPCS3 was changed.")])
 
     def set_patch_switch(self, key, on):
         """"Skip the intro" / "No pop ups at start": kept for the next Patch, and put into a patched game at once."""
@@ -823,13 +823,13 @@ class UpdateController:
     def unpatch(self):
         """Step 2's Unpatch button: the game patch out of RPCS3, after a question."""
         with self.lock:
-            if self.busy or self.rpcs3 is None or not self.rpcs3.patchable:
+            if self.busy or self.rpcs3 is None or not (self.rpcs3.patchable or self.rpcs3.native):
                 return
             if savedata.running_rpcs3():
                 self.running = True
-                self.show_result(False, "Close RPCS3 first", ["The game can only be unpatched while RPCS3 is closed."])
+                self.show_result(False, self._named("Close RPCS3 first"), [self._named("The game can only be unpatched while RPCS3 is closed.")])
                 return
-            self.ask("Unpatch the game", X.UNPATCH_ASK, [("Unpatch", 'yes', 'primary'), ("Cancel", 'no', 'plain')],
+            self.ask("Unpatch the game", [self._named(line) for line in X.UNPATCH_ASK], [("Unpatch", 'yes', 'primary'), ("Cancel", 'no', 'plain')],
                      {'yes': self._unpatch})
 
     def _unpatch(self):
@@ -1488,22 +1488,26 @@ class UpdateController:
             return self._patch_export_view()
         why = self.patchable()
         port = why == X.PATCH_NATIVE
-        off = port or why == X.PATCH_NEEDS_RPCS3
+        native_host = self.rpcs3 is not None and self.rpcs3.native
+        left = port and any(st.get('stale') for st in self.patch_state.values())    # only Unpatch: the port changed under the patch
+        off = (port and not left) or why == X.PATCH_NEEDS_RPCS3
         patched = [t for t, st in self.patch_state.items() if st.get('patched') or st.get('stale')] \
             if not off else []                              # stale: patched before update 1.01 was known
         old = [t for t in patched if self.patch_state[t].get('version') != gamepatch.TEAMS_VERSION
                or self.patch_state[t].get('stale')]
         missing = [t for t in self.versions if t not in patched]
-        free = not self.busy and not self.scanning and why is None
-        if off:
-            state = {'text': why, 'tone': 'muted'}
+        free = not self.busy and not self.scanning and (why is None or left)
+        if off or left:
+            state = {'text': why, 'tone': 'amber' if left else 'muted'}
         elif patched:
             state = {'text': X.patch_state(self.patch_state, old, missing), 'tone': 'amber' if old or missing else 'good'}
         else:
             state = {'text': X.NOT_PATCHED, 'tone': 'muted'}
         buttons = []
         if not off and self.versions:
-            if old:
+            if left:
+                label = None
+            elif old:
                 label = "Patch again"
             elif not patched:
                 label = "Patch the game"
@@ -1520,12 +1524,13 @@ class UpdateController:
         return {'title': X.PATCH_TITLE, 'sub': X.PATCH_SUB, 'state': state,
                 'note': note,
                 'info': {'title': X.PATCH_INFO_TITLE,
-                         'sections': [{'head': head, 'items': items} for head, items in X.PATCH_INFO]},
-                'checks': [] if port else     # the port's launcher has its own Skip the intro
+                         'sections': [{'head': self._named(head), 'items': [self._named(item) for item in items]}
+                                      for head, items in (X.PATCH_INFO_NATIVE if native_host else X.PATCH_INFO)]},
+                'checks': [] if native_host else     # the port's launcher has its own Skip the intro
                 [{'key': S.SKIP_INTRO, 'label': "Skip the intro", 'on': self.skip_intro, 'enabled': switch},
                  {'key': S.NO_LOGIN, 'label': "No pop ups at start", 'tip': X.NO_LOGIN_TIP,
                   'on': self.no_login, 'enabled': switch}],
-                'buttons': buttons, 'patched': bool(patched), 'regions': [] if port else self._patch_regions(patched, old)}
+                'buttons': buttons, 'patched': bool(patched), 'regions': [] if off else self._patch_regions(patched, old)}
 
     def _patch_export_view(self):
         """The Game patch tab in an export: no Patch / Unpatch (they change RPCS3); a box puts the patch into the export."""
@@ -1547,7 +1552,8 @@ class UpdateController:
         out = []
         for t in self.versions:
             if self.patch_state.get(t, {}).get('stale'):
-                state, tone = "The game has update 1.01, the patch is older: patch again", 'amber'
+                state, tone = ("NHL Legacy Native has changed: the patch does not fit it now" if self.rpcs3.native
+                               else "The game has update 1.01, the patch is older: patch again"), 'amber'
             elif t in old:
                 state, tone = "Patched with an older patch: patch again", 'amber'
             elif t in patched:

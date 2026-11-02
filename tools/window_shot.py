@@ -70,6 +70,7 @@ import http.server
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -125,11 +126,18 @@ def pretend_rpcs3(folder, disc=None, full=False):
 
 def pretend_native(folder):
     """An install of NHL Legacy Native with the base roster saved for the game (--native: every state on the port)."""
+    from legacy_roster import savedata
     root = os.path.join(folder, 'NHL Legacy Native')
     for sub in ('game/PS3_GAME', 'data/update/USRDIR'):
         os.makedirs(os.path.join(root, sub))
-    for name in ('NHLLegacy.exe', 'NHLLauncher.exe'):
-        open(os.path.join(root, name), 'wb').close()
+    open(os.path.join(root, 'NHLLauncher.exe'), 'wb').close()
+    head = bytearray(0x200)                                     # the build the game patch was made for: the two numbers savedata.exe_id reads
+    head[:2], head[0x80:0x84] = b'MZ', b'PE\0\0'
+    struct.pack_into('<I', head, 0x3c, 0x80)
+    struct.pack_into('<II', head, 0x88, min(savedata.NATIVE_PATCHED)[0], 0)
+    struct.pack_into('<I', head, 0xd0, min(savedata.NATIVE_PATCHED)[1])
+    with open(os.path.join(root, 'NHLLegacy.exe'), 'wb') as f:
+        f.write(head)
     open(os.path.join(root, 'data', 'eboot.elf'), 'wb').close()
     with open(os.path.join(root, 'nhl_settings.ini'), 'w', encoding='utf-8') as f:
         f.write('[paths]\ndisc = game\nuser = user\n[launcher]\n')

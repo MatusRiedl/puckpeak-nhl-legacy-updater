@@ -439,3 +439,20 @@ RPCS3 and **played in the lab through the exe's own path** (below).
     `0200`-`0209`; ROADMAP "capacity facts", owner to decide); wrong letters in some menu words after a long sim (as on
     NA before: an emulator text-cache slip). Not shown in the lab: an unpatched boot (the lab ticks its own "(test)"
     entries).
+
+## 8. On NHL Legacy Native
+
+The port has no patch loader, and its game code was translated into `NHLLegacy.exe` once, so a patch word cannot be written anywhere.
+Our app patches it all the same (owner, 2026-11-02: "Can't we patch it with our app only"). `tools/native_patch/build.py` lifts the
+game with the patch's words in it, using the port's own lifter, and compiles the functions that came out different into a stand-in
+for `XINPUT1_4.dll`. At start the DLL checks the exe, jumps those functions to its copies and writes the patch's data words once the
+game is in memory. The exe and `data/` are never changed. README there: the build, and what to do for a new version of the port.
+
+- **Same patch:** the 32-team entry (the year inside it) and `NEWS_ENTRY`, on the update 1.01 addresses, version as `TEAMS_VERSION`.
+  The port has its own Skip the intro and no boot login, so those two entries stay out. The online entries wait for Gate 2.
+- **Program:** `patchinstall` branches on `_port_pack`: the DLL + `mods/Puck Peak/USRDIR/db/nhlng*` (the store `patch` as on RPCS3),
+  no `patches/`, no `patch_config.yml`. A file named `XINPUT1_4.dll` that was there before comes back on Unpatch.
+- **Any other exe:** the DLL passes the controller calls on and changes nothing; the program says the patch does not fit
+  (`savedata.NATIVE_PATCHED`, `texts.MISFIT_PORT`). So a new port version needs a new build, and until then no patch there.
+- **`TEAMS_VERSION` changes:** build the pack again, or the window shows "Patch again" for ever.
+- Played on a lab copy: docs/notes/native-patch.md.

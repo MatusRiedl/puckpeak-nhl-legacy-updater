@@ -133,11 +133,15 @@ in **Setup**, under **Your game**, pick `NHLLauncher.exe` or `NHLLegacy.exe` (or
 - **Pictures and team names** go into a mod named **Puck Peak** in the port's `mods` folder, and the program applies it, so
   you see them on the next start. Leave it switched on in the launcher. It must stay at the top of the mod list if another
   mod changes the same files; the program puts it there.
-- **What the port cannot do:** the game patch and online play need RPCS3. On the port Season and Be a GM have 30 teams and
-  the year 2015, and Coachella Valley, Henderson and the Vees are custom teams (Custom Team 13, 14 and 30 in Select Teams; from
-  Starting Lineups on the game uses their names).
-- **Which roster:** start from a community roster copied into the port's saves. On a roster from the game's own disc the
-  port's lists cannot reach Coachella Valley, Henderson and the Vees, so they are left out there.
+- **The game patch:** press **Patch** in the Game patch tab, as on RPCS3. You get the same game: 32 teams and 84 games in
+  Season and Be a GM, the year 2026, Coachella Valley and Henderson in the AHL, the Vees in the WHL. It adds one small file,
+  `XINPUT1_4.dll`, next to `NHLLegacy.exe`; the game's own files are not changed. **Unpatch** takes it out. It fits one version
+  of the port: if the port gets a new version, the window says so until we have made the patch for it.
+- **Without the patch** Season and Be a GM have 30 teams and the year 2015, and Coachella Valley, Henderson and the Vees are
+  custom teams (Custom Team 13, 14 and 30 in Select Teams; from Starting Lineups on the game uses their names).
+- **Online play** needs RPCS3 for now.
+- **Which roster:** start from a community roster copied into the port's saves. Without the patch, on a roster from the game's
+  own disc the port's lists cannot reach Coachella Valley, Henderson and the Vees, so they are left out there.
 - **Skip the intro:** the port has its own switch in the launcher's settings.
 - **Pictures from RPCS3:** if you installed the port from an RPCS3 folder, its import mod may hold our old pictures and our patched
   game files, which do not fit the port. The Setup tab says so and tells you what to do.

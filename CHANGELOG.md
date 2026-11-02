@@ -8,13 +8,14 @@ What changed in each version, for players. Developers: details in [AGENTS.md](AG
 **NHL Legacy Native.** The program now works with the PC port as well as with RPCS3. Pick `NHLLauncher.exe` or the port's
 folder in the same place you pick `rpcs3.exe`; the program works out the rest. Rosters, the Roster editor, careers, photos,
 logos, team names, jerseys and centre ice all work. Your pictures go into a mod called "Puck Peak", so nothing of the
-game's is replaced. If you have both, a link on the Setup tab switches between them. The port cannot take our game patch:
-32 teams in Season and Be a GM, the year 2026 and online play need RPCS3, and the window says so.
+game's is replaced. If you have both, a link on the Setup tab switches between them. **The game patch works here too:** press
+Patch and the port has 32 teams and 84 games in Season and Be a GM and the year 2026, as on RPCS3. It adds one small file next to
+`NHLLegacy.exe`, and Unpatch takes it out. Online play still needs RPCS3.
 
 **The Penticton Vees.** On the patched game the Vees are in the WHL in Play Now and Roster Management, with their real
 roster, crest, jerseys and arena. Their 68 games are in the Calendar tab. Season, Be a GM and Be a Pro keep 22 WHL clubs, so
-the Vees are not in careers and do not play in the game's own WHL calendar. On the unpatched game and on NHL Legacy Native
-they are at the end of the custom teams, as **Custom Team 30** in Select Teams (the game numbers every custom team there),
+the Vees are not in careers and do not play in the game's own WHL calendar. On the unpatched game, RPCS3 or NHL Legacy
+Native, they are at the end of the custom teams, as **Custom Team 30** in Select Teams (the game numbers every custom team there),
 and from Starting Lineups on the game says Penticton Vees. A roster made from the game's own disc has no room for them
 there, so it has no Vees unless the game is patched.
 

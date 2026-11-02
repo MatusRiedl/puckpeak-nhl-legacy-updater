@@ -25,7 +25,9 @@ import re
 
 from . import datasource
 
-NAMES = ('photos', 'looks', 'arenas', 'ice', 'masks')      # 0.76.0: arenas, ice and masks (art/parts.py PACK_OF)
+NAMES = ('photos', 'looks', 'arenas', 'ice', 'masks',      # 0.76.0: arenas, ice and masks (art/parts.py PACK_OF)
+         'portpatch')                                      # the game patch for NHL Legacy Native (patchinstall.PORT_PACK)
+ASKED_FOR = ('portpatch',)                                 # downloaded only when named: an RPCS3 player has no use for it
 FORMAT = 1
 STATE = 'state.json'
 
@@ -104,7 +106,7 @@ def missing(listed, names=None):
     state = _state()
     out = []
     for name in NAMES:
-        if names is not None and name not in names:
+        if (name not in names) if names is not None else (name in ASKED_FOR):
             continue
         entry = listed.get(name)
         if entry is None or dev_path(name):

@@ -89,10 +89,11 @@ PATCH_SUB = "Seattle and Vegas in Season and Be a GM: 32 NHL and 32 AHL teams, 8
 NOT_PATCHED = "Not patched: updates make rosters for the game as it is."
 PATCHED_NOTE = "every update makes a roster for it"
 PATCH_NEEDS_RPCS3 = f"The game patch needs RPCS3: pick {PROGRAM} in step 1."
-PATCH_NATIVE = "The game patch is for RPCS3. NHL Legacy Native cannot take it, so its Season and Be a GM stay at 30 teams."
-NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names and the editors all work here. It has no game patch and no "
-               "online play, so Season and Be a GM have 30 teams. Coachella Valley, Henderson and the Vees are Custom teams "
-               "on a community roster, and left out of the game's own roster.")
+PATCH_NATIVE = ("This version of NHL Legacy Native is not the one the game patch was made for, so its Season and Be a GM stay "
+                "at 30 teams for now.")
+NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names, the editors and the game patch all work here. It has no online "
+               "play yet. Without the game patch, Season and Be a GM have 30 teams, and Coachella Valley, Henderson and the "
+               "Vees are Custom teams on a community roster, left out of the game's own roster.")
 ONLINE_NATIVE = "Online play needs RPCS3: NHL Legacy Native has no online. Pick RPCS3 in Setup to play online."
 
 
@@ -107,6 +108,10 @@ PATCH_ASK = ["This patches the game in RPCS3 (every version you have) for 32 tea
              "rosters as damaged: update one of them first.",
              "Season and Be a GM saves you start with the patch need it to go on.",
              "Unpatch (in step 2) puts the game back as it was. RPCS3 must be closed for both."]
+PATCH_ASK_NATIVE = ["This patches NHL Legacy Native for 32 teams and the year 2026. It adds one small file next to NHLLegacy.exe: "
+                    "the game's own files are not changed.",
+                    *PATCH_ASK[1:3],
+                    "Unpatch (in step 2) takes it out again. The game and its launcher must be closed for both."]
 UNPATCH_ASK = ["This takes the game patch out of RPCS3: the game is as it was.",
                "Rosters made for the patch, and Season and Be a GM saves started with it, do not open without it. "
                "Update a roster made for the patch, and it is made for the game as it is again. "
@@ -117,6 +122,8 @@ MISFIT_VERSION = ("Made for another version of the game patch: the patched game 
                   "\"damaged\"). Update it to make it fit.")
 MISFIT_STALE = ("Your game has update 1.01, and the game patch in RPCS3 is from before this program knew it. Press "
                 "Patch again in Game patch.")
+MISFIT_PORT = ("NHL Legacy Native has changed, and the game patch does not fit this version yet. Press Unpatch in Game patch, "
+               "then update this roster.")
 FIT_NO_STEP = "Switch on at least one thing to update, then press Update roster."
 UNPATCHED = "Done: the game patch is out. Rosters marked \"32 teams\" do not open now: update one, and it is made for the game as it is."
 NO_LOGIN_TIP = "No sign-in boxes when the game starts. Online modes still sign in when you open them."
@@ -164,6 +171,28 @@ PATCH_INFO = [
         "RPCS3 must be closed to patch or unpatch.",
     ]),
 ]
+
+
+_ON_THE_PORT = {
+    "What it changes on your PC": [
+        "One small patch file next to NHLLegacy.exe. It works only with the version of the game it was made for. "
+        "NHLLegacy.exe, the game's own files and your disc are never changed.",
+        "Two small database files in the Puck Peak mod, made from your own game disc.",
+        "A file of that name that was there before is kept and put back by Unpatch.",
+        "Your rosters and saves are not changed when you patch.",
+    ],
+    "Rosters and saves": [
+        "While the game is patched, every update makes a roster for it (marked \"32 teams\"). The patched game shows "
+        "other rosters as damaged: update one of them first.",
+        "Start a new Season, Be a GM or Be a Pro after patching. Saves started with the patch need it to go on.",
+    ],
+    "Unpatch": [
+        "Unpatch takes it all out: the game is as it was. Rosters marked \"32 teams\" and saves started with the patch "
+        "do not open without it. Update such a roster, and it is made for the game as it is again.",
+        "The game and its launcher must be closed to patch or unpatch.",
+    ],
+}
+PATCH_INFO_NATIVE = [(head, _ON_THE_PORT.get(head, items)) for head, items in PATCH_INFO if head != "The two switches"]
 
 
 def patched_status(where):

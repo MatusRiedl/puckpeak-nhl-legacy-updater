@@ -18,6 +18,13 @@ A patched game needs three things together (docs/GAME_PATCH.md):
     database carries the next seasons' calendars, made from the data pack as a patch roster has them (calendar_roster);
   * a roster made for the patch (pipeline.patch_roster): every update while the game is patched makes one.
 
+On NHL Legacy Native (savedata.Native) the same patch is compiled: the program there is the game already translated, so a word
+cannot be changed, and our patch file (`PORT_FILE`, it stands in for a system file the game loads, from the download `PORT_PACK`,
+made by tools/native_patch; never in git or in this program) goes next to NHLLegacy.exe and swaps the changed functions when the
+game starts. It holds the 32 teams, the year and the news; the db files go into our mod as on RPCS3. No patch list, no switches
+(the launcher has its own Skip the intro). A build of the game the patch file was not made for: it does nothing, and the
+program does not offer the patch (`Native.patchable`).
+
 Safety, as for the pictures (art/install.py): nothing is written while RPCS3 runs; a patch file or db file that was there
 before is copied aside and comes back on remove(); the list of what was written is the program's own 'patch' store
 (%LOCALAPPDATA%\\NHLLegacyRosterUpdater\\patch), apart from the pictures', so "Restore the game's own pictures" leaves the
@@ -31,8 +38,9 @@ import json
 import os
 import shutil
 import struct
+import zipfile
 
-from . import datasource, gamepatch, savedata
+from . import datasource, gamepatch, native, packs, savedata
 from .art import install, menus, onlinestart, pressstart
 from .roster import Roster
 from .sfo import Sfo
@@ -46,6 +54,11 @@ NO_PRESS = True                     # the intro skip also skips Press Start (art
 PRESS_SOURCE = 'press:' + pressstart.PRESS_VERSION
 SCREENS_SOURCE = 'online:' + onlinestart.FILES_VERSION      # the Welcome back panel and the matchmaking screen (set_online)
 MENU_SOURCE = 'menus:' + menus.MENUS_VERSION + menus.HIDE   # the main menu with the start's cave: the same tag the Photos install writes
+PORT_PACK = 'portpatch'             # packs.py: index.json {'version', 'stamp', 'image'} and the patch file
+PORT_FILE = 'XINPUT1_4.dll'         # next to NHLLegacy.exe, which takes it before the system's copy and is passed on to that
+PORT_LAUNCHER = "Close the NHL Legacy launcher first: the game patch can only be put in or taken out while it is closed."
+PORT_OTHER = ("This version of NHL Legacy Native is not the one the game patch was made for. It plays the game without the patch "
+              "until the program has a patch for it.")
 
 
 class PatchError(RuntimeError):
@@ -69,7 +82,7 @@ def carry_over(rpcs3):
     there, config_file) moved into RPCS3's own file and out of the old one, so a game patched then is patched now: its
     patch file and db files are in already. Done also while RPCS3 runs (it reads the file when a game starts); the old
     file's other lines stay, the file goes when nothing is left. Returns True when something moved."""
-    if savedata.WINDOWS or rpcs3 is None or not rpcs3.patchable:
+    if savedata.WINDOWS or rpcs3 is None or rpcs3.native or not rpcs3.patchable:
         return False
     stray = os.path.join(rpcs3.folder, 'config', 'patch_config.yml')
     old = _read(stray)
@@ -387,14 +400,41 @@ def find_disc(rpcs3, titles):
 # --- in, state, out -------------------------------------------------------------------------------
 def check(rpcs3, titles):
     """Raise PatchError, with what to do, when the patch cannot be put in now."""
+    if rpcs3 is not None and rpcs3.native and not rpcs3.patchable:
+        raise PatchError(PORT_OTHER)
     if rpcs3 is None or not rpcs3.patchable:
-        raise PatchError("The game patch needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves or "
-                         "NHL Legacy Native cannot take it.")
+        raise PatchError("The game patch needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves "
+                         "cannot take it.")
     if savedata.running_rpcs3():
-        raise PatchError("Close RPCS3 first: the game patch can only be put in or taken out while RPCS3 is closed.")
+        raise PatchError(f"{savedata.close_first()}: the game patch can only be put in or taken out while the game is closed.")
+    if rpcs3.native and savedata.launcher_running(rpcs3):
+        raise PatchError(PORT_LAUNCHER)
     if not find_disc(rpcs3, titles):
-        raise PatchError("RPCS3 does not say where your copy of the game is, so the game patch cannot be made. "
+        raise PatchError("NHL Legacy Native does not say where your copy of the game is, so the game patch cannot be made. "
+                         "Open its launcher and press Install, then try again." if rpcs3.native else
+                         "RPCS3 does not say where your copy of the game is, so the game patch cannot be made. "
                          "Start the game once from RPCS3's game list, then try again.")
+
+
+def _port_pack(rpcs3):
+    """(our patch file for the NHLLegacy.exe of `rpcs3`, its patch version), downloaded when there is a newer one. No connection:
+    the one on this PC will do. PatchError when there is none, or it is for another build of the game."""
+    packs.sync(wanted=[PORT_PACK])
+    path = packs.path(PORT_PACK)
+    if path is None:
+        raise PatchError("The game patch could not be downloaded. Check your connection and try again.")
+    with zipfile.ZipFile(path) as z:
+        index, body = json.loads(z.read('index.json')), z.read(PORT_FILE)
+    if (int(index['stamp'], 16), int(index['image'], 16)) != savedata.exe_id(rpcs3.exe):
+        raise PatchError(PORT_OTHER)
+    return body, index['version']
+
+
+def _port_entry(rpcs3):
+    """The list's line for our patch file next to NHLLegacy.exe, None when it is not there or is not ours any more."""
+    entry = install.load_manifest(STORE)['games'].get(rpcs3.folder, {}).get(PORT_FILE)
+    path = os.path.join(rpcs3.folder, PORT_FILE)
+    return entry if entry and os.path.isfile(path) and install.ours(entry, path) else None
 
 
 def install_patch(rpcs3, titles, roster=None, intro=True, login=False, say=print, pack=None):
@@ -404,12 +444,25 @@ def install_patch(rpcs3, titles, roster=None, intro=True, login=False, say=print
     titles patched."""
     titles = [t for t in gamepatch.HASHES if t in titles]
     check(rpcs3, titles)
+    port = _port_pack(rpcs3) if rpcs3.native else None
     disc = find_disc(rpcs3, titles)
     if roster is None:
         say("Game patch: making the game's database for 32 teams from your disc")
         roster = calendar_roster(disc, pack if pack is not None else datasource.load_pack(say, offline=True))
     meta, db = db_files(disc, roster)
     write_db(rpcs3, titles, meta, db)
+    if port:
+        body, version = port
+        writer = install._Writer([rpcs3.folder], store=STORE)
+        try:
+            writer.write((PORT_FILE,), body, f"patch:{version}:" + hashlib.sha1(body).hexdigest())
+        finally:
+            writer.save()
+        native.settle(rpcs3, say)
+        if not savedata.WINDOWS:
+            say("On Linux add this to the game's launch options: WINEDLLOVERRIDES=\"xinput1_4=n,b\" %command%")
+        say(f"Game patch {version} is in NHL Legacy Native")
+        return titles
     writer = install._Writer([patches_dir(rpcs3)], store=STORE)
     text = gamepatch.player_patch_text().encode()     # one file for both (update 1.01's entries name both)
     try:
@@ -445,6 +498,8 @@ def _wanted(intro, login):
 def set_switches(rpcs3, titles, intro, login):
     """The intro / login entries of the patched versions among `titles` ticked as `intro` / `login` (the 32-team and
     news entries stay): only patch_config.yml changes, no disc needed. Returns the titles changed."""
+    if rpcs3.native:                    # the launcher has its own Skip the intro
+        return []
     if savedata.running_rpcs3():
         raise PatchError("Close RPCS3 first: the game patch can only be changed while RPCS3 is closed.")
     patched = [t for t in patched_titles(rpcs3) if t in titles]
@@ -471,7 +526,7 @@ def set_online(rpcs3, titles, on, say=print):
     update 1.01 alike; the patch file is written first when it is not there. It works without the 32-team patch and
     leaves that and the intro switches as they are. RPCS3 closed; no disc needed. Returns the titles changed."""
     titles = [t for t in gamepatch.HASHES if t in titles]
-    if rpcs3 is None or not rpcs3.patchable:
+    if rpcs3 is None or rpcs3.native or not rpcs3.patchable:
         raise PatchError("Online play needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves or "
                          "NHL Legacy Native cannot play online.")
     if savedata.running_rpcs3():
@@ -549,7 +604,7 @@ def screens_in(rpcs3, title):
 def auto_start(rpcs3, title):
     """Can the game be started into the lobby's search by the patch (no key at all)? The patch file must hold the entry
     (it does for 1.00 and update 1.01) and the two screens must be in."""
-    if rpcs3 is None or getattr(rpcs3, 'plain', False):
+    if rpcs3 is None or getattr(rpcs3, 'plain', False) or getattr(rpcs3, 'native', False):
         return False
     version = game_version(rpcs3, title)
     return (f"  {gamepatch.ONLINE_START_ENTRY}:" in _read(patch_file(rpcs3, title)) and screens_in(rpcs3, title)
@@ -630,17 +685,22 @@ def refresh_db(rpcs3, titles, roster, say=print):
     return True
 
 
+def _has_state(rpcs3):
+    """Can the game patch be in `rpcs3`? Also a port whose program changed under our patch file (it is in, and does nothing)."""
+    return rpcs3 is not None and (getattr(rpcs3, 'patchable', True) or getattr(rpcs3, 'native', False))
+
+
 def patched_titles(rpcs3):
-    """The versions of the game patched in `rpcs3` (title ids), [] for none, no RPCS3 or NHL Legacy Native."""
-    if rpcs3 is None or not getattr(rpcs3, 'patchable', True):
+    """The versions of the game patched in `rpcs3` (title ids), [] for none or no RPCS3."""
+    if not _has_state(rpcs3):
         return []
     return [t for t, s in state(rpcs3).items() if s['patched']]
 
 
 def stale_titles(rpcs3):
     """The versions of the game whose patch in `rpcs3` is not for the game version RPCS3 runs (a patch put in before
-    this program knew update 1.01): Patch again."""
-    if rpcs3 is None or not getattr(rpcs3, 'patchable', True):
+    this program knew update 1.01): Patch again. On a port: our patch file is in and its program is another build."""
+    if not _has_state(rpcs3):
         return []
     return [t for t, s in state(rpcs3).items() if s['stale']]
 
@@ -670,7 +730,9 @@ def state(rpcs3):
     'version': its patch version or None, 'game': the game version RPCS3 runs ('01.00', update '01.01'), 'stale': the
     patch is in, but not for that game version (Patch again), 'intro', 'login', 'news', 'online': those entries ticked, 'rights':
     the bits the game's db description gives the player rights (gamepatch.meta_rights; None without one)}} for both
-    versions of the game."""
+    versions of the game, on a port for the one it runs."""
+    if rpcs3 is not None and rpcs3.native:
+        return {savedata.NATIVE_TITLE: _port_state(rpcs3)}
     out = {}
     real = rpcs3 is not None and rpcs3.patchable
     text = _read_config(rpcs3) if real else ''
@@ -693,6 +755,16 @@ def state(rpcs3):
     return out
 
 
+def _port_state(rpcs3):
+    """state's line for a port: our patch file and the db files together are the patch; 'stale' when the game's program is not
+    the build the file was made for."""
+    entry = _port_entry(rpcs3)
+    rights = installed_rights(rpcs3, savedata.NATIVE_TITLE)
+    return {'patched': bool(entry and rights and rpcs3.patchable), 'version': entry['source'].split(':')[1] if entry else None,
+            'game': gamepatch.VERSIONS[-1], 'stale': bool(entry and not rpcs3.patchable), 'intro': False, 'login': False,
+            'news': bool(entry), 'online': False, 'rights': rights if entry else None}
+
+
 def installed_rights(rpcs3, title):
     """The bits the db description in `title`'s game folder gives the player rights, or None (no file there)."""
     try:
@@ -704,6 +776,8 @@ def installed_rights(rpcs3, title):
 
 def installed(rpcs3):
     """Is anything of the patch in (a switch, our patch file, a db file): what Unpatch would take out."""
+    if rpcs3 is not None and rpcs3.native:
+        return any(install.load_manifest(STORE)['games'].values())
     if rpcs3 is not None and not rpcs3.patchable:
         return False
     text = _read_config(rpcs3) if rpcs3 is not None else ''
@@ -719,7 +793,15 @@ def remove(rpcs3, say=print):
     """Take the game patch out of `rpcs3`: our switches out of patch_config.yml, our patch files and db files gone (or the
     files that were there before back). Returns how many files were handled."""
     if savedata.running_rpcs3():
-        raise PatchError("Close RPCS3 first: the game patch can only be put in or taken out while RPCS3 is closed.")
+        raise PatchError(f"{savedata.close_first()}: the game patch can only be put in or taken out while the game is closed.")
+    if rpcs3.native:
+        if savedata.launcher_running(rpcs3):
+            raise PatchError(PORT_LAUNCHER)
+        install.move_entries('db/', install.ART_STORE, STORE)
+        n = install.remove_store(STORE, [rpcs3.game_folder(savedata.NATIVE_TITLE), rpcs3.folder])
+        native.settle(rpcs3, say)
+        say("The game patch is out of NHL Legacy Native: the game is as it was. Rosters made for the patch open only with it.")
+        return n
     before = text = _read_config(rpcs3)
     saved = _load_saved()
     mine = _kept(saved, config_file(rpcs3))

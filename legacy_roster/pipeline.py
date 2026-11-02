@@ -830,12 +830,11 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
     targets = sorted(set(targets or [source.title_id]), key=lambda t: (t != source.title_id, t))
     host = art_rpcs3 or rpcs3
     if getattr(host, 'native', False):
-        if game_patch:
-            raise L.LayoutError("NHL Legacy Native cannot take the game patch: it plays the unpatched game.")
-        game_patch = False
         targets = [savedata.NATIVE_TITLE]   # the one version the port runs
     if game_patch is None:              # as RPCS3 is
         stale = [t for t in targets if t in patchinstall.stale_titles(rpcs3)]
+        if stale and rpcs3.native:
+            raise L.LayoutError(patchinstall.PORT_OTHER + " Press Unpatch in Game patch, then update.")
         if stale:
             raise L.LayoutError(f"Your {' and '.join(savedata.region(t) for t in stale)} game has update 1.01, and the "
                                 "game patch in RPCS3 was made before this program knew it. Press Patch again in Game "
