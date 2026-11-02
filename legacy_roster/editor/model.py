@@ -87,6 +87,8 @@ class Snapshot:
         # (`farm_ahl`: unleagued), else under Custom (owner, 2026-10-19)
         self.team_league = {t: 'AHL' if farm_ahl and t in L.AHL else L.LEAGUE_NAMES.get(T.get(t, 'jjMx'), 'Other')
                             for t in range(T.cur_rec)}
+        if farm_ahl and L.is_vees(T):     # the Vees likewise, under the WHL
+            self.team_league[L.VEES] = 'WHL'
         self.rosters = {}                 # team -> [pid]
         teams_of = {}
         for i in range(U.cur_rec):

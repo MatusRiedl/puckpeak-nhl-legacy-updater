@@ -263,7 +263,7 @@ def names(b):
     A custom team shows only the text under its `shortname` (a key like COACHELLA_VALLEY, see
     Builder.custom_city_keys); it gets the team's full name there, unless the game already has a
     text under that key (ANAHEIM for the Ducks copy). Coachella Valley and Henderson also get the
-    club texts of their art code (CVF, HSK), which the patched game reads."""
+    club texts of their art code (CVF, HSK), which the patched game reads; so do the Vees (PEN)."""
     T, R = b.R.T, b.R
     teams, cities = [], {}
     for slot, (full, city, abbr) in NHL_NAMES.items():           # the community's Utah, Seattle, Vegas
@@ -288,9 +288,9 @@ def names(b):
                     primary = T.get(b.mirror_of[slot], 'shortname')
                     name = primary if L.city_key(primary) == city else city.replace('_', ' ').title()
                 cities[city] = (name or city.replace('_', ' ').title()).replace('®', '').strip()
-            if slot in L.AHL:
-                # Coachella Valley / Henderson: the patched game lists them in the AHL and names them the club way, by
-                # their art code (gamepatch stage Y); the unpatched one by the key above
+            if slot in L.AHL or (slot == L.VEES and L.is_vees(T)):
+                # Coachella Valley / Henderson / the Vees: the patched game lists them in their league and names them the
+                # club way, by their art code (gamepatch stage Y); the unpatched one by the key above
                 town = city.replace('_', ' ').title() if L.is_city_key(city) else city
                 teams.append((art, full, town, _nick(full, town), abbr))
             elif slot in b.team_names and slot not in b.mirror_of:

@@ -472,7 +472,8 @@ def _place_prospects(b, key, slots, leftovers, was_pool, live, stats):
         found.append(((P.get(prow, 'WzKY'), -b.quality.get(pid, 0), pid), pid, 'fa' if pid in fa else 'none', fa.get(pid)))
     joined = set()
     for _, pid, how, x in sorted(found):
-        room = [s for s in slots if size[s] < PROSPECT_ROOM and not pools.is_pool(R, s)]
+        # not the Vees: their slot is a custom team on every roster the draft reads, and these players are placed for the draft
+        room = [s for s in slots if size[s] < PROSPECT_ROOM and not pools.is_pool(R, s) and s != L.VEES]
         if not room:
             break
         club = min(room, key=lambda s: (size[s], s))

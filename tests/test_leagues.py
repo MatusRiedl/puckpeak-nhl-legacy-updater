@@ -149,7 +149,7 @@ def test_displaced_pools_move_to_spare_custom_slots_and_no_slot_changes_league(e
     pool_names = {src.T.get(t, 'fullname') for t in pool_slots}
     assert pool_slots and not any(pools.is_pool(R, t) for t in rebuilt)  # the clubs have their names back
     assert not any(pools.is_pool(src, t) for t in L.EVENTS)              # "Top Prospects" teams are no pools
-    spare = [t for t in pools.SPARE_SLOTS if R.T.get(t, 'active')]
+    spare = [t for t in pools.SPARE_SLOTS if R.T.get(t, 'active') and t != L.VEES]
     assert {R.T.get(t, 'fullname') for t in spare} <= pool_names          # a spare slot takes a pool's name
     before = {src.P.get(r, 'game_id') for t in pool_slots for r in members(src, t)}
     after = {R.P.get(r, 'game_id') for t in spare for r in members(R, t)}
@@ -215,7 +215,8 @@ def test_coachella_valley_and_henderson_get_art_ids_of_their_own(everything, pac
     assert rows == {(s, eq, v): zones for s, kit in L.OWN_KIT.items() for (eq, v), zones in kit.items()}
     assert rows[234, 1, 1][0] == (0, 34, 63)                # Coachella's home jersey navy, not black
     for slot, design in L.OWN_DESIGN.items():               # drawn as designed (jerseystyle 1), the community's styles
-        assert {k: R.T.get(slot, k) for k in design} == design == {k: src.T.get(slot, k) for k in design}
+        assert {k: R.T.get(slot, k) for k in design} == design
+        assert slot == L.VEES or design == {k: src.T.get(slot, k) for k in design}
 
 
 def test_a_second_run_with_club_leagues_changes_nothing(everything, pack):

@@ -142,7 +142,7 @@ def test_the_maker_paints_the_donor_clubs_files_in_their_colours_under_the_new_a
     R = Roster(out)
     made = {look.art: look for look in looks.looks_from(R, {}, {234: 'crest:a', 235: 'crest:b'}, {})}
     maker = looks.Maker(Disc(DISC))
-    for art in clubart.ARTS:
+    for art in (900, 901):
         look = made[art]
         files = maker.files(look)
         assert sorted(files) == sorted(maker.paths(look)), set(files) ^ set(maker.paths(look))

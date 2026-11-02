@@ -86,6 +86,13 @@ def test_clubs_in_switched_off_custom_slots_are_left_out(stock_bytes, pack):
     assert {'Coachella Valley Firebirds', 'Henderson Silver Knights'} <= set(ahl['left_out'])
 
 
+def test_the_vees_are_on_the_games_own_roster(stock_built):
+    from legacy_roster import layout as L
+    R = Roster(stock_built[0].data)
+    assert L.is_vees(R.T) and R.T.get(L.VEES, 'JkmY') == 'Penticton Vees'
+    assert sum(R.U.get(e, 'team') == L.VEES for e in range(R.U.cur_rec)) >= 20
+
+
 def _rows(R, first, last):
     return [r for r in range(R.P.cur_rec) if R.P.get(r, 'firstname') == first and R.P.get(r, 'lastname') == last]
 

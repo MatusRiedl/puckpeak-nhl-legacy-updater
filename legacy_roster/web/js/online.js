@@ -292,6 +292,9 @@ function HelpCard() {
 
 export function OnlineTab({ s }) {
   if (!s) return null;
+  if (s.native) return html`<div class="columns online"><div class="col">
+    <${Card} title="Online play" style=${{ '--i': 0 }}><div class="card-body"><div class="small-note">${s.no_rpcs3}</div></div><//>
+  </div></div>`;
   return html`<div class="columns online">
     <div class="col">
       ${s.state === 'no-rpcs3'

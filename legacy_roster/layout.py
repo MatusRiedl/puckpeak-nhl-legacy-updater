@@ -53,6 +53,10 @@ WHL = set(range(192, 214))
 CHL = OHL | QMJHL | WHL
 EVENTS = set(range(214, 222))     # Top Prospects, Winter Classic, EASHL: left alone
 SPARE = range(236, 252)           # custom slots switched off in the base: room for displaced prospect pools
+# the Penticton Vees (owner, 2026-11-02): the last spare slot (pools fill from the low end, Create a Team takes the first
+# free one). A named custom team on every roster, a club of the WHL's B.C. Division on a roster for the patched game
+# (gamepatch.LEAGUE_SLOTS). VEES_RINK: Prince George, whose arena row they copy (ice and boards) and whose jerseys they borrow
+VEES, VEES_RINK = 251, 204
 # the base roster keeps its NHL "System" prospect pools here (DEL 101-104, Extraliga, National League)
 SYSTEM_POOL_SLOTS = set(range(101, 131))
 # teams whose players hold a contract with the team (owner, 2026-10-22: "this tool is a tool to actually make it happen for
@@ -69,12 +73,12 @@ AHL_PARENT_EXTRA = {234: 30, 235: 31}
 # wish) gives a custom slot a blue square on the ice and the jersey, because the game draws custom slots from the
 # create-a-team files whatever the art id; with 20073 / 20081 and the crests the photos install, both teams show their
 # own crest (docs/notes/lab-round-34.md). Only the team table's artid holds a team's art id.
-OWN_ART = {234: 20073, 235: 20081}
+OWN_ART = {234: 20073, 235: 20081, VEES: 20085}
 # and on a roster for the patched game (0.50.4, lab round 48): art 900 / 901 as a club of the AHL, the created-team flag off
 # (ttOk BERR `table` 0) and the jersey rows (`stockteamjerseys`) of a donor club, whose files art/clubart.py clones. Lab round
 # 34's blue square was the flag left on, with no rows and no files. CLUB_DONOR: slot -> (the donor's art id, its variants)
-CLUB_ART = {234: 900, 235: 901}
-CLUB_DONOR = {234: (162, (3, 4)), 235: (141, (0, 1))}      # Charlotte's, Utica's
+CLUB_ART = {234: 900, 235: 901, VEES: 902}
+CLUB_DONOR = {234: (162, (3, 4)), 235: (141, (0, 1)), VEES: (373, (2, 3))}      # Charlotte's, Utica's, Prince George's
 # their jersey colours (table NDEo, team = slot + 1: {(equipment, variant 1 home / 2 away): zones 1-9}; the pieces:
 # custom_kit.PIECES): the community roster's, Coachella's black body and shoulders made this season's navy (equipment 9 zones 1
 # and 5 since 0.31.0: round 34 painted equipment 1, the goalie's catching glove; lab round 37), the crest's colours
@@ -82,13 +86,14 @@ CLUB_DONOR = {234: (162, (3, 4)), 235: (141, (0, 1))}      # Charlotte's, Utica'
 # in lab round 34.
 _NAVY, _TEAL, _ORANGE, _RED, _WHITE, _NONE = (0, 34, 63), (129, 229, 214), (180, 66, 18), (131, 13, 13), (255,) * 3, (0,) * 3
 _GREY, _GOLD, _INK = (114, 114, 114), (180, 139, 18), (32, 32, 32)
+_VEES_NAVY, _SKY = (12, 30, 65), (166, 210, 240)        # the Vees' crest
 # and their two team colours (ttOk primary / secondary; the custom slots hold the placeholder blue / red, which goalie gear
 # and the menus would take)
-OWN_COLOURS = {234: (_NAVY, (200, 16, 46)), 235: ((27, 26, 27), (167, 168, 173))}
+OWN_COLOURS = {234: (_NAVY, (200, 16, 46)), 235: ((27, 26, 27), (167, 168, 173)), VEES: (_VEES_NAVY, _SKY)}
 # and their designs (ttOk, custom_kit.DESIGN_FIELDS): the community roster's. The game's own roster has 0 everywhere, and
 # with jerseystyle 0 the game draws a custom team's jersey plain (white in lab round 46, black in the owner's RPCS3)
 OWN_DESIGN = {slot: {'jerseystyle': 1, 'jerseybackhome': 0, 'jerseybackaway': 0, 'pantsstyle': 0, 'sockstyle': 1,
-                     'font': 2} for slot in (234, 235)}
+                     'font': 2} for slot in (234, 235, VEES)}
 OWN_KIT = {
     234: {
         (1, 1): (_NAVY,) * 4 + (_TEAL,) + (_NAVY,) * 3 + (_ORANGE,),
@@ -138,7 +143,37 @@ OWN_KIT = {
         (10, 2): (_GREY, _GOLD, _INK) + (_NONE,) * 6,
         (11, 2): ((27, 26, 27), (167, 168, 173), (245, 245, 245)) + (_WHITE,) * 3 + (_NONE,) * 3,
     },
+    VEES: {
+        (1, 1): (_VEES_NAVY,) * 4 + (_SKY,) + (_VEES_NAVY,) * 3 + (_WHITE,),
+        (2, 1): (_VEES_NAVY,) * 4 + (_SKY,) + (_VEES_NAVY,) * 3 + (_WHITE,),
+        (3, 1): (_VEES_NAVY,) * 4 + (_SKY, _WHITE, _VEES_NAVY, _WHITE, _WHITE),
+        (4, 1): ((232, 232, 232), _INK, (18, 103, 140)) + (_NONE,) * 6,
+        (5, 1): (_VEES_NAVY,) * 6 + (_SKY, _VEES_NAVY, _VEES_NAVY),
+        (6, 1): (_VEES_NAVY, _SKY, _WHITE) + (_NONE,) * 6,
+        (7, 1): (_VEES_NAVY,) * 3 + (_NONE,) * 6,
+        (8, 1): (_VEES_NAVY, _VEES_NAVY, _WHITE) + (_NONE,) * 6,
+        (9, 1): (_VEES_NAVY, _WHITE, _SKY, _WHITE, _VEES_NAVY, _SKY) + (_NONE,) * 3,
+        (10, 1): (_WHITE, _SKY, _VEES_NAVY) + (_NONE,) * 6,
+        (11, 1): (_VEES_NAVY, _SKY, _WHITE) + (_WHITE,) * 3 + (_NONE,) * 3,
+        (1, 2): (_WHITE, _VEES_NAVY, _WHITE, _WHITE, _SKY, _WHITE, _WHITE, _WHITE, _VEES_NAVY),
+        (2, 2): (_WHITE, _VEES_NAVY, _WHITE, _WHITE, _SKY, _WHITE, _WHITE, _WHITE, _VEES_NAVY),
+        (3, 2): (_WHITE, _VEES_NAVY, _WHITE, _WHITE, _SKY, _WHITE, _WHITE, _WHITE, _VEES_NAVY),
+        (4, 2): ((232, 232, 232), _INK, (18, 103, 140)) + (_NONE,) * 6,
+        (5, 2): (_VEES_NAVY,) * 6 + (_SKY, _VEES_NAVY, _VEES_NAVY),
+        (6, 2): (_WHITE, _VEES_NAVY, _SKY) + (_NONE,) * 6,
+        (7, 2): (_VEES_NAVY,) * 3 + (_NONE,) * 6,
+        (8, 2): (_WHITE, _WHITE, _VEES_NAVY) + (_NONE,) * 6,
+        (9, 2): (_WHITE, _VEES_NAVY, _SKY, _VEES_NAVY, _WHITE, _SKY) + (_NONE,) * 3,
+        (10, 2): (_VEES_NAVY, _SKY, _WHITE) + (_NONE,) * 6,
+        (11, 2): (_VEES_NAVY, _SKY, _WHITE) + (_WHITE,) * 3 + (_NONE,) * 3,
+    },
 }
+
+
+def is_vees(T):
+    """Does the team table `T` hold the Penticton Vees in their slot (art id 902 on a roster for the patched game), and not
+    a team of the player's own?"""
+    return bool(T.get(VEES, 'NYKk')) and T.get(VEES, 'RPbr') == 'PEN' and T.get(VEES, 'artid') in (OWN_ART[VEES], CLUB_ART[VEES])
 
 POS_CODE = {'C': 0, 'L': 1, 'R': 2, 'D': 3, 'G': 4}
 POS_CLASS = {0: 'C', 1: 'W', 2: 'W', 3: 'D', 4: 'G'}

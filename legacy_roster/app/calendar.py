@@ -28,6 +28,8 @@ OWN_NOTE = ("This roster has the game's own {league} calendar (an old season). A
 SEASON_NOTE = "Season mode plays the {league} too: New Season > League Type."
 FARM_NOTE = "On the patched game the AHL's 32 clubs are the NHL teams' farm league in Season and Be a GM."
 NORWAY_NOTE = "The game has no calendar for Norway and Season mode does not offer it: these are the real games."
+VEES_CLUB = "Penticton Vees"        # as the data pack's WHL calendar names them
+VEES_NOTE = "The Vees' real games. They are not in the game's own WHL calendar, so Season mode does not play them."
 
 
 def _dated(rows, season):
@@ -45,7 +47,8 @@ class Book:
     """The calendars of one roster (read once per Snapshot): [(date, home, away)] of the NHL's games, the All-Star
     game's [(date, home, away)] and the season they are; `leagues` {part: [(date, home, away)]} of every club league
     (Norway's from the data pack `pack`, a club without a slot by its name), `own` the parts whose table is not this
-    season's (known only with the pack), `farm` True when the AHL is the patch's 32."""
+    season's (known only with the pack), `farm` True when the AHL is the patch's 32, `vees` the Penticton Vees' real games
+    from the pack, which no table of the game holds ([] without the Vees)."""
 
     def __init__(self, R, season_year, pack=None):
         rows = schedule.read(R)
@@ -67,6 +70,10 @@ class Book:
                     self.own.add(part)
         norway = ((pack or {}).get('schedules') or {}).get('norway') or []
         self.leagues['norway'] = [(datetime.date.fromisoformat(d), h, a) for d, h, a in sorted(norway, key=lambda g: g[0])]
+        slot_of = lambda club: L.VEES if club == VEES_CLUB else club
+        self.vees = [(datetime.date.fromisoformat(d), slot_of(h), slot_of(a))
+                     for d, h, a in sorted(real.get('whl') or [], key=lambda g: g[0])
+                     if VEES_CLUB in (h, a)] if L.is_vees(R.T) else []
 
 
 class CalendarController:
@@ -188,6 +195,8 @@ class CalendarController:
         book = self.book()
         if team in L.AHL and book is not None and book.farm:      # Coachella Valley / Henderson on a patch roster
             return 'ahl'
+        if team == L.VEES and book is not None and book.vees:     # their own games, _vees_games
+            return 'whl'
         return 'norway' if team in L.NORWAY else None
 
     def league_of(self, team):
@@ -234,6 +243,12 @@ class CalendarController:
                     for d, h, a in book.stars]
         return sorted(out, key=lambda g: (g['date'], g['star'])), False
 
+    def _vees_games(self):
+        """The WHL's games with the Vees' real ones: the only team whose list is not the roster's table."""
+        games = [{'date': d, 'home': h, 'away': a, 'score': None, 'extra': None, 'star': False, 'playoffs': False}
+                 for d, h, a in self.book().vees]
+        return sorted((self._games('whl')[0] or []) + games, key=lambda g: g['date'])
+
     def _view(self):
         """What the page shows for the team followed, or None: {'team', 'league', 'games', 'mine', 'saved', 'range',
         'today', 'why'}."""
@@ -252,7 +267,7 @@ class CalendarController:
             out['why'] = (f"{snap.team_name(team)} is in no league with a calendar"
                           + (" (on the unpatched game it is a custom team)." if team in L.AHL else "."))
             return out
-        games, saved = self._games(part)
+        games, saved = (self._vees_games(), False) if team == L.VEES else self._games(part)
         if games is None:
             out['why'] = f"This roster has no {league} calendar."
             return out
@@ -357,6 +372,8 @@ class CalendarController:
             league_note = None
             if saved or book is None:
                 pass
+            elif team == L.VEES:
+                league_note = VEES_NOTE
             elif part == 'nhl':
                 if book.season == schedule.GAME_SEASON:
                     league_note = ("This roster has the game's own calendar (2015-16). An update with the calendar on "
@@ -418,6 +435,9 @@ class CalendarController:
                     for t in (g['home'], g['away']):
                         if isinstance(t, int):
                             out[t] = out.get(t, 0) + 1
+            book = self.book()
+            if book is not None and book.vees:
+                out[L.VEES] = len(book.vees)
             return {t: {'text': str(n), 'tip': 'games'} for t, n in out.items()}
 
 

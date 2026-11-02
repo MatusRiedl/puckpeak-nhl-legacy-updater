@@ -1353,7 +1353,8 @@ class OnlineController:
         with self.lock:
             role = (self._member() or {}).get('role')
             bring, bring_why = self.bring()
-            return {'state': self.view(), 'no_rpcs3': self.no_rpcs3(), 'account': self.account, 'title': self.title, 'busy': self.busy or self.copying,
+            return {'state': self.view(), 'no_rpcs3': self.no_rpcs3(), 'native': getattr(getattr(self.update, 'rpcs3', None), 'native', False),
+                    'account': self.account, 'title': self.title, 'busy': self.busy or self.copying,
                     'note': self.note, 'checked': self.checked, 'server': self.server, 'marks': self.marks(),
                     'roster': self.roster['name'] if self.roster else None, 'brought': self.brought,
                     'bring': bring, 'bring_why': bring_why, 'patch': self.patch_word(), 'hint': self.hint(),

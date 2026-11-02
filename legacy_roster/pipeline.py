@@ -68,6 +68,28 @@ def with_own_teams(R, league, taken, mirrors):
     return dict(league, teams=list(league['teams']) + own)
 
 
+def with_vees(R, league, taken, mirrors):
+    """The CHL with the Penticton Vees in their own slot (layout.VEES): the club the data pack lists under `extra` goes
+    into `teams`, its slot switched on. A player's own team named after them keeps them (clubs.own_teams), and a slot that
+    already holds something else stays as it is, so the Vees stay a club without a slot. A prospect pool is no such thing:
+    a full update fills all 16 spare slots, so a roster updated before the Vees has one there; the league step moves it
+    out as it does for a pool in a European club's slot."""
+    club = next((c for c in league.get('extra') or [] if c.get('art') == 'PEN' and c.get('players')), None)
+    if club is None:
+        return league
+    T = R.T
+    if not L.is_vees(T):
+        busy = T.get(L.VEES, 'NYKk') or any(R.U.get(e, 'BSXd') == L.VEES for e in range(R.U.cur_rec))
+        if ((busy and not pools.is_pool(R, L.VEES)) or L.VEES in taken
+                or any(c['art'] == 'PEN' for c in clubs.own_teams(R, league, taken, mirrors))):
+            return league
+        T.set(L.VEES, 'NYKk', 1)
+    taken.add(L.VEES)
+    return dict(league, teams=list(league['teams']) + [dict(club, slot=L.VEES, short='Penticton')],
+                left_out=[name for name in league.get('left_out') or [] if name != club['full']],
+                extra=[c for c in league['extra'] if c is not club])
+
+
 def section_of(row):
     """The part of the update a change-log row belongs to ('' for rows made outside build())."""
     return row[5] if len(row) > 5 else ''
@@ -413,8 +435,13 @@ def build(source, data, steps=ALL_STEPS, progress=None, check=True, art_registry
     # their players' records are reserved from the start
     leagues = [key for key in LEAGUE_ORDER if key in steps and key in data.leagues]
     taken = set(L.MIRROR_OF) if b.mirrors else set()
-    league_data = {key: with_own_teams(R, usable_clubs(R, data.leagues[key]), taken, set(L.MIRROR_OF) if b.mirrors else ())
-                   for key in leagues}
+    copies = set(L.MIRROR_OF) if b.mirrors else ()
+    league_data = {}
+    for key in leagues:
+        league = usable_clubs(R, data.leagues[key])
+        league_data[key] = with_own_teams(R, with_vees(R, league, taken, copies) if key == 'chl' else league, taken, copies)
+    if any(t['slot'] == L.VEES and not t.get('own') for t in league_data.get('chl', {}).get('teams', ())):
+        b.vees_arena()
     if 'ahl' in league_data and league_data['ahl'].get('orgs'):
         # this season's farm pairs before anything counts on them (the NHL step's call-ups, the retiring of old players,
         # the AHL step): with the game's own 2014 pairs the retiring kept a player the AHL step then let go

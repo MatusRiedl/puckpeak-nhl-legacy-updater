@@ -176,6 +176,7 @@ AHL_ARENAS = {
     235: ("Lee's Family Forum", "Henderson, NV", 9500),
 }
 AHL_ALONE = {234, 235}      # rows shared with a club or a copy that stays where it was (Colorado's AllState Arena, Seattle's copy)
+VEES_ARENA = ("South Okanagan Events Centre", "Penticton, BC", 4494)
 # their helmets, gloves and goalie gear (Builder.nhl_gear): a coloured part becomes the first colour here, a dark one the
 # second; white and black stay (Utah: black, Seattle: deep sea blue, Vegas: gold and steel grey)
 NHL_GEAR = {22: ((32, 32, 32), (32, 32, 32)), 30: ((0, 35, 63), (0, 35, 63)), 31: ((238, 192, 84), (60, 59, 65))}
@@ -1542,6 +1543,15 @@ class Builder:
         for slot, (name, city, capacity) in AHL_ARENAS.items():
             done += bool(self.set_arena(slot, name, city, alone=slot in AHL_ALONE, capacity=capacity))
         return done
+
+    def vees_arena(self):
+        """The Penticton Vees' own arena: a copy of a WHL club's row, for its ice and boards (a custom slot starts on a row
+        of the custom teams'). When the table has no room left they play in that club's arena."""
+        T, A = self.R.T, self.R.f['OEtS']
+        name, city, capacity = VEES_ARENA
+        if A.get(T.get(L.VEES, 'arenaid'), 'arenaname') != name:
+            T.set(L.VEES, 'arenaid', T.get(L.VEES_RINK, 'arenaid'))
+        return self.set_arena(L.VEES, name, city, alone=True, capacity=capacity)
 
     def nhl_identity(self):
         """The arena name of every NHL team (NHL_ARENAS), the city of Utah, Seattle and Vegas (NHL_CITIES) and every NHL

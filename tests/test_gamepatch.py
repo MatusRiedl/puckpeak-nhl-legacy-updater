@@ -177,7 +177,7 @@ def test_the_32_team_test_saves_a_roster_for_the_patched_farm_league(tmp_path, b
         ['Utah Mammoth', 'Utah', 'UTA', source.T.get(22, 'RPbr')], ['Seattle Kraken', 'Seattle', 'SEA', source.T.get(30, 'RPbr')],
         ['Vegas Golden Knights', 'Vegas', 'VGK', source.T.get(31, 'RPbr')]]   # the art code (the text file's keys) stays
     assert [(R.T.get(n, 'uTwO'), R.T.get(n, 'KMGC')) for n in (22, 30, 31)] == [(1, 4), (1, 3), (1, 3)]
-    same = (22, 30, 31) + gamepatch.ALL_STAR_SLOTS + tuple(range(32, 62)) + gamepatch.LEAGUE_SLOTS   # 32-61: the AHL's 2026-27
+    same = (22, 30, 31) + gamepatch.ALL_STAR_SLOTS + tuple(range(32, 62)) + tuple(gamepatch.LEAGUE_SLOTS)   # 32-61: the AHL's 2026-27
     # divisions; 234 / 235 in the AHL's Pacific (stage Y)
     assert all(R.T.get(n, f) == source.T.get(n, f) for n in range(R.T.cur_rec) if n not in same for f in ('uTwO', 'KMGC'))
     assert gamepatch.check_all_star(R) == [] and len(gamepatch.check_all_star(source)) == 4      # 2 places, 2 tables
@@ -438,7 +438,7 @@ def test_coachella_and_henderson_are_listed_and_named_in_the_ahl():
         words = {0x1000 + 4 * k: w for k, (w, _) in enumerate(code)}
         for flag, league, named in ((1, 13, 1), (1, 1, 0), (0, 1, 0), (0, 13, 0)):
             assert _gate(words, 0x1000, (0x1000 + 4 * len(code),), {}, {0x110: flag, 0x100: league})[1][3] == named
-    R = SimpleNamespace(T=SimpleNamespace(rows={234: {}, 235: {}}), team_name=str)
+    R = SimpleNamespace(T=SimpleNamespace(rows={234: {}, 235: {}, 251: {}}), team_name=str)
     R.T.get = lambda slot, f: R.T.rows[slot].get(f, dict(zip(gamepatch.LEAGUE_FIELDS, gamepatch.CUSTOM_GROUPS))[f]
                                                  if f in gamepatch.LEAGUE_FIELDS else 1)
     R.T.set = lambda slot, f, value: R.T.rows[slot].__setitem__(f, value)

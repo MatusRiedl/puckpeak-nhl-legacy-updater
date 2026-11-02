@@ -1053,10 +1053,11 @@ STAGE_Y_CAVES += ((0x1283bc, 0x2c130000, _skip_cave(),
                    "the game's own)"),)
 # The roster's side: ttOk league, leaguegroup, conferencegroup, divisiongroup of Coachella Valley / Henderson. Every custom
 # slot of every roster has CUSTOM_GROUPS; an AHL Pacific club (Bakersfield, slot 33) AHL_PACIFIC.
-LEAGUE_SLOTS = (234, 235)
 LEAGUE_FIELDS = ('jjMx', 'lBIi', CONFERENCE, DIVISION)
 CUSTOM_GROUPS = (13, 48, 48, 48)
 AHL_PACIFIC = (1, 7, 8, 13)
+WHL_BC = (11, 31, 32, 34)               # a club of the WHL's B.C. Division (Prince George, slot 204)
+LEAGUE_SLOTS = {234: AHL_PACIFIC, 235: AHL_PACIFIC, 251: WHL_BC}        # 251: the Vees (owner, 2026-11-02), in_the_roster
 
 # yearfirstsigned, yearprodebut, yearufa, yearwaivereligible: read against the league's own year, so year_shift leaves
 # them (patch 0.4 moved them 11 later; in Be a GM the game then wrote the league year into every debut year). yearufa is
@@ -1877,23 +1878,28 @@ def league_of(R, slot):
     return tuple(R.T.get(slot, f) for f in LEAGUE_FIELDS)
 
 
+def in_the_roster(R, slots):
+    """`slots` without the Vees' when the roster `R` has someone else there (layout.is_vees)."""
+    return [slot for slot in slots if slot != L.VEES or L.is_vees(R.T)]
+
+
 def league_fit(R):
-    """Put Coachella Valley and Henderson (LEAGUE_SLOTS) in the AHL's Pacific in the roster `R` (stage Y), in place. Returns
-    how many teams changed."""
+    """Put Coachella Valley and Henderson in the AHL's Pacific and the Vees in the WHL's B.C. Division (LEAGUE_SLOTS) in the
+    roster `R` (stage Y), in place. Returns how many teams changed."""
     changed = 0
-    for slot in LEAGUE_SLOTS:
-        changed += league_of(R, slot) != AHL_PACIFIC
-        for f, value in zip(LEAGUE_FIELDS, AHL_PACIFIC):
+    for slot in in_the_roster(R, LEAGUE_SLOTS):
+        changed += league_of(R, slot) != LEAGUE_SLOTS[slot]
+        for f, value in zip(LEAGUE_FIELDS, LEAGUE_SLOTS[slot]):
             R.T.set(slot, f, value)
     return changed
 
 
 def unleague(R):
-    """Undo league_fit on the roster `R`, in place: Coachella Valley and Henderson back in the Custom league, where the
-    builder, the names and the pictures expect them (and the unpatched game lists them). Returns how many teams changed."""
+    """Undo league_fit on the roster `R`, in place: Coachella Valley, Henderson and the Vees back in the Custom league, where
+    the builder, the names and the pictures expect them (and the unpatched game lists them). Returns how many teams changed."""
     changed = 0
-    for slot in LEAGUE_SLOTS:
-        if league_of(R, slot) == AHL_PACIFIC:
+    for slot in in_the_roster(R, LEAGUE_SLOTS):
+        if league_of(R, slot) == LEAGUE_SLOTS[slot]:
             for f, value in zip(LEAGUE_FIELDS, CUSTOM_GROUPS):
                 R.T.set(slot, f, value)
             changed += 1
@@ -1912,12 +1918,13 @@ def art_rows(R, art):
 
 
 def art_fit(R):
-    """Give Coachella Valley and Henderson the art ids of their own (layout.CLUB_ART) in the roster `R` for the patched
+    """Give Coachella Valley, Henderson and the Vees the art ids of their own (layout.CLUB_ART) in the roster `R` for the patched
     game, in place: the created-team flag off and the jersey rows of their donor club (layout.CLUB_DONOR: the donor's rows
     for the versions listed there) under their art id and slot. Their files are art/clubart.py's. Returns how many teams
     changed."""
     W, changed = R.f['wgjx'], 0
-    for slot, art in L.CLUB_ART.items():
+    for slot in in_the_roster(R, L.CLUB_ART):
+        art = L.CLUB_ART[slot]
         donor, variants = L.CLUB_DONOR[slot]
         wanted = [row for row in art_rows(R, donor) if row['TccF'] in variants]
         have = {row['TccF'] for row in art_rows(R, art)}
@@ -1956,10 +1963,11 @@ def unart(R):
 
 
 def check_art_fit(R):
-    """Problems of Coachella Valley / Henderson's art ids in a roster for the patch (texts, empty when right): their art
-    id, the flag off, and the donor's rows under their art id and slot."""
+    """Problems of Coachella Valley / Henderson's / the Vees' art ids in a roster for the patch (texts, empty when right):
+    their art id, the flag off, and the donor's rows under their art id and slot."""
     out = []
-    for slot, art in L.CLUB_ART.items():
+    for slot in in_the_roster(R, L.CLUB_ART):
+        art = L.CLUB_ART[slot]
         donor, variants = L.CLUB_DONOR[slot]
         if R.T.get(slot, 'artid') != art or R.T.get(slot, CREATED) != 0:
             out.append(f"team slot {slot} ({R.team_name(slot)}) does not have art id {art} as a club")
@@ -1973,10 +1981,10 @@ def check_art_fit(R):
 
 
 def check_league_fit(R):
-    """Problems of Coachella Valley / Henderson in a roster for the patch (texts, empty when right): in the AHL's Pacific
-    and switched on."""
-    return [f"team slot {slot} ({R.team_name(slot)}) is not in the AHL's Pacific" for slot in LEAGUE_SLOTS
-            if league_of(R, slot) != AHL_PACIFIC or not R.T.get(slot, 'NYKk')]
+    """Problems of Coachella Valley / Henderson / the Vees in a roster for the patch (texts, empty when right): in their
+    division and switched on."""
+    return [f"team slot {slot} ({R.team_name(slot)}) is not in its division" for slot in in_the_roster(R, LEAGUE_SLOTS)
+            if league_of(R, slot) != LEAGUE_SLOTS[slot] or not R.T.get(slot, 'NYKk')]
 
 
 def all_star_fit(R):
