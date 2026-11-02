@@ -745,11 +745,18 @@ def remove_retired(say=print):
     return n
 
 
-def remove_store(store):
+def remove_store(store, folders=None):
     """Put every file of `store` back as it was (kept copies return, our files go) and forget the store's list. RPCS3
-    must be closed (the caller checks). Returns how many files were handled."""
+    must be closed (the caller checks). `folders`: only these (one RPCS3's); another copy's files stay in and listed.
+    Returns how many files were handled."""
     m = load_manifest(store)
-    n, _ = _put_back(m)
+    picked = None if folders is None else {os.path.normcase(os.path.abspath(d)) for d in folders}
+    others = {d: files for d, files in m['games'].items()
+              if picked is not None and os.path.normcase(os.path.abspath(d)) not in picked}
+    sub = dict(m)
+    sub['games'] = {d: files for d, files in m['games'].items() if d not in others}
+    n, _ = _put_back(sub)
+    m['games'] = {**sub['games'], **others}
     _forget_handled(m, store)
     return n
 

@@ -733,6 +733,6 @@ def remove(rpcs3, say=print):
         _write_config(rpcs3, text)
     _store_saved(saved)
     install.move_entries('db/', install.ART_STORE, STORE)
-    n = install.remove_store(STORE)
+    n = install.remove_store(STORE, [rpcs3.game_folder(title) for title in gamepatch.HASHES] + [patches_dir(rpcs3)])
     say("The game patch is out of RPCS3: the game is as it was. Rosters made for the patch open only with it.")
     return n

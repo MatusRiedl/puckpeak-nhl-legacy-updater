@@ -277,6 +277,25 @@ def test_unpatch_gets_past_db_files_of_a_game_folder_that_is_gone(tmp_path, monk
     assert list(install.load_manifest(patchinstall.STORE)['games']) == [old]
 
 
+def test_unpatch_leaves_another_rpcs3_patched(tmp_path, monkeypatch):
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'local'))
+    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'local'))
+    monkeypatch.setattr(savedata, 'running_rpcs3', lambda: None)
+    (tmp_path / 'one').mkdir()
+    (tmp_path / 'two').mkdir()
+    one, two = _fake_rpcs3(tmp_path / 'one'), _fake_rpcs3(tmp_path / 'two')
+    for host in (one, two):
+        writer = install._Writer([host.game_folder(EU)], store=patchinstall.STORE)
+        writer.write(gamepatch.DB_FILE, b'DB', 'db:1')
+        writer.save()
+    patchinstall.remove(one, say=lambda m: None)
+    assert not os.path.exists(os.path.join(one.game_folder(EU), 'db', 'nhlng.db'))
+    assert _read(os.path.join(two.game_folder(EU), 'db', 'nhlng.db')) == b'DB'
+    assert list(install.load_manifest(patchinstall.STORE)['games']) == [two.game_folder(EU)]
+    patchinstall.remove(two, say=lambda m: None)
+    assert not os.path.exists(os.path.join(two.game_folder(EU), 'db', 'nhlng.db'))
+
+
 def test_a_patch_needs_rpcs3_and_the_game(tmp_path, monkeypatch):
     monkeypatch.setattr(savedata, 'running_rpcs3', lambda: None)
     with pytest.raises(patchinstall.PatchError, match="needs RPCS3"):
