@@ -730,6 +730,15 @@ class UniformsController:
             return f"{word} ({colour})"
         return f"{word} ({colour}), version {variant}" if word else f"{colour.capitalize()}, another version ({variant})"
 
+    def _legs(self, variant):
+        """What the version's socks and pants become: the pack kit's own, made in the jersey's colours (the chassis'), or
+        the game's own."""
+        mode = self._mode(variant)
+        if mode == GAME:
+            return X.LEGS_GAME
+        kit = self.kits.get(variant) if mode == PACK else None
+        return X.LEGS_PACK if kit is not None and kit.sock else X.LEGS_MADE
+
     def snapshot(self):
         with self.lock:
             view = self.editor.team_view(self.shown) if self.tabbed else None
@@ -746,7 +755,8 @@ class UniformsController:
                     options.append([COLOURS, "From the colours"])
                 options.append([FILE, "My picture..."])
                 rows.append({'variant': variant, 'label': self._label(variant, light, default), 'light': light,
-                             'mode': self._mode(variant), 'options': options, 'templates': self._templates(variant)})
+                             'mode': self._mode(variant), 'options': options, 'templates': self._templates(variant),
+                             'legs': self._legs(variant)})
             if self.ice_why:
                 ice_options = [[GAME, "The game's own"]]
             elif self.group:

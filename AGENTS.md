@@ -220,6 +220,19 @@ wording (`progress.py`).
 
 ## Current state
 
+**Socks, pants and masks (2026-11-03, part of the held 0.95.0; plan top of docs/plans/we-have-big-job-cached-ladybug.md):** two
+testers: Leafs in black pants, Bruins' socks with Utah's one low stripe, Swayman in a red club's mask. (1) The look pack carries each
+kit's own sock (`s/<slot>_<role>.webp`, the game's layout 1024 x 512) and pants colours (index `kits.<role>.pants`); `PackKit.sock` /
+`pants`, `Maker.cut_files` -> `sock_file(picture=)` (`shaded_sock`: the chassis' garter / skate shading, `sock_shade`, `SOCK_SHADE`) and
+`pant_file(colours=)`; both in `look_digest` only when present (old packs: same digest, same files). Pack made by `private/build_looks.py
+--add-legs` (extends the published pack, every old member byte for byte; 0.92.0 reads it and redraws nothing): candidate
+`private/looks_candidate/looks_legs.zip`, **not published** (owner's go). (2) `Builder.fit_mask` / `team_masks` in `goalie_gear`: a goalie
+who moved or took over a record wears his NHL team's mask (art 0-29 but Utah's 22), else the mask the team's unmoved goalies wear that no
+other team wears, else plain 120; `masktype` 0 only; the player's own mask edits win. (3) Jerseys & ice: a "Socks and pants: ..." line per
+version (`UniformsController._legs`, `texts.LEGS_*`). Tests `test_looks.py::test_a_pack_kit_wears_its_own_socks_and_pants...`,
+`test_stock.py::test_goalies_who_came_to_a_team_wear_its_mask`. Lab round 60 (docs/notes/lab-round-60.md): Boston's real socks, Toronto's blue pants and striped
+socks, Swayman's Bruins mask seen in a game; Utah / Davos not seen on the ice.
+
 **Game patch on the port (2026-11-02, part of the held 0.95.0; plan top of docs/plans/we-have-big-job-cached-ladybug.md, notes
 docs/notes/native-patch.md, `tools/native_patch/README.md`):** the owner wants the port 1 to 1 with RPCS3, through our app alone. A stand-in
 `XINPUT1_4.dll` (pack `portpatch`, not published) swaps the functions the patch changes for its own compiled copies; 157 functions, patch

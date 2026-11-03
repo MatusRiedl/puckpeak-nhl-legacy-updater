@@ -531,7 +531,8 @@ function UniformsBody({ u }) {
           <${Thumb} url=${thumbs[String(r.variant)]} loading=${u.pictures}/>
           <div class="main"><div class="t">${r.label}</div>
             <${Segmented} value=${r.mode} options=${r.options.map(([value, label]) => ({ value, label }))}
-              onChange=${(x) => call('uniforms_pick', r.variant, x)}/></div>
+              onChange=${(x) => call('uniforms_pick', r.variant, x)}/>
+            ${r.legs && html`<div class="small-note">${r.legs}</div>`}</div>
           <div class="uw-tpl">
             ${r.templates.includes('pack') && html`<${Button} small onClick=${() => call('uniforms_template', r.variant, 'pack')}
               title="This season's jersey as a picture to paint on">This season's template...<//>`}

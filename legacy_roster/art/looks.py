@@ -722,6 +722,13 @@ class Chassis:
     def __init__(self, disc):
         self.disc = disc
         self.files = {}
+        self.shades = {}
+
+    def shade(self, light):
+        """The chassis sock's shading (`sock_shade`), worked out once per light / dark."""
+        if light not in self.shades:
+            self.shades[light] = sock_shade(self.sock(light).image(f"sock_{STYLE}_{CHASSIS_ART}_{CHASSIS[light]}_cm"))
+        return self.shades[light]
 
     def _get(self, inner):
         if inner not in self.files:
@@ -749,14 +756,16 @@ Look = namedtuple('Look', 'art kit logos arena ice_colour versions files centre 
 # 'game' (the game's own stays), 'pack:<member>#<check>' (the pack's, from the look pack) or the path of the player's own
 # picture; pack: (PackKit, ...) the pack's kits; style: the cut of the team's jerseys (1, or 0 for a team of the classic cut:
 # only its pack kits are made then)
-PackKit = namedtuple('PackKit', 'variant light member numbers crc menu scheme font like', defaults=(None, None, None, None))
+PackKit = namedtuple('PackKit', 'variant light member numbers crc menu scheme font like sock pants',
+                     defaults=(None, None, None, None, None, None))
 # a version that gets the pack's kit: the look pack's picture `member` (its check sum `crc`), numbers (fill, outline) or None,
 # menu: the pack's own menu picture of the kit as '<member>#<check sum>' (None: the menu picture is the chassis' recoloured),
 # scheme: (ring, outer, name) of its number sheet (the digits' two rings, outer or None, and the colour of the names), or None
 # (a pack from before: the names wear the digits' colour); font: the pack's own number sheet as '<member>#<check sum>'
 # (None: the sheet is recoloured from the colours above); like: the variant whose disc files a version the disc has none for
-# (a row `alternate_rows` added) starts from (`Borrow`), or None
-PACK = 'pack'                     # the choice "This season's" (edits.json 'uniforms' versions and 'ice' use)
+# (a row `alternate_rows` added) starts from (`Borrow`), or None; sock: the pack's own sock of the kit as '<member>#<check sum>'
+# and pants: its pants' (main, stripe) colours (0.95.0; None: both are the chassis' in the kit's colours, `kit_palette`)
+PACK = 'pack'                    # the choice "This season's" (edits.json 'uniforms' versions and 'ice' use)
 
 
 ALTERNATE = 2                      # `wgjx` locstring of the Alternate version (version_words)
@@ -1344,14 +1353,16 @@ class Maker:
                                        else (palette.yoke, palette.yoke, palette.trim))
         # the menu picture is the pack's own (pack_preview), in both cuts; the number sheet too where the pack has one
         sheet = self.look_pack.picture(kit.font.rpartition('#')[0]) if kit.font else None
+        sock = self.look_pack.picture(kit.sock.rpartition('#')[0]) if kit.sock else None
         return self.cut_files(look, kit.variant, light, mine, palette, kit.numbers,
-                              lambda raw: self.pack_preview(raw, kit, light, palette, mine), sheet)
+                              lambda raw: self.pack_preview(raw, kit, light, palette, mine), sheet, sock, kit.pants)
 
-    def cut_files(self, look, variant, light, mine, palette, numbers, preview, sheet=None):
+    def cut_files(self, look, variant, light, mine, palette, numbers, preview, sheet=None, sock=None, pants=None):
         """{path: bytes} of one version with the colour map `mine` (1024 x 1024 RGB) in the team's cut: style 1 on the
         chassis' relief and number sheet, the classic cut in the version's own file with a clean relief and its own number
         sheet (recoloured to `numbers` (fill, outline) when given). A pack kit's own number sheet `sheet` replaces either
-        (both cuts lay their glyphs out alike). Pants and socks have one layout in both cuts: the chassis' in `palette`;
+        (both cuts lay their glyphs out alike). Pants and socks have one layout in both cuts: the chassis' in `palette`, or
+        a pack kit's own sock picture `sock` (shaded like the chassis') and pants colours `pants` (main, stripe);
         `preview(raw)` makes the menu picture from the disc's."""
         art, style = look.art, look.style
         inner = JERSEY.format(s=style, a=art, v=variant)
@@ -1378,11 +1389,11 @@ class Maker:
             out = {inner: f.build()}
         else:
             out = {inner: jersey_file(raw, art, variant, self.chassis, light, palette, None, colour_map=mine, sheet=sheet)}
-        for path_t, make in ((PANT, pant_file), (SOCK, sock_file)):
+        for path_t, make, own in ((PANT, pant_file, pants), (SOCK, sock_file, sock)):
             inner = path_t.format(s=style, a=art, v=variant)
             raw = self.disc.render(inner)
             if raw is not None:
-                out[inner] = make(raw, art, variant, self.chassis, light, palette, style)
+                out[inner] = make(raw, art, variant, self.chassis, light, palette, style, own)
         inner = PREVIEW.format(s=style, a=art, v=variant)
         raw = self.disc.find(inner)
         if raw is not None:
@@ -1591,22 +1602,58 @@ def jersey_file(raw, art, variant, chassis, light, palette, logo, colour_map=Non
     return f.build()
 
 
-def pant_file(raw, art, variant, chassis, light, palette, style=STYLE):
+def pant_file(raw, art, variant, chassis, light, palette, style=STYLE, colours=None):
+    """The version's pants: the chassis' in `colours` (main, stripe: a pack kit's own) or in the palette's pants and trim."""
     f = rpsgl.Rpsgl(raw)
     src, v = chassis.pant(light), CHASSIS[light]
     base, mine = f"pant_{STYLE}_{CHASSIS_ART}_{v}", f"pant_{style}_{art}_{variant}"
-    f.replace(f"{mine}_cm", recolour(src.image(f"{base}_cm"), PANT_MASTERS, (palette.pants, palette.trim)))
+    pair = tuple(tuple(c) for c in colours) if colours else (palette.pants, palette.trim)
+    f.replace(f"{mine}_cm", recolour(src.image(f"{base}_cm"), PANT_MASTERS, pair))
     f.copy(f"{mine}_nm", src, f"{base}_nm")
     f.copy(f"{mine}_sm", src, f"{base}_sm")
     return f.build()
 
 
-def sock_file(raw, art, variant, chassis, light, palette, style=STYLE):
+def sock_file(raw, art, variant, chassis, light, palette, style=STYLE, picture=None):
+    """The version's sock: a pack kit's own `picture` (the game's layout, 1024 x 512) with the chassis' garter and skate
+    shading laid over (`sock_shade`), else the chassis' recoloured to the palette."""
     f = rpsgl.Rpsgl(raw)
-    src, v = chassis.sock(light), CHASSIS[light]
-    f.replace(f"sock_{style}_{art}_{variant}_cm",
-              recolour(src.image(f"sock_{STYLE}_{CHASSIS_ART}_{v}_cm"), MASTERS, (palette.body, palette.yoke, palette.trim)))
+    if picture is not None:
+        f.replace(f"sock_{style}_{art}_{variant}_cm", shaded_sock(picture, chassis.shade(light)))
+    else:
+        base = chassis.sock(light).image(f"sock_{STYLE}_{CHASSIS_ART}_{CHASSIS[light]}_cm")
+        f.replace(f"sock_{style}_{art}_{variant}_cm", recolour(base, MASTERS, (palette.body, palette.yoke, palette.trim)))
     return f.build()
+
+
+SOCK_SHADE = (0.7, 1.1)            # the chassis' shading kept within these factors (its stripe edges reach 6x their row)
+
+
+def sock_shade(base):
+    """The chassis sock's shading as an L picture, 255 = SOCK_SHADE[1]: each pixel's grey against its row's median grey
+    (the stripes run the full width, so what is left is the garter, the folds and the skate's shadow)."""
+    from PIL import Image
+    grey = base.convert('L')
+    w, h = grey.size
+    data = grey.tobytes()
+    lo, hi = SOCK_SHADE
+    out = bytearray(w * h)
+    for y in range(h):
+        row = data[y * w:(y + 1) * w]
+        median = sorted(row)[w // 2] + 1
+        for x, value in enumerate(row):
+            out[y * w + x] = round(min(hi, max(lo, (value + 1) / median)) / hi * 255)
+    return Image.frombytes('L', (w, h), bytes(out))
+
+
+def shaded_sock(picture, shade):
+    """A pack sock `picture` at the size of the chassis sock's shading `shade` (`sock_shade`), with the shading multiplied in."""
+    from PIL import Image, ImageChops
+    picture = picture.convert('RGB')
+    if picture.size != shade.size:
+        picture = picture.resize(shade.size, Image.LANCZOS)
+    lift = [min(255, round(v * SOCK_SHADE[1])) for v in range(256)]
+    return ImageChops.multiply(picture, Image.merge('RGB', (shade,) * 3)).point(lift * 3)
 
 
 # --- choosing and installing the looks -------------------------------------------------------------------------------
@@ -1786,10 +1833,14 @@ def pack_team(R, slot, look_pack):
             scheme = (tuple(entry['ring']), tuple(entry['outer']) if entry.get('outer') else None,
                       tuple(entry['name'])) if numbers and entry.get('ring') and entry.get('name') else None
             menu, font = look_pack.menu_member(slot, role), look_pack.font_member(slot, role)
+            sock = look_pack.sock_member(slot, role)
+            pants = entry.get('pants')
             kits[variant] = PackKit(variant, light, member, numbers, look_pack.crc(member),
                                     f"{menu}#{look_pack.crc(menu)}" if look_pack.has(menu) else None, scheme,
                                     f"{font}#{look_pack.crc(font)}" if look_pack.has(font) else None,
-                                    like=away_variant(R, art, style) if role == 'third' else None)
+                                    like=away_variant(R, art, style) if role == 'third' else None,
+                                    sock=f"{sock}#{look_pack.crc(sock)}" if look_pack.has(sock) else None,
+                                    pants=tuple(tuple(c) for c in pants[:2]) if pants and len(pants) >= 2 else None)
     # Utah's, Seattle's and Vegas's other home and away versions would be made from the colours (default_use): they wear the
     # pack's kit of the same lightness, so the game shows this season's whichever of them it picks (Play Now took Utah's
     # variant 0, 2026-10-27)
@@ -2051,7 +2102,8 @@ def _look_digest(look):
                    look.centre if look.centre in ('make', 'game', OTHER) or look.centre.startswith('pack:')
                    else _file_hash(look.centre), LOOKS_DRAWING,
                    [[k.variant, k.light, k.member, [list(c) for c in k.numbers or ()], k.crc, k.menu, repr(k.scheme), k.font]
-                    for k in look.pack],
+                    + ([k.sock, [list(c) for c in k.pants or ()]] if k.sock or k.pants else [])     # a kit without either
+                    for k in look.pack],                                                          # keeps its old digest
                    look.style)
 
 

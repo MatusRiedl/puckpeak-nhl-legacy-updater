@@ -83,6 +83,10 @@ SAVED_DESPITE = ("The roster is saved: you can load it in the game. The details 
                  "send that file with a bug report.")
 SAVED_SOME_FAILED = "Something after the save went wrong."
 LOOKS_MISSING = "This season's jerseys come with the switch \"This season's jerseys and centre ice\" (Update tab)."
+# the line under each jersey version in the Jerseys & ice tab: what its socks and pants become (testers, 2026-11-03)
+LEGS_PACK = "Socks and pants: this season's"
+LEGS_MADE = "Socks and pants: made in the jersey's colours"
+LEGS_GAME = "Socks and pants: the game's own"
 EDITS_HINT = "Kept on this PC, so the next download does not undo them."
 PATCH_TITLE = "32 teams and the year 2026 (game patch)"
 PATCH_SUB = "Seattle and Vegas in Season and Be a GM: 32 NHL and 32 AHL teams, 84 games. New."

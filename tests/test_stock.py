@@ -94,6 +94,35 @@ def test_the_vees_stay_out_of_the_games_own_roster_for_the_unpatched_game(stock_
     assert not any(R.U.get(e, 'team') == L.VEES for e in range(R.U.cur_rec))
 
 
+def test_goalies_who_came_to_a_team_wear_its_mask(stock_built):
+    """A tester, 2026-11-03: Swayman in Boston wore a red European club's mask (the record he took over kept its old
+    holder's). Builder.fit_mask: every goalie on an NHL team with a mask of its own (art 0-29 but Utah's) wears it, a
+    plain one or a mask of his own that no other NHL team's goalie wears (2014's: Vasilevskiy's 152, still in Tampa)."""
+    from legacy_roster import equipment
+    R = Roster(stock_built[0].data)
+    G, code = R.f[equipment.GOALIE_TABLE], equipment.GOALIE_CODE
+    rows = {G.get(i, 'zIBw'): i for i in range(G.cur_rec)}
+    on = {}                                        # (goalie's mask, NHL team), every goalie of the 32
+    for r in range(R.P.cur_rec):
+        g = rows.get(R.P.get(r, 'game_id'))
+        if R.P.get(r, 'position') != 4 or g is None or G.get(g, code[equipment.MASK_TYPE]) != 0:
+            continue
+        for _e, team in R.teams_of(r):
+            if team < 32:
+                on[r] = (G.get(g, code['maskid']), team)
+    teams_of = {}
+    for mask, team in on.values():
+        teams_of.setdefault(mask, set()).add(team)
+    seen = 0
+    for r, (mask, team) in on.items():
+        if team < 30 and team != 22:
+            assert mask in (team, 120, 125) or teams_of[mask] == {team}, (R.name(r), R.team_name(team), mask)
+            seen += 1
+    assert seen >= 50                              # two or three per team
+    swayman = [rows[R.P.get(r, 'game_id')] for r in _rows(R, 'Jeremy', 'Swayman')]
+    assert swayman and all(G.get(g, code['maskid']) == L.API_TO_SLOT['BOS'] for g in swayman)
+
+
 def _rows(R, first, last):
     return [r for r in range(R.P.cur_rec) if R.P.get(r, 'firstname') == first and R.P.get(r, 'lastname') == last]
 

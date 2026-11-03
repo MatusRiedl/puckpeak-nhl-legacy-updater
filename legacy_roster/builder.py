@@ -2600,7 +2600,8 @@ class Builder:
         G = R.f['lVMf']
         rows = {G.get(i, 'zIBw'): i for i in range(G.cur_rec)}
         now = self.home_teams()
-        painted = 0
+        worn = self.team_masks(G, rows, now)
+        painted = masked = 0
         for pid, team in sorted(now.items()):
             prow = R.p_by_id.get(pid)
             if prow is None or P.get(prow, 'aljv') != 4 or pid not in rows:
@@ -2623,6 +2624,7 @@ class Builder:
                             touched = True
                 painted += touched
                 continue
+            masked += self.fit_mask(G, g, prow, team, worn)
             club = [tuple(T.get(team, f"{k}color_{c}") for c in 'rgb') for k in ('primary', 'secondary')]
             order = []          # the gear's own colours, in the order they first appear
             for part in self.GEAR_PARTS:
@@ -2643,6 +2645,54 @@ class Builder:
         if painted:
             self.log.append(['ALL', 'summary', "goalie equipment painted in the new club's colours",
                              f"{painted} goalies", ''])
+        if masked:
+            self.log.append(['ALL', 'summary', "goalies who changed club wear their new club's mask (or a plain one)",
+                             f"{masked} goalies", ''])
+
+    PLAIN_MASKS = (120, 125)        # masks with no club's look: plain white, plain black
+
+    def team_masks(self, G, rows, now):
+        """{team: its own mask number} (masktype 0): an NHL team's art id 0-29 (mask n is NHL art n's; not Utah's 22, which
+        is Arizona's coyote), else the mask most of the team's goalies who did not move wear, when no other team's goalies
+        wear it (Seattle, Vegas, the clubs). A team with none is missing."""
+        from . import equipment
+        T, code = self.R.T, equipment.GOALIE_CODE
+        counts, teams_of = {}, {}
+        for pid, team in now.items():
+            prow = self.R.p_by_id.get(pid)
+            if prow is None or pid not in rows or self.orig_home.get(pid) != team or prow in self.created:
+                continue
+            g = rows[pid]
+            if G.get(g, code[equipment.MASK_TYPE]) != 0:
+                continue
+            mask = G.get(g, code['maskid'])
+            counts.setdefault(team, Counter())[mask] += 1
+            teams_of.setdefault(mask, set()).add(team)
+        out = {}
+        for team in set(now.values()):
+            art = T.get(team, 'artid')
+            if team in L.NHL_ALL and 0 <= art < 30 and art != 22:
+                out[team] = art
+                continue
+            mine = [(n, -mask) for mask, n in (counts.get(team) or {}).items()
+                    if teams_of[mask] == {team} and mask not in self.PLAIN_MASKS]
+            if mine:
+                out[team] = -max(mine)[1]
+        return out
+
+    def fit_mask(self, G, g, prow, team, worn):
+        """A goalie who changed club or took over a record kept the mask of the record's old holder (a red European club's
+        on Swayman in Boston): he gets his new club's (`team_masks`), else plain white. A mask that fits already (the
+        club's own, a plain one), another mask type and a mask the player chose (edits) stay. True when it changed."""
+        from . import equipment
+        code = equipment.GOALIE_CODE
+        if G.get(g, code[equipment.MASK_TYPE]) != 0 or 'mask' in getattr(self, 'equipment_set', {}).get(prow, ()):
+            return False
+        mask = G.get(g, code['maskid'])
+        if mask in getattr(self, 'mask_looks', {}) or mask in self.PLAIN_MASKS or mask == worn.get(team):
+            return False
+        G.set(g, code['maskid'], worn.get(team, self.PLAIN_MASKS[0]))
+        return True
 
     # --- contracts -----------------------------------------------------------------
     def players_team(self, team):

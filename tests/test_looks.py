@@ -580,6 +580,49 @@ def test_a_pack_kits_menu_picture_is_the_packs_own_and_the_recoloured_chassis_on
         {k: v for k, v in files.items() if 'jerseys/' not in k}                         # the 3D files do not change
 
 
+def test_a_pack_kit_wears_its_own_socks_and_pants_and_a_kit_without_them_is_as_before(disc, base_dir, tmp_path,
+                                                                                     make_look_pack, monkeypatch):
+    """Testers, 2026-11-03: the Leafs in black pants, Boston's socks with Utah's one low stripe. A kit with its own sock
+    (s/<slot>_<role>.webp, the game's layout) and pants colours wears them; the light kit without keeps today's files."""
+    from legacy_roster.roster import Roster
+    R = Roster(os.path.join(base_dir, 'SYS-DATA'))
+    (tmp_path / 'plain').mkdir()
+    (tmp_path / 'legs').mkdir()
+    teams = {27: ('nhl', 'TOR', 1, {'dark': (0, 40, 120), 'light': (240, 240, 240)}, None)}
+    sock = Image.new('RGB', (1024, 1024), (200, 20, 20))
+    sock.paste((240, 240, 240), (0, 512, 1024, 1024))                  # red above, white below
+    plain = make_look_pack(tmp_path / 'plain', teams)
+    legs = make_look_pack(tmp_path / 'legs', teams, legs={(27, 'dark'): (sock, [(0, 40, 120), (240, 240, 240)])})
+
+    def toronto(pack):
+        return next(m for m in looks.looks_from(R, {}, {}, {}, look_pack=pack) if m.art == 27)
+    with_legs, without = toronto(legs), toronto(plain)
+    kits = {k.variant: k for k in with_legs.pack}
+    assert kits[4].sock.startswith('s/27_dark.webp#') and kits[4].pants == ((0, 40, 120), (240, 240, 240))
+    assert kits[3].sock is None and kits[3].pants is None
+    assert all(k.sock is None and k.pants is None for k in without.pack)
+    assert looks.look_digest(with_legs) != looks.look_digest(without)                  # installed looks redraw once
+    maker = looks.Maker(disc, legs)
+    files = maker.files(with_legs)
+    assert looks.Maker(disc, legs).files(with_legs) == files                           # rule 4: deterministic
+    socks = rpsgl.Rpsgl(files[looks.SOCK.format(s=1, a=27, v=4)]).image("sock_1_27_4_cm").convert('RGB')
+    w, h = socks.size
+    r, g, b = socks.getpixel((w // 2, h // 5))
+    assert r > 120 and g < 60 and b < 60, (r, g, b)                                    # the pack's red, shaded
+    assert min(socks.getpixel((w // 2, h * 3 // 5))) > 150                             # ... and its white below
+    pants = rpsgl.Rpsgl(files[looks.PANT.format(s=1, a=27, v=4)]).image("pant_1_27_4_cm").convert('RGB')
+    main = max(pants.getcolors(1 << 20))[1]
+    assert main[2] > 80 and main[2] > main[0] + 40, main                               # Toronto's blue, not black
+    plain_files = looks.Maker(disc, plain).files(without)
+    for template in (looks.SOCK, looks.PANT):
+        assert files[template.format(s=1, a=27, v=3)] == plain_files[template.format(s=1, a=27, v=3)]
+        assert files[template.format(s=1, a=27, v=4)] != plain_files[template.format(s=1, a=27, v=4)]
+    found, title = _fake_rpcs3(tmp_path, monkeypatch)
+    assert looks.install_looks(found, title, [with_legs], lambda msg: None, look_pack=legs) > 0
+    assert looks.install_looks(found, title, [with_legs], lambda msg: None, look_pack=legs) == 0   # installed already
+    install.remove(lambda msg: None)
+
+
 def test_path_art_reads_the_art_id_of_every_file_a_look_writes():
     for template in (looks.JERSEY, looks.PANT, looks.SOCK, looks.CENTRE, looks.ICE_PICTURE, looks.DECAL, looks.PREVIEW):
         assert looks.path_art(template.format(s=1, a=23, v=4)) == 23, template

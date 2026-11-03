@@ -15,6 +15,8 @@ puts these pictures onto the player's own disc files (`looks.pack_team`, `looks.
                                transparency, in the game's glyph layout (since 2026-10-27; a pack without it gets the
                                chassis' sheet recoloured)
         i/<slot>.webp          the centre-ice logo, 1024 x 1024 with transparency
+        s/<slot>_<role>.webp   the kit's own sock in the game's layout, 1024 x 512 (since 0.95.0; the kit's index entry also
+                               has "pants": [main, stripe]; a pack without them gets the chassis' recoloured to the kit)
 
 "name" is the club the slot holds after an update (the data pack's full name; for the NHL the code, for the national
 teams the abbreviation): a slot that holds another club keeps its own look.
@@ -70,6 +72,9 @@ class LookPack:
 
     def font_member(self, slot, role):
         return f"f/{slot}_{role}.webp"
+
+    def sock_member(self, slot, role):
+        return f"s/{slot}_{role}.webp"
 
     def ice_member(self, slot):
         return f"i/{slot}.webp"

@@ -27,6 +27,15 @@ there, so it has no Vees unless the game is patched.
 **Apply names.** The Team names row has a new button. It changes only the team names, in seconds: no roster is saved and no
 picture is looked at.
 
+**Real socks and pants.** With this season's jerseys on, every team wore Utah's socks in its own colours (one wide stripe,
+too low) and nearly always black pants. Now each team wears its real socks and pants colours (the Leafs in blue pants, the
+Bruins in black and gold socks with the white stripe). The Jerseys & ice tab says under each jersey where its socks and pants
+come from. The program downloads this season's jerseys once more and makes them again at the next update.
+
+**Goalie masks.** A goalie who moved to another team could keep the mask of whoever had his place before (Swayman in Boston
+wore a red European club's mask). A goalie who changes team now wears his new NHL team's mask, or a plain one. Masks you
+picked yourself in the Roster editor stay.
+
 **Be a Pro careers of update 1.01.** The Be a Pro careers view said "This save is damaged or not complete." for every
 career made with the game's update 1.01. They open and save now, on RPCS3 and on NHL Legacy Native.
 
