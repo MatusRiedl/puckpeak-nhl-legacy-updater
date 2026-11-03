@@ -16,6 +16,14 @@ function rankText(card) {
   return `${card.tier} · rating ${card.rating}${card.rank ? ` · #${card.rank} of ${card.of}` : ''}`;
 }
 
+function NameField({ s }) {
+  const [text, setText] = useState(s.account || '');
+  const save = () => call('online_name', text);
+  return html`<div class="row"><${TextField} className="on-say" value=${text} placeholder="Your online name" delay=${0}
+    disabled=${!!s.lobby} onChange=${setText} onEnter=${save}/>
+    <${Button} small disabled=${!!s.lobby || !text.trim() || text === s.account} onClick=${save}>Save name<//></div>`;
+}
+
 function YouCard({ s }) {
   const m = s.marks, r = s.ranks;
   const rosterBad = s.guest_problem || (!s.lobby && s.bring_why);
@@ -23,18 +31,19 @@ function YouCard({ s }) {
     <div class="card-body">
       ${s.account
         ? html`<div class="row on-account"><span class="who">${s.account}</span>
-            <span class="small-note">${r ? rankText(r.card) : 'RPCN name from RPCS3'}</span></div>`
+            <span class="small-note">${r ? rankText(r.card) : s.native ? 'Your online name' : 'RPCN name from RPCS3'}</span></div>`
         : html`<div class="small-note">${s.no_account}</div>`}
+      ${s.native && html`<${NameField} s=${s}/>`}
       <${Check} ok=${!rosterBad} label="Roster" note=${rosterBad ? null : (s.roster || s.bring || null)}
         tab=${s.guest_problem ? 'patch' : 'setup'} fix=${s.guest_problem ? 'Game patch' : 'Setup'}/>
-      <${Check} ok=${m.patched && m.online} label="Game patch and online entry" tab="patch" fix="Game patch"/>
+      <${Check} ok=${m.patched && m.online} label=${s.native ? 'Game patch' : 'Game patch and online entry'} tab="patch" fix="Game patch"/>
       <${Check} ok=${s.server !== false} label="Puck Peak server" note=${s.server === false ? 'not reachable' : null}/>
-      <${Check} ok=${s.build != null && !s.build_old} label="RPCS3 version" note=${s.build != null ? 'build ' + s.build : 'not seen yet'}/>
+      ${!s.native && html`<${Check} ok=${s.build != null && !s.build_old} label="RPCS3 version" note=${s.build != null ? 'build ' + s.build : 'not seen yet'}/>`}
       <div class="row on-actions">
         <${Button} kind="primary" disabled=${!!s.busy || !s.account || m.game === 'open'}
           onClick=${() => call('online_setup')}>${m.ready ? 'Set up again' : 'Set up online'}<//>
         <${Button} small disabled=${!!s.busy} onClick=${() => call('online_check')}>Check again<//>
-        ${m.game === 'open' && html`<span class="small-note">Close RPCS3 first.</span>`}
+        ${m.game === 'open' && html`<span class="small-note">${s.native ? 'Close the game first.' : 'Close RPCS3 first.'}</span>`}
       </div>
       ${r && html`<div class="row on-actions"><${Toggle} on=${!r.hidden} label="Show me on the leaderboard"
         onChange=${(on) => call('online_hide', !on)}/><span class="lab">Show me on the leaderboard</span>
@@ -275,16 +284,16 @@ function StepsCard({ s }) {
   <//>`;
 }
 
-function HelpCard() {
+function HelpCard({ s }) {
   return html`<${Card} title="How it works" grow style=${{ '--i': 3 }}>
     <div class="card-body fill"><div class="scroll patch-info">
       <ul>
-        <li>Make your online account once in RPCS3. This tab reads only its name.</li>
+        <li>${s.native ? 'Type the name other players will see under You.' : 'Make your online account once in RPCS3. This tab reads only its name.'}</li>
         <li>Press Set up online. It adds the online part of the game patch.</li>
         <li>Pick the roster you want to play with in Setup. The one who makes the lobby brings it; the other gets a copy.</li>
         <li>Online play needs the game patch. Set up puts it in for you, after asking.</li>
         <li>One of you makes a lobby (private: send the code; public: it shows in the list), the other joins, both press Ready.</li>
-        <li>RPCS3 starts by itself on both PCs. Follow the short list of buttons to press in the game.</li>
+        <li>The game starts by itself on both PCs. Follow the short list of buttons to press in the game.</li>
       </ul>
     </div></div>
   <//>`;
@@ -292,9 +301,6 @@ function HelpCard() {
 
 export function OnlineTab({ s }) {
   if (!s) return null;
-  if (s.native) return html`<div class="columns online"><div class="col">
-    <${Card} title="Online play" style=${{ '--i': 0 }}><div class="card-body"><div class="small-note">${s.no_rpcs3}</div></div><//>
-  </div></div>`;
   return html`<div class="columns online">
     <div class="col">
       ${s.state === 'no-rpcs3'
@@ -306,7 +312,7 @@ export function OnlineTab({ s }) {
     </div>
     <div class="col">
       <${LobbyCard} s=${s}/>
-      ${s.lobby ? (s.steps.length && !s.ended ? html`<${StepsCard} s=${s}/>` : html`<${HelpCard}/>`) : html`<${OpenCard} s=${s}/>`}
+      ${s.lobby ? (s.steps.length && !s.ended ? html`<${StepsCard} s=${s}/>` : html`<${HelpCard} s=${s}/>`) : html`<${OpenCard} s=${s}/>`}
     </div>
     ${s.result && html`<${ResultWindow} r=${s.result}/>`}
   </div>`;

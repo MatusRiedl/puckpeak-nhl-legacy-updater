@@ -31,9 +31,10 @@ def available():
 
 
 def emulator_rect():
-    """(left, top, right, bottom) in pixels of RPCS3's game window, None when there is none. RPCS3 shows the game in a
-    window of its own beside its main window ("RPCS3 0.0.38-..."); started with --no-gui (the online launch) only the game
-    window is there. Its title is RPCS3's game title line ("FPS: 60.00 | Vulkan | ... | NHL Legacy Edition [BLES02153]")."""
+    """(left, top, right, bottom) in pixels of RPCS3's game window or NHL Legacy Native's, None when there is none. RPCS3 shows
+    the game in a window of its own beside its main window ("RPCS3 0.0.38-..."); started with --no-gui (the online launch) only
+    the game window is there. Its title is RPCS3's game title line ("FPS: 60.00 | Vulkan | ... | NHL Legacy Edition [BLES02153]").
+    The port has the one window."""
     if not available():
         return None
     import ctypes
@@ -64,14 +65,15 @@ def emulator_rect():
         if user32.IsWindowVisible(hwnd):
             pid = wt.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            if image(pid.value) == 'rpcs3.exe':
+            program = image(pid.value)
+            if program in ('rpcs3.exe', 'nhllegacy.exe'):
                 title = ctypes.create_unicode_buffer(512)
                 user32.GetWindowTextW(hwnd, title, 512)
                 r, corner = wt.RECT(), wt.POINT(0, 0)          # the picture only: no title bar or border when windowed
                 user32.GetClientRect(hwnd, ctypes.byref(r))
                 user32.ClientToScreen(hwnd, ctypes.byref(corner))
                 area = (r.right - r.left) * (r.bottom - r.top)
-                if is_game_title(title.value) and area > 640 * 360:
+                if (program == 'nhllegacy.exe' or is_game_title(title.value)) and area > 640 * 360:
                     found.append((area, (corner.x, corner.y, corner.x + r.right, corner.y + r.bottom)))
         return True
     user32.EnumWindows(each, 0)

@@ -253,7 +253,7 @@ def window(port, tmp_path, monkeypatch, pack):
 
 def test_setup_says_which_game_it_is_and_what_it_cannot_do(window):
     view = window.snapshot()['rpcs3']
-    assert view['kind'] == 'NHL Legacy Native' and 'no online' in view['native'] and view['other'] == 'RPCS3'
+    assert view['kind'] == 'NHL Legacy Native' and 'online play' in view['native'] and view['other'] == 'RPCS3'
     assert view['warnings'] == [] and not view['needs_game']
 
 
@@ -416,12 +416,6 @@ def test_a_port_that_changed_under_the_patch_can_only_be_unpatched(patched_port,
     assert not (port / patchinstall.PORT_FILE).exists()
 
 
-def test_the_port_never_takes_the_online_entry(patched_port):
-    with pytest.raises(patchinstall.PatchError, match='Online play needs RPCS3'):
-        patchinstall.set_online(patched_port, [savedata.NATIVE_TITLE], True)
-    assert not patchinstall.auto_start(patched_port, savedata.NATIVE_TITLE)
-
-
 def test_the_game_patch_tab_patches_a_port_that_fits(window, port, monkeypatch):
     from legacy_roster.app import texts as X
     from .test_app import wait
@@ -433,3 +427,16 @@ def test_the_game_patch_tab_patches_a_port_that_fits(window, port, monkeypatch):
     assert [b['label'] for b in view['buttons']] == ["Patch the game"] and view['checks'] == []
     assert not any('Skip the intro' in item for section in view['info']['sections'] for item in section['items'])
     assert not any('RPCS3' in item for section in view['info']['sections'] for item in section['items'])
+
+
+def test_the_patch_file_is_the_ports_online_entry(patched_port, port, monkeypatch):
+    title = savedata.NATIVE_TITLE
+    assert not patchinstall.state(patched_port)[title]['online'] and not patchinstall.auto_start(patched_port, title)
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    assert patchinstall.state(patched_port)[title]['online']
+    assert not patchinstall.auto_start(patched_port, title)         # a fake disc: no screens, the steps are pressed by hand
+    monkeypatch.setattr(patchinstall, 'screens_in', lambda host, t: True)
+    assert patchinstall.auto_start(patched_port, title)
+    assert patchinstall.set_online_start(patched_port, [title], True) == []
+    assert not (port / 'config').exists() and not (port / 'patches').exists()
+    assert patchinstall.set_online(patched_port, [title], True, say=lambda line: None) == [title]

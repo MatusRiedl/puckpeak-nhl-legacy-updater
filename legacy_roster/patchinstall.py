@@ -458,6 +458,7 @@ def install_patch(rpcs3, titles, roster=None, intro=True, login=False, say=print
             writer.write((PORT_FILE,), body, f"patch:{version}:" + hashlib.sha1(body).hexdigest())
         finally:
             writer.save()
+        set_screens(rpcs3, titles, True, disc, say)     # they do nothing until a lobby's start asks for them
         native.settle(rpcs3, say)
         if not savedata.WINDOWS:
             say("On Linux add this to the game's launch options: WINEDLLOVERRIDES=\"xinput1_4=n,b\" %command%")
@@ -526,11 +527,15 @@ def set_online(rpcs3, titles, on, say=print):
     update 1.01 alike; the patch file is written first when it is not there. It works without the 32-team patch and
     leaves that and the intro switches as they are. RPCS3 closed; no disc needed. Returns the titles changed."""
     titles = [t for t in gamepatch.HASHES if t in titles]
-    if rpcs3 is None or rpcs3.native or not rpcs3.patchable:
-        raise PatchError("Online play needs RPCS3: pick the RPCS3 program (rpcs3.exe on Windows). A folder of saves or "
-                         "NHL Legacy Native cannot play online.")
+    if rpcs3 is None or not rpcs3.patchable:
+        raise PatchError("Online play needs RPCS3 or NHL Legacy Native: pick the program itself (rpcs3.exe on Windows). "
+                         "A folder of saves cannot play online.")
     if savedata.running_rpcs3():
         raise PatchError("Close RPCS3 first: the game patch can only be put in or taken out while RPCS3 is closed.")
+    if rpcs3.native:                    # the patch file holds the online half; a start from a lobby switches it on
+        set_screens(rpcs3, titles, on, say=say)
+        native.settle(rpcs3, say)
+        return titles
     if on:
         writer = install._Writer([patches_dir(rpcs3)], store=STORE)
         text = gamepatch.player_patch_text().encode()
@@ -604,8 +609,10 @@ def screens_in(rpcs3, title):
 def auto_start(rpcs3, title):
     """Can the game be started into the lobby's search by the patch (no key at all)? The patch file must hold the entry
     (it does for 1.00 and update 1.01) and the two screens must be in."""
-    if rpcs3 is None or getattr(rpcs3, 'plain', False) or getattr(rpcs3, 'native', False):
+    if rpcs3 is None or getattr(rpcs3, 'plain', False):
         return False
+    if rpcs3.native:
+        return screens_in(rpcs3, title) and _port_state(rpcs3)['patched']
     version = game_version(rpcs3, title)
     return (f"  {gamepatch.ONLINE_START_ENTRY}:" in _read(patch_file(rpcs3, title)) and screens_in(rpcs3, title)
             and {gamepatch.ONLINE_ENTRY, gamepatch.INTRO_ENTRY} <= ticked(_read_config(rpcs3), title, version))
@@ -615,7 +622,9 @@ def set_online_start(rpcs3, titles, on):
     """Tick (`on`) or untick the online start entry (gamepatch.ONLINE_START_ENTRY: the game goes to the lobby's search by
     itself) for the game version each of `titles` has (1.00 or update 1.01); everything else stays ticked as it is. RPCS3 closed. It is ticked for one
     start only: the program unticks it as soon as the game has read it (unticking is allowed while RPCS3 runs: it reads the
-    patch file at the game's start). Returns the titles changed."""
+    patch file at the game's start). Returns the titles changed. A port has no such file: the lobby's start tells our patch file."""
+    if rpcs3.native:
+        return []
     if on and savedata.running_rpcs3():
         raise PatchError("Close RPCS3 first: the game patch can only be changed while RPCS3 is closed.")
     before = text = _read_config(rpcs3)
@@ -762,7 +771,7 @@ def _port_state(rpcs3):
     rights = installed_rights(rpcs3, savedata.NATIVE_TITLE)
     return {'patched': bool(entry and rights and rpcs3.patchable), 'version': entry['source'].split(':')[1] if entry else None,
             'game': gamepatch.VERSIONS[-1], 'stale': bool(entry and not rpcs3.patchable), 'intro': False, 'login': False,
-            'news': bool(entry), 'online': False, 'rights': rights if entry else None}
+            'news': bool(entry), 'online': bool(entry), 'rights': rights if entry else None}
 
 
 def installed_rights(rpcs3, title):

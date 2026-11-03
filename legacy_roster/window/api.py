@@ -623,6 +623,9 @@ class Api:
     def online_hide(self, hidden):
         self._online.set_hidden(bool(hidden))
 
+    def online_name(self, name):
+        self._online.set_name(str(name))
+
     def online_overlay(self, on):
         self._online.set_overlay(bool(on))
 

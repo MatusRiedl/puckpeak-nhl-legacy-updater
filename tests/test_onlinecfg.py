@@ -203,3 +203,30 @@ def test_borderless_fullscreen_changes_only_the_vulkan_line():
     out = onlinecfg.borderless_config(text)
     assert out == text.replace('Exclusive Fullscreen Mode: Automatic', 'Exclusive Fullscreen Mode: Disable')
     assert onlinecfg.borderless_config("Video:\n  Renderer: Vulkan\n") == "Video:\n  Renderer: Vulkan\n"
+
+
+def test_online_matches_use_the_exact_spu_maths():
+    key = onlinecfg.MATHS_KEY + ': Accurate'
+    cfg = "Core:\n  PPU Threads: 2\n  SPU XFloat Accuracy: Approximate\n  Z: 1\nVideo:\n  Renderer: Vulkan\n"
+    out = onlinecfg.maths_config(cfg)
+    assert out == cfg.replace('Approximate', 'Accurate')
+    assert onlinecfg.maths_config(out) == out
+    assert onlinecfg.maths_config("Core:\n  PPU Threads: 2\nVideo:\n  X: 1\n") == f"Core:\n  {key}\n  PPU Threads: 2\nVideo:\n  X: 1\n"
+    assert onlinecfg.maths_config("Video:\n  X: 1\n") == f"Core:\n  {key}\nVideo:\n  X: 1\n"     # a player's config without the block
+    assert onlinecfg.maths_config('').startswith("Core:\n")
+    assert "\r\n" in onlinecfg.maths_config(cfg.replace("\n", "\r\n"))
+
+
+def test_a_name_for_the_port_follows_rpcns_rules():
+    assert onlinecfg.good_name('Port-Player_1') and onlinecfg.good_name('abc') and onlinecfg.good_name('a' * 16)
+    assert not any(onlinecfg.good_name(n) for n in ('', None, 'ab', 'a' * 17, 'a b', 'name!'))
+
+
+def test_the_port_starts_with_what_its_lobby_needs():
+    host = SimpleNamespace(exe=os.path.join('x', 'NHLLegacy.exe'))
+    args, env = onlinecfg.port_launch(host, '1.2.3.4', 'Name', os.path.join('saves', 'BLUS315400207'), True)
+    assert args == [host.exe, '--username', 'Name']
+    assert env['NHL_PUCKPEAK_ONLINE'] == '1.2.3.4' and env['PS3_NET_ONLINE'] == '1' and env['PS3_NP_ONLINE_ID'] == 'Name'
+    assert env['NHL_PUCKPEAK_ROSTER'] == 'BLUS315400207' and env['NHL_PUCKPEAK_START'] == '1' and env['NHL_SKIP_INTRO'] == '1'
+    _, env = onlinecfg.port_launch(host, '1.2.3.4', 'Name')
+    assert 'NHL_PUCKPEAK_ROSTER' not in env and 'NHL_PUCKPEAK_START' not in env

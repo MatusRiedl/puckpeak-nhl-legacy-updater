@@ -1,6 +1,5 @@
 /* The online half of the patch, compiled at the end of swap.cpp. These replace the port's answers to the game's sign-in calls; proxy.cpp
    sets them only when the app starts the game with NHL_PUCKPEAK_ONLINE (nhl_online). Our server reads a ticket and checks no signature. */
-extern "C" void nhl_vports(unsigned, unsigned);
 extern "C" void ps3_hle_call(unsigned, ppu_context*);
 void nhl_log(const char*, ...);
 extern "C" unsigned long long nhl_now_ms(void);
@@ -157,17 +156,4 @@ extern "C" void on_get_account_region(ppu_context* c)
     if (country) { vm_write8(country, 'u'); vm_write8(country + 1, 's'); vm_write8(country + 2, 0); vm_write8(country + 3, 0); }
     if (language) vm_write32(language, 1);
     c->gpr[3] = 0;
-}
-
-// RPCS3's packets carry the game's virtual ports; the exe drops them. Noted here for proxy.cpp's sendto.
-extern "C" void on_bind(ppu_context* c)
-{
-    if (c->gpr[4]) nhl_vports(vm_read16((unsigned)c->gpr[4] + 8), 0);
-    ps3_hle_call(NID_bind, c);
-}
-
-extern "C" void on_sendto(ppu_context* c)
-{
-    if (c->gpr[7]) nhl_vports(0, vm_read16((unsigned)c->gpr[7] + 8));
-    ps3_hle_call(NID_sendto, c);
 }

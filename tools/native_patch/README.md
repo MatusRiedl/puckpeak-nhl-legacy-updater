@@ -44,3 +44,23 @@ a new port version means: no patch until this is done, RPCS3 players are not tou
 `NHLLauncher.exe` imports the same DLL, so it loads our file too. The first line of the log is that: "not the exe this was made
 for", which is harmless. The launcher stays open behind the game and holds the file, so the program refuses Patch and Unpatch
 while it runs (`savedata.launcher_running`).
+
+## Online
+
+With `NHL_PUCKPEAK_ONLINE=<server address>` (the app sets it, `onlinecfg.port_launch`) the DLL also takes these:
+
+- **Sign-in:** the calls that give out the RPCN ticket answer with a well-formed ticket for `PS3_NP_ONLINE_ID` (`online.inc`). The
+  redirector's name goes to our server (`getaddrinfo` in the exe's import table).
+- **The online entry's words:** their functions as copies, `gamepatch.ONLINE_101`, `ONLINE_START_101` (`online_copies`).
+- **The console's clock:** RPCS3 runs it at 80 MHz, the port at the real 79.8. The game works constants out of what it is told, so
+  online the exe's five constants say 80 (`console_clock`). The match that went to the end of the shootout in step had this in.
+- **The roster:** `NHL_PUCKPEAK_ROSTER=<save folder>` lists that folder first, so the game loads it at boot. No save is touched
+  (`my_first`, `my_next`).
+- **By itself:** `NHL_PUCKPEAK_START=1` answers the main menu's boot question with no, so the screens of `art/onlinestart.py` go to
+  the lobby's search with no key.
+
+For the lab: `NHL_PUCKPEAK_BIND=<ip>` when two games share a PC, and `build.py --net-log` adds a log of the match data each side hands
+over and gets (`NHL_PUCKPEAK_INPUTS=<file>`). A build with `--net-log` never goes in a pack.
+
+Port and RPCS3 stay in step only with RPCS3 at `SPU XFloat Accuracy: Accurate` (`onlinecfg.maths_config`), see
+`docs/notes/native-patch.md`.

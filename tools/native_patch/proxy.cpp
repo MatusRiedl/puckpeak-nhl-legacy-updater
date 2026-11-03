@@ -91,18 +91,8 @@ static void jump_to(uint8_t* at, void* to, const char* name)
 
 // ---- online: only with NHL_PUCKPEAK_ONLINE=<our server>, set by the app
 static char on_server[256];
-static uintptr_t p2p_socket = ~(uintptr_t)0;
-static volatile long p2p_next;
-static unsigned short vport_mine, vport_peer;
-static int shown_out, shown_in;
 static const char REDIRECTOR[] = "gosredirector.ea.com";
-enum { HEADER = 6, P2P_FLAG = 1, MOST = 1600 };
 
-extern "C" void nhl_vports(unsigned mine, unsigned peer)
-{
-    if (mine) { vport_mine = (unsigned short)mine; p2p_next = 1; }
-    if (peer) vport_peer = (unsigned short)peer;
-}
 extern "C" unsigned long long nhl_now_ms(void)
 {
     FILETIME f; GetSystemTimeAsFileTime(&f);
@@ -111,55 +101,61 @@ extern "C" unsigned long long nhl_now_ms(void)
 
 typedef int (WINAPI* Lookup)(const char*, const char*, const void*, void**);
 typedef int (WINAPI* Bind)(uintptr_t, const void*, int);
-typedef int (WINAPI* Send)(uintptr_t, const char*, int, int, const void*, int);
-typedef int (WINAPI* Receive)(uintptr_t, char*, int, int, void*, int*);
-static Lookup r_lookup; static Bind r_bind; static Send r_send; static Receive r_receive;
+static Lookup r_lookup; static Bind r_bind;
 
 static int WINAPI my_lookup(const char* host, const char* port, const void* hints, void** out)
 {
     if (host && !_stricmp(host, REDIRECTOR)) { nhl_log("%s goes to %s", host, on_server); host = on_server; }
     return r_lookup(host, port, hints, out);
 }
+static uint8_t bind_to[4];             // a second copy on one PC: NHL_PUCKPEAK_BIND=127.0.0.5
 static int WINAPI my_bind(uintptr_t s, const void* addr, int len)
 {
-    int r = r_bind(s, addr, len);
-    if (!r && p2p_next) {               // on_bind saw a virtual port: only the game's P2P socket has one
-        p2p_next = 0;
-        p2p_socket = s;
-        const uint8_t* a = (const uint8_t*)addr;
-        nhl_log("game socket on port %u, virtual port %u", a[2] << 8 | a[3], vport_mine);
+    char here[16];
+    if (len >= 16 && !*(const uint32_t*)((const char*)addr + 4)) {
+        memcpy(here, addr, 16); memcpy(here + 4, bind_to, 4); addr = here;
     }
-    return r;
+    return r_bind(s, addr, len);
 }
-// RPCS3's packets start with the virtual ports they go to and come from, and a flag: little-endian words.
-static void show(const char* way, const char* d, int n)
+static FILE* net_file;
+extern "C" void nhl_net_line(const char* s)
 {
-    char h[50] = {0};
-    for (int i = 0; i < n && i < 16; i++) sprintf(h + i * 3, "%02x ", (uint8_t)d[i]);
-    nhl_log("%s %d bytes: %s", way, n, h);
+    if (!net_file) return;
+    fprintf(net_file, "%llu %s\n", nhl_now_ms(), s);
+    fflush(net_file);
 }
-static int WINAPI my_send(uintptr_t s, const char* buf, int len, int flags, const void* to, int tolen)
+
+// The port lists the save folders by name and the game loads the first roster at boot. For a start from a lobby the lobby's
+// roster is listed first (NHL_PUCKPEAK_ROSTER): no save is touched, and a normal start sees the usual order.
+extern "C" { int nhl_start_online; }    // read by the copy of the main menu's boot question (build.py)
+static char first_save[64];
+static HANDLE saves_list;
+static WIN32_FIND_DATAA held;
+static int holding;
+static HANDLE (WINAPI* r_first)(const char*, WIN32_FIND_DATAA*);
+static BOOL (WINAPI* r_next)(HANDLE, WIN32_FIND_DATAA*);
+static HANDLE WINAPI my_first(const char* path, WIN32_FIND_DATAA* out)
 {
-    if (s != p2p_socket || len > MOST) return r_send(s, buf, len, flags, to, tolen);
-    char out[MOST + HEADER];
-    memcpy(out, &vport_peer, 2); memcpy(out + 2, &vport_mine, 2);
-    unsigned short flag = P2P_FLAG; memcpy(out + 4, &flag, 2);
-    memcpy(out + HEADER, buf, len);
-    if (shown_out < 4) { shown_out++; show("out", out, len + HEADER); }
-    int n = r_send(s, out, len + HEADER, flags, to, tolen);
-    return n < HEADER ? n : n - HEADER;
+    HANDLE list = r_first(path, out);
+    size_t n = strlen(path);
+    if (list == INVALID_HANDLE_VALUE || n < 11 || _stricmp(path + n - 11, "\\savedata\\*")) return list;
+    char one[1100];
+    snprintf(one, sizeof one, "%.*s%s", (int)(n - 1), path, first_save);
+    WIN32_FIND_DATAA want;
+    HANDLE found = r_first(one, &want);
+    if (found == INVALID_HANDLE_VALUE) return list;
+    FindClose(found);
+    held = *out; holding = 1; saves_list = list; *out = want;
+    return list;
 }
-static int WINAPI my_receive(uintptr_t s, char* buf, int len, int flags, void* from, int* fromlen)
+static BOOL WINAPI my_next(HANDLE list, WIN32_FIND_DATAA* out)
 {
-    if (s != p2p_socket) return r_receive(s, buf, len, flags, from, fromlen);
-    char in[MOST + HEADER];
-    int n = r_receive(s, in, sizeof in, flags, from, fromlen);
-    if (n > 0 && shown_in < 4) { shown_in++; show("in", in, n); }
-    if (n < HEADER) return n < 0 ? n : 0;
-    n -= HEADER;
-    if (n > len) n = len;
-    memcpy(buf, in + HEADER, n);
-    return n;
+    if (list != saves_list) return r_next(list, out);
+    if (holding) { holding = 0; *out = held; return TRUE; }
+    while (r_next(list, out))
+        if (_stricmp(out->cFileName, first_save)) return TRUE;
+    saves_list = nullptr;
+    return FALSE;
 }
 
 // The exe's calls into WS2_32 go through its import table; ordinals as Windows numbers them.
@@ -169,16 +165,20 @@ static void net_hooks(uint8_t* base)
     auto* d = (IMAGE_IMPORT_DESCRIPTOR*)(base + nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
     int done = 0;
     for (; d->Name; d++) {
-        if (_stricmp((char*)base + d->Name, "WS2_32.dll")) continue;
+        int files = !_stricmp((char*)base + d->Name, "KERNEL32.dll");
+        if (!files && _stricmp((char*)base + d->Name, "WS2_32.dll")) continue;
         auto* names = (IMAGE_THUNK_DATA64*)(base + d->OriginalFirstThunk);
         auto* slots = (IMAGE_THUNK_DATA64*)(base + d->FirstThunk);
         for (; names->u1.AddressOfData; names++, slots++) {
             void* mine = nullptr; void** keep = nullptr;
-            if (IMAGE_SNAP_BY_ORDINAL64(names->u1.Ordinal)) {
+            if (files) {
+                if (IMAGE_SNAP_BY_ORDINAL64(names->u1.Ordinal) || !first_save[0]) continue;
+                const char* name = ((IMAGE_IMPORT_BY_NAME*)(base + names->u1.AddressOfData))->Name;
+                if (!strcmp(name, "FindFirstFileA")) { mine = (void*)my_first; keep = (void**)&r_first; }
+                else if (!strcmp(name, "FindNextFileA")) { mine = (void*)my_next; keep = (void**)&r_next; }
+            } else if (IMAGE_SNAP_BY_ORDINAL64(names->u1.Ordinal)) {
                 switch (IMAGE_ORDINAL64(names->u1.Ordinal)) {
-                case 2: mine = (void*)my_bind; keep = (void**)&r_bind; break;
-                case 17: mine = (void*)my_receive; keep = (void**)&r_receive; break;
-                case 20: mine = (void*)my_send; keep = (void**)&r_send; break;
+                case 2: if (bind_to[0]) { mine = (void*)my_bind; keep = (void**)&r_bind; } break;
                 }
             } else if (!strcmp(((IMAGE_IMPORT_BY_NAME*)(base + names->u1.AddressOfData))->Name, "getaddrinfo")) {
                 mine = (void*)my_lookup; keep = (void**)&r_lookup;
@@ -195,6 +195,28 @@ static void net_hooks(uint8_t* base)
     nhl_log("online to %s, %d network calls taken", on_server, done);
 }
 
+// RPCS3 runs the console's clock at 80 MHz, the port at the real 79.8. The game works constants out of what it is told, and
+// lockstep needs them equal, so online the port's clock, SPU timer and reported speed all say 80 (five constants in .text).
+static void console_clock(uint8_t* base)
+{
+    auto* nt = (IMAGE_NT_HEADERS*)(base + ((IMAGE_DOS_HEADER*)base)->e_lfanew);
+    auto* text = IMAGE_FIRST_SECTION(nt);
+    uint8_t* from = base + text->VirtualAddress;
+    size_t size = text->Misc.VirtualSize - 4;
+    const uint32_t real = 79800000, ours = 80000000;
+    uint8_t* hits[8]; int found = 0;
+    for (size_t i = 0; i < size; i++)
+        if (from[i] == 0xC0 && !memcmp(from + i, &real, 4)) { if (found < 8) hits[found] = from + i; found++; }
+    nhl_log("console clock: %d places", found);
+    if (found != 5) return;
+    for (int i = 0; i < found; i++) {
+        DWORD old;
+        VirtualProtect(hits[i], 4, PAGE_EXECUTE_READWRITE, &old);
+        memcpy(hits[i], &ours, 4);
+        VirtualProtect(hits[i], 4, old, &old);
+    }
+}
+
 static void swap_all(uint8_t* base)
 {
     for (auto& h : helpers) *h.p = base + h.rva;
@@ -205,8 +227,17 @@ static void swap_all(uint8_t* base)
     for (int i = 0; i < nhl_hook_count; i++)
         jump_to(base + nhl_hooks[i].rva, (void*)nhl_hooks[i].fn, nhl_hooks[i].name);
     if (GetEnvironmentVariableA("NHL_PUCKPEAK_ONLINE", on_server, sizeof on_server)) {
+        console_clock(base);
+        GetEnvironmentVariableA("NHL_PUCKPEAK_ROSTER", first_save, sizeof first_save);
+        nhl_start_online = GetEnvironmentVariableA("NHL_PUCKPEAK_START", nullptr, 0) != 0;
         for (int i = 0; i < nhl_online_count; i++)
             jump_to(base + nhl_online[i].rva, (void*)nhl_online[i].fn, nhl_online[i].name);
+        char path[260];
+        if (GetEnvironmentVariableA("NHL_PUCKPEAK_INPUTS", path, sizeof path)) net_file = fopen(path, "w");
+        if (GetEnvironmentVariableA("NHL_PUCKPEAK_BIND", path, sizeof path)) {
+            int p[4];
+            if (sscanf(path, "%d.%d.%d.%d", p, p + 1, p + 2, p + 3) == 4) for (int i = 0; i < 4; i++) bind_to[i] = (uint8_t)p[i];
+        }
         net_hooks(base);
     }
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);

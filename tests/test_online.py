@@ -39,7 +39,7 @@ def _rpcs3(tmp_path, name='HostPlayer'):
     (root / 'config' / 'rpcn.yml').write_text(f"Version: 2\nNPID: {name}\nPassword: x\n")
     (root / 'config' / 'config.yml').write_text("Net:\n  PSN status: Disconnected\n")
     (root / 'rpcs3.exe').write_bytes(b'')
-    return SimpleNamespace(folder=str(root), exe=str(root / 'rpcs3.exe'), plain=False, savedata=str(root / 'savedata'),
+    return SimpleNamespace(folder=str(root), exe=str(root / 'rpcs3.exe'), plain=False, native=False, savedata=str(root / 'savedata'),
                            flatpak=False, command=lambda: [str(root / 'rpcs3.exe')], launch_dir=lambda: str(root),
                            game_disc=lambda title: 'game.iso' if title == EU else None,
                            game_folder=lambda title: str(root / 'dev_hdd0' / 'game' / title / 'USRDIR'))
@@ -115,7 +115,7 @@ def test_a_set_up_pc_is_ready_and_says_which_roster_it_would_bring(tmp_path, mon
     snap = ctl.snapshot()
     assert snap['state'] == 'ready' and snap['marks']['ready'] and snap['server'] in (True, False) and snap['build'] == 20402
     assert snap['bring'] == 'Community 2026-27' and snap['bring_why'] is None and snap['roster'] is None
-    assert snap['patch'] == '0.26'
+    assert snap['patch'] == '0.26 exact'
     ctl.update.slot = None
     assert ctl.snapshot()['bring_why'] == online.PICK_ROSTER
     ctl.update.slot = SimpleNamespace(name="The game's own roster", folder='disc', disc=True)
@@ -125,13 +125,13 @@ def test_a_set_up_pc_is_ready_and_says_which_roster_it_would_bring(tmp_path, mon
     assert ctl.snapshot()['bring_why'] == "This roster was made for the patch."
 
 
-def test_the_patch_word_is_the_version_or_none(tmp_path, monkeypatch):
+def test_the_patch_word_is_the_version_and_the_maths_or_none(tmp_path, monkeypatch):
     ctl = _controller(tmp_path, monkeypatch, patched=False)
     _look(ctl)
     assert ctl.snapshot()['patch'] == 'none'
     ctl.fake_state['patched'] = True
     _look(ctl)
-    assert ctl.snapshot()['patch'] == '0.26'
+    assert ctl.snapshot()['patch'] == '0.26 exact'
 
 
 def test_setup_is_refused_while_rpcs3_runs_and_without_an_account(tmp_path, monkeypatch):
@@ -431,7 +431,7 @@ def test_a_different_patch_version_blocks_ready_says_to_update_the_program_and_c
     _look(guest)
     wait(lambda: guest.snapshot()['lobby'] and guest.snapshot()['lobby']['reason'] is None)
     assert guest.snapshot()['hint'] is None
-    assert server.lobbies[host.code]['members'][1]['patch'] == '0.26'
+    assert server.lobbies[host.code]['members'][1]['patch'] == '0.26 exact'
 
 
 def test_the_host_leaving_closes_the_lobby_for_the_friend(server, tmp_path, monkeypatch):
@@ -460,7 +460,7 @@ def test_an_open_game_is_not_started_a_second_time(server, tmp_path, monkeypatch
     host.create()
     wait(lambda: host.code)
     crc = _crc(b'roster of the host')
-    other = lobby.join(host.code, 'GuestPlayer', crc, '0.26', 'EU 01.00')
+    other = lobby.join(host.code, 'GuestPlayer', crc, host.patch_word(), 'EU 01.00')
     lobby.ready(host.code, 'GuestPlayer', True)
     monkeypatch.setattr(savedata, 'running_rpcs3', lambda: 'rpcs3.exe')
     host.ready()
@@ -958,3 +958,70 @@ def test_the_result_card_has_the_bar_a_rank_up_and_placement_games():
     assert card['sub'] == 'loss, you left' and 'rank_up' not in card
     card = online.hud_card(dict(view, placing=3), tiers)
     assert card['placing'] == 3 and card['placing_of'] == 5 and card['tier'] is None
+
+
+def _port(tmp_path, monkeypatch, name='PortPlayer', named=True):
+    """A controller on NHL Legacy Native (no rpcn.yml, no RPCS3 build), the name typed unless `named` is False."""
+    ctl = _controller(tmp_path, monkeypatch, name)
+    host = ctl.update.rpcs3
+    host.native, host.patchable = True, True
+    os.remove(os.path.join(host.folder, 'config', 'rpcn.yml'))
+    ctl.update.settings = {online.NAME_KEY: name} if named else {}
+    monkeypatch.setattr(onlinecfg, 'rpcs3_build', lambda r: pytest.fail("a port has no RPCS3 log"))
+    monkeypatch.setattr(onlinecfg, 'write_config', lambda *a, **k: pytest.fail("a port has no RPCS3 config"))
+    return ctl
+
+
+def test_a_player_on_the_port_types_a_name(tmp_path, monkeypatch):
+    ctl = _port(tmp_path, monkeypatch, named=False)
+    _look(ctl)
+    snap = ctl.snapshot()
+    assert snap['native'] and snap['state'] == 'no-account' and snap['no_account'] == online.NAME_ASK and snap['build_note'] is None
+    ctl.set_name('a b')
+    assert ctl.snapshot()['state'] == 'no-account' and ctl.snapshot()['note']['text'] == online.BAD_NAME
+    ctl.set_name(' Port-Player_1 ')
+    assert ctl.snapshot()['state'] == 'ready' and ctl.snapshot()['note'] is None
+    assert ctl.update.settings[online.NAME_KEY] == 'Port-Player_1'
+    _look(ctl)
+    assert ctl.account == 'Port-Player_1'
+
+
+def test_a_name_stays_while_in_a_lobby(server, tmp_path, monkeypatch):
+    ctl = _port(tmp_path, monkeypatch)
+    _look(ctl)
+    ctl.create()
+    wait(lambda: ctl.code)
+    ctl.set_name('OtherName')
+    assert ctl.account == 'PortPlayer'
+
+
+def test_a_port_our_patch_does_not_fit_cannot_go_online(tmp_path, monkeypatch):
+    ctl = _port(tmp_path, monkeypatch)
+    ctl.update.rpcs3.patchable = False
+    assert ctl.snapshot()['state'] == 'no-rpcs3' and ctl.snapshot()['no_rpcs3'] == online.X.ONLINE_NATIVE
+
+
+def test_a_lobby_starts_the_port_with_everything_it_needs(server, tmp_path, monkeypatch):
+    started = []
+    monkeypatch.setattr(savedata, 'launch', lambda args, **kw: started.append((args, kw)))
+    monkeypatch.setattr(savedata, 'WINDOWS', True)
+    host = _controller(tmp_path / 'a', monkeypatch, 'HostPlayer')
+    _look(host)
+    host.create()
+    wait(lambda: host.code)
+    guest = _port(tmp_path / 'b', monkeypatch)
+    monkeypatch.setattr(patchinstall, 'auto_start', lambda r, t: r is guest.update.rpcs3)
+    _look(guest)
+    guest.join(host.code)
+    wait(lambda: guest.pc.get('online') and not guest.busy and not guest.copying)
+    host.ready()
+    wait(lambda: not host.busy)
+    guest.ready()
+    wait(lambda: started and not guest.busy)
+    args, kw = started[0]
+    assert args == [guest.update.rpcs3.exe, '--username', 'PortPlayer'] and kw['cwd'] == guest.update.rpcs3.folder
+    env = kw['env']
+    assert env['NHL_PUCKPEAK_ONLINE'] == '127.0.0.1' and env['PS3_NP_ONLINE_ID'] == 'PortPlayer' and env['NHL_SKIP_INTRO'] == '1'
+    assert env['NHL_PUCKPEAK_ROSTER'] == 'BLES02153021' and env['NHL_PUCKPEAK_START'] == '1'
+    assert online.PORT_BY_ITSELF in guest.steps('guest') and online.BY_ITSELF not in guest.steps('guest')
+    assert guest.signed_at > time.time()                            # the port has no log: the sign-in is counted from its boot

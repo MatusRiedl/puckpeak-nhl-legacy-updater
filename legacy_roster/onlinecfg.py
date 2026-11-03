@@ -14,7 +14,7 @@ import os
 import re
 import struct
 
-from . import datasource, tdb
+from . import datasource, savedata, tdb
 
 HOST = 'gosredirector.ea.com'        # the address the game asks for; RPCS3's IP swap list sends it to our server
 NET = {                              # the Net block's keys the app sets; every other key stays as the player has it
@@ -24,6 +24,8 @@ NET = {                              # the Net block's keys the app sets; every 
 }
 SWAP = 'IP swap list'
 MIN_RPCS3 = 20393                    # the oldest RPCS3 build the online lab played with (lab 1); older ones are told to update
+MATHS_KEY, MATHS = 'SPU XFloat Accuracy', 'Accurate'     # every online config (maths_config)
+MATHS_WORD = 'exact'                  # part of the lobby's patch word: an older app's games would drift away from these
 
 
 def account(rpcs3):
@@ -39,6 +41,24 @@ def account(rpcs3):
         except OSError:
             continue
     return None
+
+
+def good_name(name):
+    """Is `name` a name a player of NHL Legacy Native can go online with (the rules of an RPCN name)?"""
+    return bool(re.fullmatch(r'[A-Za-z0-9_-]{3,16}', name or ''))
+
+
+def port_launch(host, address, name, roster=None, by_itself=False):
+    """(arguments, environment) that start NHL Legacy Native for a lobby. Our patch file reads NHL_PUCKPEAK_*: the game server,
+    the save folder of the roster to load at boot, and `by_itself` = go to the lobby's search with no key. The rest is the port's
+    own: real sockets (with no PSN server to ask, so nothing is listening at that address), the name, the quick boot."""
+    env = savedata.clean_environment()
+    env.update(NHL_PUCKPEAK_ONLINE=address, PS3_NET_ONLINE='1', PSNR_SERVER='127.0.0.1:9', PS3_NP_ONLINE_ID=name, NHL_SKIP_INTRO='1')
+    if roster:
+        env['NHL_PUCKPEAK_ROSTER'] = os.path.basename(roster)
+    if by_itself:
+        env['NHL_PUCKPEAK_START'] = '1'
+    return [host.exe, '--username', name], env
 
 
 def base_config(rpcs3, title):
@@ -123,7 +143,29 @@ def blit_config(text):
     return newline.join(lines) + (newline if text.endswith('\n') else '')
 
 
+def maths_config(text):
+    """`text` (a config.yml) with the SPU's floats at Accurate. At Approximate RPCS3 swaps the game's 1 / x and square root recipes
+    for exact sums, the two answers differ by a rounding step, and a match against NHL Legacy Native or a player on another
+    setting drifts apart in the skeletons, then the puck (lab 2026-11-03: lost after 8 s; at Accurate it stays in step,
+    docs/notes/native-patch.md). Everybody online uses this config, so one setting holds for every pair."""
+    newline = '\r\n' if '\r\n' in text else '\n'
+    lines = text.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.rstrip() == 'Core:'), None)
+    if start is None:
+        return f'Core:{newline}  {MATHS_KEY}: {MATHS}{newline}' + text
+    end = start + 1
+    while end < len(lines) and (lines[end].startswith((' ', '\t')) or not lines[end].strip()):
+        if lines[end].partition(':')[0] == '  ' + MATHS_KEY:
+            lines[end] = f'  {MATHS_KEY}: {MATHS}'
+            break
+        end += 1
+    else:
+        lines.insert(start + 1, f'  {MATHS_KEY}: {MATHS}')
+    return newline.join(lines) + (newline if text.endswith('\n') else '')
+
+
 def borderless_config(text):
+
     """`text` (a config.yml) with Vulkan's "Exclusive Fullscreen Mode" set to Disable (RPCS3's "Prefer borderless"): the
     overlay over the game (legacy_roster/hud, a layered window) does not show over exclusive fullscreen. Only that line of the
     Vulkan block changes; a config without the block is left as it is (RPCS3 then uses its own default)."""
@@ -171,7 +213,7 @@ def write_config(rpcs3, title, address, borderless=False):
     online/config_<TITLE>.yml in the program's folder. Returns its path. The player's own files are not touched.
     `borderless`: fullscreen as a borderless window (the overlay over the game, borderless_config)."""
     path = os.path.join(config_dir(rpcs3), f'config_{title}.yml')
-    text = blit_config(net_config(base_config(rpcs3, title), address))
+    text = maths_config(blit_config(net_config(base_config(rpcs3, title), address)))
     if borderless:
         text = borderless_config(text)
     with open(path + '.tmp', 'w', encoding='utf-8', newline='') as f:

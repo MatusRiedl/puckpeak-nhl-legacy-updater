@@ -91,10 +91,10 @@ PATCHED_NOTE = "every update makes a roster for it"
 PATCH_NEEDS_RPCS3 = f"The game patch needs RPCS3: pick {PROGRAM} in step 1."
 PATCH_NATIVE = ("This version of NHL Legacy Native is not the one the game patch was made for, so its Season and Be a GM stay "
                 "at 30 teams for now.")
-NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names, the editors and the game patch all work here. It has no online "
-               "play yet. Without the game patch, Season and Be a GM have 30 teams, and Coachella Valley, Henderson and the "
+NATIVE_NOTE = ("NHL Legacy Native: updates, pictures, team names, the editors, the game patch and online play all work here. "
+               "Without the game patch, Season and Be a GM have 30 teams, and Coachella Valley, Henderson and the "
                "Vees are Custom teams on a community roster, left out of the game's own roster.")
-ONLINE_NATIVE = "Online play needs RPCS3: NHL Legacy Native has no online. Pick RPCS3 in Setup to play online."
+ONLINE_NATIVE = "This version of NHL Legacy Native is not the one our patch was made for, so it cannot play online yet."
 
 
 def linux_pick(folders):
@@ -177,7 +177,7 @@ _ON_THE_PORT = {
     "What it changes on your PC": [
         "One small patch file next to NHLLegacy.exe. It works only with the version of the game it was made for. "
         "NHLLegacy.exe, the game's own files and your disc are never changed.",
-        "Two small database files in the Puck Peak mod, made from your own game disc.",
+        "Two small database files and the screens of the online start in the Puck Peak mod, made from your own game disc.",
         "A file of that name that was there before is kept and put back by Unpatch.",
         "Your rosters and saves are not changed when you patch.",
     ],
@@ -185,6 +185,7 @@ _ON_THE_PORT = {
         "While the game is patched, every update makes a roster for it (marked \"32 teams\"). The patched game shows "
         "other rosters as damaged: update one of them first.",
         "Start a new Season, Be a GM or Be a Pro after patching. Saves started with the patch need it to go on.",
+        "Online play needs the patch here: it is what lets NHL Legacy Native play online, also with RPCS3 players.",
     ],
     "Unpatch": [
         "Unpatch takes it all out: the game is as it was. Rosters marked \"32 teams\" and saves started with the patch "

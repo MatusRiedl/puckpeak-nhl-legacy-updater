@@ -5,7 +5,6 @@
 <work>/dll/XINPUT1_4.dll and <work>/portpatch.zip come out; the zip goes into private/packs by hand."""
 import bisect
 import glob
-import hashlib
 import json
 import os
 import re
@@ -24,6 +23,21 @@ BASE = 0x140000000
 FUNC = re.compile(r'(?m)^void (?:__attribute__\(\(weak\)\) )?(func_[0-9A-F]{8})\(ppu_context\* ctx\) \{\n(.*?)^\}\n', re.S)
 EARLY = 'func_00010230'             # the game's entry: runs once the ELF is in guest memory, before anything reads it
 SKIP = {'func_0022E160'}            # a host shared by 7 rows; our change there is dead text
+# The lifter makes frsqrte the true root; the chip and RPCS3 give a rough table value. The game refines it, and a different
+# start ends a few last digits off, which is enough to fall out of step online. Every function holding one is swapped.
+ROOT = re.compile(r'(?<!\(double\)\(float\)\()1\.0 / sqrt\((ctx->fpr\[\d+\])\)')
+ROOT_CODE = '''static inline double nhl_frsqrte(double b) {
+    static const unsigned man[16] = {0xf1000, 0xd8000, 0xc0000, 0xa8000, 0x98000, 0x88000, 0x80000, 0x70000,
+                                     0x60000, 0x4c000, 0x3c000, 0x30000, 0x20000, 0x18000, 0x10000, 0x8000};
+    uint64_t u; memcpy(&u, &b, 8);
+    unsigned i = (unsigned)(u >> 49), sign = i >> 14, e = (i >> 3) & 0x7ff, v;
+    if (e == 0) v = 0x7ff00000u | sign << 31;
+    else if (e == 0x7ff) v = i == 0x7ff << 3 ? 0 : 0x7ff80000u;
+    else if (sign) v = 0x7ff80000u;
+    else v = man[8 ^ (i & 15)] | (0x3fe00000u - (((e + 0x1c01) >> 1) << 20));
+    u = (uint64_t)v << 32; memcpy(&b, &u, 8); return b;
+}
+'''
 # Online only (online.inc, proxy.cpp): what the DLL answers in the port's place, and the functions with the online entry's words.
 SIGN_IN = {'on_register_callback': 0xE7DCD3B4, 'on_request_ticket': 0x8297F1EC, 'on_get_ticket': 0x0968AA36,
            'on_get_ticket_param': 0x58FA4FCD, 'on_get_network_time': 0xBDC07FD5, 'on_get_account_region': 0xB1E0718B,
@@ -41,12 +55,6 @@ BUILDS = {
         data=dict(vm_base=0x154d776e0, g_vm_ld_gate=0x154ecca90, g_vm_st_gate=0x1571ef800, g_ww_hi=0x154ecca6c,
                   tls_index=0x1599410f8)),
 }
-
-
-def nid(name):
-    """The number a PS3 library export goes by."""
-    h = hashlib.sha1(name.encode() + bytes.fromhex('6759659904250490566427499489741a')).digest()
-    return struct.unpack('<I', h[:4])[0]
 
 
 class Exe:
@@ -147,6 +155,29 @@ def uncovered(patch, swap, rows, code_end, elf):
     return sorted(bad)
 
 
+# --net-log only, never in a pack: the plain match data each side hands over and gets (NHL_PUCKPEAK_INPUTS=<file>)
+NET_LOG = {
+    'func_00F286E4': ('ctx->lr = 0x00F2871C; func_00A94794(ctx);',
+                      'nhl_net_send(ctx); ctx->lr = 0x00F2871C; func_00A94794(ctx);'),
+    'func_00F2884C': ('ctx->lr = 0x00F2889C; func_00A95920(ctx); DRAIN_TRAMPOLINE(ctx);',
+                      'ctx->lr = 0x00F2889C; func_00A95920(ctx); DRAIN_TRAMPOLINE(ctx); if ((int)ctx->gpr[3] > 0) nhl_net_read(ctx);'),
+}
+NET_CODE = '''extern "C" void nhl_net_line(const char*);
+static unsigned nhl_sends, nhl_pairs;
+static void nhl_net(int way, unsigned long long buf, int len) {
+    char s[4200]; int n = snprintf(s, 200, "%c%d k%u n%d ", way ? '<' : '>', way, way ? nhl_pairs : nhl_sends, len);
+    for (int i = 0; i < len && i < 2000; i++) n += snprintf(s + n, 3, "%02x", (unsigned)vm_read8((uint32_t)buf + i));
+    nhl_net_line(s);
+}
+static void nhl_net_send(ppu_context* ctx) { nhl_net(0, ctx->gpr[4], (int)ctx->gpr[5]); nhl_sends++; }
+static void nhl_net_read(ppu_context* ctx) {
+    nhl_net(1, ctx->gpr[1] + 0x90, (int)vm_read32(ctx->gpr[1] + 0x70));
+    nhl_net(2, (unsigned)ctx->gpr[1] + 0x190, (int)vm_read32(ctx->gpr[1] + 0x74));
+    nhl_pairs++;
+}
+'''
+
+
 def carr(b):
     return '{' + ','.join(str(x) for x in b) + '}'
 
@@ -170,25 +201,44 @@ def online_copies(folder, bodies):
         zero = '(int64_t)((int32_t)ctx->gpr[3]) == (int64_t)((int64_t)0)'
         assert zero in line, line
         out[name] = text[:at] + line.replace(zero, zero[:-2] + '1)') + text[at + len(line):]
+    (place, _, _, _), = G.ONLINE_START_101       # the game asks "Play Now at boot?"; a start from a lobby says no (art/onlinestart.py)
+    call = f'ctx->lr = 0x{place + 4:08X}; if (1) {{ ps3_indirect_call(ctx); DRAIN_TRAMPOLINE(ctx); }}\n'
+    found = [(n, b) for n, b in {**bodies, **out}.items() if call in b]
+    if not found:
+        for p in glob.glob(os.path.join(folder, 'ppu_recomp_[0-9]*.cpp')):
+            t = open(p, encoding='latin-1').read()
+            if call in t:
+                found = [(m[1], m[0]) for m in FUNC.finditer(t) if call in m[0]]
+                break
+    (name, text), = found
+    out[name] = out.get(name, text).replace(call, f'if (nhl_start_online) ctx->gpr[3] = 0; else {{ {call.rstrip()} }}\n')
     head = re.compile(r'^void (?:__attribute__\(\(weak\)\) )?func_')
     return {n: head.sub('extern "C" void on_func_', t, 1) for n, t in out.items()}
 
 
-def make(port, work, exe, build, patch, swap):
+def make(port, work, exe, build, patch, swap, net_log=False):
     """swap.cpp, ids.h and the compile script in <work>/dll."""
     R, OUT = os.path.join(work, 'recompiled'), os.path.join(work, 'dll')
     os.makedirs(OUT, exist_ok=True)
     data_words = sorted((int(a, 16), v) for a, v in patch['words'].items() if int(a, 16) >= build['code_end'])
-    want = set(swap['changed']) | set(swap['new']) | ({EARLY} if data_words else set())
+    want = set(swap['changed']) | set(swap['new']) | ({EARLY} if data_words else set()) | (set(NET_LOG) if net_log else set())
     bodies, preamble = {}, None
     for p in sorted(glob.glob(os.path.join(R, 'ppu_recomp_[0-9]*.cpp'))):
         t = open(p, encoding='latin-1').read()
         if preamble is None:
             preamble = t[:t.index('\nvoid func_') + 1]
         for m in FUNC.finditer(t):
+            if ROOT.search(m[0]):
+                want.add(m[1])
+    for p in sorted(glob.glob(os.path.join(R, 'ppu_recomp_[0-9]*.cpp'))):
+        for m in FUNC.finditer(open(p, encoding='latin-1').read()):
             if m[1] in want:
                 bodies[m[1]] = m[0]
     assert set(bodies) == want, want - set(bodies)
+    if net_log:
+        for n, (old, new) in NET_LOG.items():
+            assert bodies[n].count(old) == 1, n
+            bodies[n] = bodies[n].replace(old, new)
     online = online_copies(R, bodies)
     old = 'extern "C" PPU_THREAD_LOCAL void (*g_trampoline_fn)(void*);'
     assert old in preamble
@@ -205,6 +255,7 @@ def make(port, work, exe, build, patch, swap):
 #define vm_inline_ok (*x_vm_inline_ok)
 #define ppu_vm_size (*x_ppu_vm_size)
 #define ppu_hle_inject_base (*x_ppu_hle_inject_base)
+extern "C" int nhl_start_online;
 '''
     rows = exe.rows(build['table'])
     hosts = sorted(set(rows.values()))
@@ -234,7 +285,7 @@ def make(port, work, exe, build, patch, swap):
         first = 'nhl_data_words(); ' if n == EARLY and data_words else ''
         return f'{head}\n    if (!nhl_was[{index[n]}]) {{ nhl_was[{index[n]}] = 1; {first}nhl_seen({index[n]}); }}\n{rest}'
 
-    L = [top + preamble, 'extern "C" void nhl_seen(int); static volatile char nhl_was[%d];' % max(len(hooks), 1),
+    L = [top + preamble + ROOT_CODE + ('#include <stdio.h>\n' + NET_CODE if net_log else ''), 'extern "C" void nhl_seen(int); static volatile char nhl_was[%d];' % max(len(hooks), 1),
          '/* calls out of the copy go to the exe */', 'extern "C" {']
     L += [f'void (*p_{n})(ppu_context*);' for n in ext] + ['}']
     L += ['extern "C" void nhl_word(unsigned, unsigned, unsigned);', 'static void nhl_data_words(void) {']
@@ -243,7 +294,7 @@ def make(port, work, exe, build, patch, swap):
     L += [f'void {n}(ppu_context* c) {{ __attribute__((musttail)) return p_{n}(c); }}' for n in ext]
     L += [seen(n, bodies[n]) for n in order]
     L += list(online.values())
-    L += ['#define NID_bind 0x%08Xu' % nid('bind'), '#define NID_sendto 0x%08Xu' % nid('sendto'), '#include "online.inc"']
+    L += ['#include "online.inc"']
     L += ['struct Hook { unsigned rva; void (*fn)(ppu_context*); unsigned char head[16]; const char* name; };',
           'struct Link { void* p; unsigned rva; };', 'extern "C" {',
           f'extern const int nhl_hook_count = {len(hooks)}; extern const int nhl_link_count = {len(ext)};',
@@ -253,15 +304,15 @@ def make(port, work, exe, build, patch, swap):
     L += [f'  {{ &p_{n}, 0x{rows[int(n[5:], 16)] - BASE:x} }},' for n in ext]
     L += ['  { 0 } };']
     stubs = {e['nid']: int(e['stub'], 16) for e in json.load(open(os.path.join(port, 'nhl', 'out', 'EBOOT_v101.imports.json')))}
-    sign_in = dict(SIGN_IN, on_bind=nid('bind'), on_sendto=nid('sendto'))
-    taken = [(f, rows[stubs[hex(v)]]) for f, v in sign_in.items()]
+    taken = [(f, rows[stubs[hex(v)]]) for f, v in SIGN_IN.items()]
     taken += [(f'on_{n}', rows[int(n[5:], 16)]) for n in online]
     for f, h in taken:
         assert share[h] == 1 and hosts[bisect.bisect(hosts, h)] - h >= 14, f
     L += [f'extern const int nhl_online_count = {len(taken)};', 'extern const Hook nhl_online[] = {']
     L += [f'  {{ 0x{h - BASE:x}, {f}, {carr(exe.read(h - BASE, 16))}, "{f}" }},' for f, h in taken]
     L += ['  { 0 } };', '}']
-    open(os.path.join(OUT, 'swap.cpp'), 'w', encoding='latin-1', newline='\n').write('\n'.join(L) + '\n')
+    text = ROOT.sub(r'nhl_frsqrte(\1)', '\n'.join(L) + '\n')
+    open(os.path.join(OUT, 'swap.cpp'), 'w', encoding='latin-1', newline='\n').write(text)
     stamp, image = exe.id
     I = [f'#define EXE_STAMP 0x{stamp:08x}u', f'#define EXE_IMAGE 0x{image:08x}u', f'#define TRAMP_OFF 0x{build["tramp_off"]:x}']
     for k, v in build['helpers'].items():
@@ -318,7 +369,7 @@ def main():
         tools = os.path.join(port, 'tools')
         subprocess.check_call([sys.executable, '-I', '-B', os.path.join(tools, 'nhl_restore_preamble.py'), os.path.join(R, 'ppu_recomp.h')], cwd=port)
         subprocess.check_call([sys.executable, '-I', '-B', os.path.join(tools, 'nhl_ppu_flags.py'), os.path.join(R, 'ppu_recomp_*.cpp')], cwd=port)
-    print('hooks %d, links %d, data words %d' % make(port, work, exe, build, patch, swap), flush=True)
+    print('hooks %d, links %d, data words %d' % make(port, work, exe, build, patch, swap, '--net-log' in sys.argv), flush=True)
     subprocess.check_call(['cmd', '/c', '.\\cc.cmd'], cwd=os.path.join(work, 'dll'))
     out = pack(work, exe)
     print(out, os.path.getsize(out))

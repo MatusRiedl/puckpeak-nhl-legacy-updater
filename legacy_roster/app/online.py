@@ -36,7 +36,9 @@ STALL_AFTER = 90                        # seconds signed in, with the session st
 START_GRACE = 180                       # seconds after a launch in which the start entry is left ticked (RPCS3 needs time to appear)
 LIST_POLL = 5.0                         # seconds between asking for the public lobbies while the tab shows and none is open
 ROSTER_NAME = "Puck Peak Online"
-NO_RPCS3 = "Pick RPCS3 in Setup first."
+NO_RPCS3 = "Pick RPCS3 or NHL Legacy Native in Setup first."
+NAME_ASK = "Type the name other players will see: 3 to 16 letters, numbers, - or _."
+BAD_NAME = "Use 3 to 16 letters, numbers, - or _ for your name."
 NO_ACCOUNT = ("Make your online account once in RPCS3: Configuration > RPCN > Account > Create account. Pick a name and a "
               "password, type your e-mail, then paste the token from the e-mail. Come back here and press Check again.")
 CLOSE_RPCS3 = "Close RPCS3 first: the online setup can only be changed while the game is closed."
@@ -53,6 +55,8 @@ PATCH_HINT = "You and your friend have different game patch versions. Update the
 PATCH_NEEDED = "Online play needs the game patch. Press Set up online."
 HIDDEN_KEY = 'online_hidden'           # settings: the player keeps his name off the public leaderboard
 OVERLAY_KEY = 'online_overlay'         # settings: partner chat and the result over the game (Windows; default on)
+NAME_KEY = 'online_name'                # settings: the name a player of NHL Legacy Native typed (RPCS3's comes from RPCN)
+PORT_BOOT = 60                          # seconds a port needs to reach the main menu: it has no log to say it did
 CHAT_LENGTH = 140                       # the server keeps 30 lines of at most 140 characters
 CHAT_GAP = 1.0                          # seconds the Send button rests after a line (the server takes one each 0.7 s)
 PHRASES = ["Good game", "Rematch?", "Nice one!", "Unlucky", "One sec", "Ready?"]
@@ -94,15 +98,16 @@ PATCH_ASK = ["Online play needs the game patch: 32 teams and the year 2026. This
              "you have) with the online part.",
              "While it is patched, the game shows rosters made without the patch as damaged. Update a roster in the Update tab "
              "to make it fit again.",
-             "Unpatch (Game patch tab) puts the game back as it was. RPCS3 must be closed."]
+             "Unpatch (Game patch tab) puts the game back as it was. Close RPCS3 first."]
 BUILD_OLD = ("Your RPCS3 (build {mine}) is older than online play supports (build {need}). Update it in RPCS3: Help > Check for "
              "Updates, then press Check again.")
 BUILD_DIFFERS = "{friend}'s RPCS3 is build {theirs}, yours is build {mine}. If the game drops out, update the older one."
 BUILD_UNKNOWN = "The program cannot see your RPCS3 version yet. Start RPCS3 once and press Check again."
 LOAD_ROSTER = ("The online roster \"{name}\" loads by itself when the game starts. If you see another roster, load it: "
                "Customize > Save/Load/Delete > Load > Rosters > \"{name}\".")
-BY_ITSELF = ("Nothing to press: the game starts, signs in and takes you to Select Teams with your friend. Pick your team and side. "
-             "The first start after a game or RPCS3 update can take up to half an hour while RPCS3 prepares the game: wait, it is not stuck.")
+PORT_BY_ITSELF = "Nothing to press: the game starts, signs in and takes you to Select Teams with your friend. Pick your team and side."
+BY_ITSELF = (PORT_BY_ITSELF + " The first start after a game or RPCS3 update can take up to half an hour while RPCS3 prepares "
+             "the game: wait, it is not stuck.")
 STALLED = "Is the game still on a menu? Then press these yourself:"
 STEPS_ALL = ("Press X on the welcome screen, if there is one.", "Play > Online > Online Versus Play.",
              "Move to \"Ranked Online Play Now Search\" and press X.")
@@ -214,11 +219,40 @@ class OnlineController:
     # --- what the PC and the server say ---------------------------------------------------------------------------
     def rpcs3(self):
         rpcs3 = getattr(self.update, 'rpcs3', None)
-        return None if rpcs3 is None or getattr(rpcs3, 'plain', False) or getattr(rpcs3, 'native', False) else rpcs3
+        if rpcs3 is None or getattr(rpcs3, 'plain', False) or getattr(rpcs3, 'native', False) and not rpcs3.patchable:
+            return None
+        return rpcs3
 
     def no_rpcs3(self):
-        """What the tab says when no RPCS3 is picked (the port has no online play)."""
-        return X.ONLINE_NATIVE if getattr(getattr(self.update, 'rpcs3', None), 'native', False) else NO_RPCS3
+        """What the tab says when no game is picked, or a port our patch file does not fit."""
+        return X.ONLINE_NATIVE if self.port() else NO_RPCS3
+
+    def port(self):
+        """Is the game picked NHL Legacy Native?"""
+        return bool(getattr(getattr(self.update, 'rpcs3', None), 'native', False))
+
+    def _said(self, text):
+        """A text about RPCS3 as a player of NHL Legacy Native reads it."""
+        return text.replace('RPCS3', 'the game') if self.port() else text
+
+    def typed_name(self):
+        settings = getattr(self.update, 'settings', None)
+        return settings.get(NAME_KEY) if isinstance(settings, dict) else None
+
+    def set_name(self, name):
+        """The name a player of NHL Legacy Native goes online with. Kept in settings; not while in a lobby."""
+        name = (name or '').strip()
+        settings = getattr(self.update, 'settings', None)
+        with self.lock:
+            if self.code or not isinstance(settings, dict):
+                return
+            if not onlinecfg.good_name(name):
+                self.note = {'text': BAD_NAME, 'tone': 'bad'}
+            else:
+                settings[NAME_KEY] = name
+                S.save(settings)
+                self.account, self.note = name, None
+        self.changed()
 
     def refresh(self):
         """Look again: the account, the patch, the online roster and the server (in the background)."""
@@ -235,8 +269,8 @@ class OnlineController:
             found = {'account': None, 'title': None, 'state': {}, 'roster': None, 'server': None, 'build': None, 'auto': False}
             if rpcs3 is None:
                 return found
-            found['account'] = onlinecfg.account(rpcs3)
-            found['build'] = onlinecfg.rpcs3_build(rpcs3)
+            found['account'] = self.typed_name() if rpcs3.native else onlinecfg.account(rpcs3)
+            found['build'] = None if rpcs3.native else onlinecfg.rpcs3_build(rpcs3)
             states = patchinstall.state(rpcs3)
             titles = [t for t in versions if t in states] or [t for t in states if rpcs3.game_disc(t)]
             ready = [t for t in titles if states[t]['online']]
@@ -311,6 +345,8 @@ class OnlineController:
 
     def build_note(self):
         """{'text', 'tone'} about the RPCS3 builds of the two players (None: nothing to say)."""
+        if self.port():
+            return None
         if self.build is None:
             return {'text': BUILD_UNKNOWN, 'tone': 'warn'}
         friend = next((m for m in (self.lobby or {}).get('members', []) if m['name'] != self.account), None)
@@ -352,8 +388,9 @@ class OnlineController:
         return None
 
     def patch_word(self):
-        """The patch as the lobby compares it: the patch version, or "none" without the 32-team patch."""
-        return (self.state.get('version') or 'patched') if self.state.get('patched') else 'none'
+        """The patch as the lobby compares it: the patch version and the maths of our online config (older apps' matches would
+        drift away from ours), or "none" without the 32-team patch."""
+        return f"{self.state.get('version') or 'patched'} {onlinecfg.MATHS_WORD}" if self.state.get('patched') else 'none'
 
     def setup(self):
         """The "Set up online" button: the game patch (after a question) with the online entry, and the app's config. The
@@ -363,7 +400,7 @@ class OnlineController:
             if self.busy or rpcs3 is None:
                 return
             if savedata.running_rpcs3():
-                self.note = {'text': CLOSE_RPCS3, 'tone': 'bad'}
+                self.note = {'text': self._said(CLOSE_RPCS3), 'tone': 'bad'}
                 self.changed()
                 return
             if not self.account:
@@ -372,7 +409,7 @@ class OnlineController:
                 return
             patch = not self.marks()['patched']
         if patch:
-            self.update.ask("Patch the game for online play?", PATCH_ASK,
+            self.update.ask("Patch the game for online play?", [self._said(line) for line in PATCH_ASK],
                             [("Patch the game", 'yes', 'primary'), ("Cancel", 'no', 'plain')], {'yes': self._setup})
             return
         self._setup()
@@ -394,7 +431,8 @@ class OnlineController:
                 patchinstall.install_patch(rpcs3, titles, intro=intro, login=login)
             patchinstall.set_online(rpcs3, titles, True)
             patchinstall.set_switches(rpcs3, titles, True, login)       # the intro skip: the lobby's start needs the quick boot
-            onlinecfg.write_config(rpcs3, title, self._address())
+            if not rpcs3.native:
+                onlinecfg.write_config(rpcs3, title, self._address())
             return True
 
         def done(_):
@@ -488,7 +526,7 @@ class OnlineController:
                 self.changed()
                 return
             if savedata.running_rpcs3():
-                self.note = {'text': CLOSE_TO_BRING, 'tone': 'bad'}
+                self.note = {'text': self._said(CLOSE_TO_BRING), 'tone': 'bad'}
                 self.changed()
                 return
             title, account, patch = self.title, self.account, self.patch_word()
@@ -635,7 +673,7 @@ class OnlineController:
             if rpcs3 is None or title is None:
                 return
             if savedata.running_rpcs3():
-                self.note = {'text': CLOSE_TO_COPY, 'tone': 'bad'}
+                self.note = {'text': self._said(CLOSE_TO_COPY), 'tone': 'bad'}
                 self.changed()
                 return
             self.copying, self.copy_crc, self.note = "Getting your friend's roster...", want, None
@@ -1217,6 +1255,9 @@ class OnlineController:
             self._hud_start()
             return
         try:
+            if rpcs3.native:
+                self._start_port(rpcs3, title)
+                return
             if self.roster:
                 savedata.boot_first(rpcs3.savedata, self.roster['folder'])      # the game loads it by itself at boot
             config = onlinecfg.write_config(rpcs3, title, self._address(), borderless=self.overlay())
@@ -1241,9 +1282,23 @@ class OnlineController:
                 self.note = {'text': f"The game could not be started: {err}", 'tone': 'bad'}
             self.changed()
 
+    def _start_port(self, rpcs3, title):
+        """_start_game on NHL Legacy Native: no config and no game list, what the game needs goes in with the start."""
+        if not savedata.WINDOWS:
+            raise OSError("Online play on NHL Legacy Native works on Windows only for now.")
+        self.by_itself = False              # nothing is ticked, so nothing to untick; the steps ask auto
+        args, env = onlinecfg.port_launch(rpcs3, self._address(), self.account, (self.roster or {}).get('folder'),
+                                          patchinstall.auto_start(rpcs3, title))
+        self.started_at, self.signed_at, self._tail = time.time(), time.time() + PORT_BOOT, None
+        with self.lock:
+            self.watching, self.ended, self.baseline, self.result = True, None, PENDING, None
+        flags = getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+        savedata.launch(args, cwd=rpcs3.launch_dir(), env=env, close_fds=True, creationflags=flags)
+        self._hud_start()
+
     def _read_log(self):
         rpcs3 = self.rpcs3()
-        if rpcs3 is None:
+        if rpcs3 is None or rpcs3.native:
             return
         path = onlinecfg.log_path(rpcs3)
         try:
@@ -1304,7 +1359,7 @@ class OnlineController:
         load = [LOAD_ROSTER.format(name=self.roster['name'])] if self.roster else []
         by_hand = list(STEPS_ALL) + list(STEPS_HOST if role == 'host' else STEPS_GUEST)
         if self.by_itself_possible():
-            return load + [BY_ITSELF] + ([STALLED] + by_hand if self.stalled() else [])
+            return load + [PORT_BY_ITSELF if self.port() else BY_ITSELF] + ([STALLED] + by_hand if self.stalled() else [])
         return load + by_hand
 
     def view(self):
@@ -1362,7 +1417,8 @@ class OnlineController:
                     'build': self.build, 'build_note': self.build_note(), 'game_note': self.game_note(), 'build_old': self.build_problem(),
                     'lobby': self.lobby, 'code': self.code, 'role': role, 'steps': self.steps(role) if role else [],
                     'public': self.public, 'open': self.rows(), 'open_error': self.open_error,
-                    'progress': PROGRESS, 'why': self.why(), 'no_account': NO_ACCOUNT, 'launched': bool(self.launched),
+                    'progress': PROGRESS, 'why': self.why(), 'no_account': NAME_ASK if self.port() else NO_ACCOUNT,
+                    'launched': bool(self.launched),
                     'ended': bool(self.ended), 'chat': self.chat(), 'chat_wait': time.time() < self.chat_wait,
                     'phrases': PHRASES, 'ranks': self.ranks_view(), 'result': self.result_view(),
                     'overlay': {'can': hud.available(), 'on': self.overlay()}}
