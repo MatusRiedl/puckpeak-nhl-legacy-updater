@@ -449,7 +449,8 @@ for `XINPUT1_4.dll`. At start the DLL checks the exe, jumps those functions to i
 game is in memory. The exe and `data/` are never changed. README there: the build, and what to do for a new version of the port.
 
 - **Same patch:** the 32-team entry (the year inside it) and `NEWS_ENTRY`, on the update 1.01 addresses, version as `TEAMS_VERSION`.
-  The port has its own Skip the intro and no boot login, so those two entries stay out. The online entries wait for Gate 2.
+  The port has its own Skip the intro and no boot login, so those two entries stay out. Online (2026-11-03): the DLL carries the online half itself (sign-in, redirector, console clock, roster first, the search with no
+  key), and RPCS3 joins it at `SPU XFloat Accuracy: Accurate`; docs/notes/native-patch.md "Every pairing".
 - **Program:** `patchinstall` branches on `_port_pack`: the DLL + `mods/Puck Peak/USRDIR/db/nhlng*` (the store `patch` as on RPCS3),
   no `patches/`, no `patch_config.yml`. A file named `XINPUT1_4.dll` that was there before comes back on Unpatch.
 - **Any other exe:** the DLL passes the controller calls on and changes nothing; the program says the patch does not fit

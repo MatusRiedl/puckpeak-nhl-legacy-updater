@@ -10,7 +10,12 @@ folder in the same place you pick `rpcs3.exe`; the program works out the rest. R
 logos, team names, jerseys and centre ice all work. Your pictures go into a mod called "Puck Peak", so nothing of the
 game's is replaced. If you have both, a link on the Setup tab switches between them. **The game patch works here too:** press
 Patch and the port has 32 teams and 84 games in Season and Be a GM and the year 2026, as on RPCS3. It adds one small file next to
-`NHLLegacy.exe`, and Unpatch takes it out. Online play still needs RPCS3.
+`NHLLegacy.exe`, and Unpatch takes it out. **Online play works on the port too**, with the patch on: the Play online tab works as
+on RPCS3 (you type the name you play under), and NHL Legacy Native players and RPCS3 players play each other.
+
+**Online matches stay in step.** The program's online setup for RPCS3 now uses RPCS3's exact maths, so a match against NHL Legacy
+Native or between the EU and the NA game does not drift apart. Everyone in a lobby needs this version of the program: older versions
+cannot join its lobbies.
 
 **The Penticton Vees.** On the patched game the Vees are in the WHL in Play Now and Roster Management, with their real
 roster, crest, jerseys and arena. Their 68 games are in the Calendar tab. Season, Be a GM and Be a Pro keep 22 WHL clubs, so

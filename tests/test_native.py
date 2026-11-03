@@ -426,7 +426,9 @@ def test_the_game_patch_tab_patches_a_port_that_fits(window, port, monkeypatch):
     view = window.snapshot()['patch']
     assert [b['label'] for b in view['buttons']] == ["Patch the game"] and view['checks'] == []
     assert not any('Skip the intro' in item for section in view['info']['sections'] for item in section['items'])
-    assert not any('RPCS3' in item for section in view['info']['sections'] for item in section['items'])
+    items = [item for section in view['info']['sections'] for item in section['items']]
+    assert [item for item in items if 'RPCS3' in item] == [     # the port's own text, not RPCS3's renamed
+        "Online play needs the patch here: it is what lets NHL Legacy Native play online, also with RPCS3 players."]
 
 
 def test_the_patch_file_is_the_ports_online_entry(patched_port, port, monkeypatch):

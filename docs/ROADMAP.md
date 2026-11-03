@@ -456,7 +456,9 @@ What each answer means:
 - Linux and Steam Deck: RPCS3's folders there (`~/.config/rpcs3`), a build per system.
 - The window in other languages (French, German, Swedish, Finnish, Czech).
 - **Done in 0.95.0 (docs/notes/native-port.md):** the backlog entry below, and the game patch on the port after all
-  (`tools/native_patch/`, GAME_PATCH.md section 8). Online on the port is not built. **Open, the owner's call:** on the game's own
+  (`tools/native_patch/`, GAME_PATCH.md section 8), and online on the port (in step with RPCS3 at `SPU XFloat Accuracy:
+  Accurate`, docs/notes/native-patch.md "Every pairing"; still to see: a match's normal end, a second CPU kind, the port's overlay,
+  the public server). **Open, the owner's call:** on the game's own
   roster the unpatched game cannot list slots 234, 235 and 251 (lab round 59); moving those teams to low slots would.
 - **Backlog (owner, 2026-10-29: not a priority): the native PC port of the game** (US 1.01, a Windows program made by
   static recompilation). Setup would ask "Which NHL Legacy?" RPCS3 / Native; Native keeps its saves in the same

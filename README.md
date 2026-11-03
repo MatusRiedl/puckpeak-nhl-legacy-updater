@@ -139,7 +139,8 @@ in **Setup**, under **Your game**, pick `NHLLauncher.exe` or `NHLLegacy.exe` (or
   of the port: if the port gets a new version, the window says so until we have made the patch for it.
 - **Without the patch** Season and Be a GM have 30 teams and the year 2015, and Coachella Valley, Henderson and the Vees are
   custom teams (Custom Team 13, 14 and 30 in Select Teams; from Starting Lineups on the game uses their names).
-- **Online play** needs RPCS3 for now.
+- **Online play** works with the game patch on: open **Play online** as on RPCS3 and type the name you want to play under. You
+  play against NHL Legacy Native players and RPCS3 players alike. Everyone in the lobby needs this version of the program.
 - **Which roster:** start from a community roster copied into the port's saves. Without the patch, on a roster from the game's
   own disc the port's lists cannot reach Coachella Valley, Henderson and the Vees, so they are left out there.
 - **Skip the intro:** the port has its own switch in the launcher's settings.

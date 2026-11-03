@@ -1524,8 +1524,10 @@ class UpdateController:
         return {'title': X.PATCH_TITLE, 'sub': X.PATCH_SUB, 'state': state,
                 'note': note,
                 'info': {'title': X.PATCH_INFO_TITLE,
-                         'sections': [{'head': self._named(head), 'items': [self._named(item) for item in items]}
-                                      for head, items in (X.PATCH_INFO_NATIVE if native_host else X.PATCH_INFO)]},
+                         'sections': [{'head': head, 'items': list(items)} for head, items in X.PATCH_INFO_NATIVE]
+                         if native_host else     # the port's text is written for it; it names RPCS3 on purpose
+                         [{'head': self._named(head), 'items': [self._named(item) for item in items]}
+                          for head, items in X.PATCH_INFO]},
                 'checks': [] if native_host else     # the port's launcher has its own Skip the intro
                 [{'key': S.SKIP_INTRO, 'label': "Skip the intro", 'on': self.skip_intro, 'enabled': switch},
                  {'key': S.NO_LOGIN, 'label': "No pop ups at start", 'tip': X.NO_LOGIN_TIP,
