@@ -220,6 +220,28 @@ wording (`progress.py`).
 
 ## Current state
 
+**Hotfix 0.95.1 (2026-11-03, not released):** a tester's roster that began as the game's own (patched) failed verify:
+"free agent Nick Jensen is also on Knights". The builder used `L.NHL_ALL` (the community layout's copies 222-233) where a
+roster from the disc has real custom teams there, so the NHL step listed Jensen as a free agent and left his places on 222 / 223.
+`Builder.nhl_all` (= NHL + this roster's copies) replaces it in `nhl_rosters`, `fill_empty_national` and `clubs.update_league`;
+`contracts()` runs `unlist_club_players` again (skips deleted entries), so any such double is mended with a List of changes row
+instead of refusing the save. Tests `test_stock.py::test_a_player_who_leaves_his_nhl_team_keeps_his_custom_team_place`,
+`test_listed_on_a_club.py::test_a_step_that_leaves_a_club_player_on_the_free_agent_list_is_mended_before_the_contracts`. The QMJHL
+"No slot in the game for Rouyn-Noranda, Val-d'Or" line is the game's 16 QMJHL slots (rule 2), not a fault.
+Then (owner: "do 1, 2, 3 and Reichel"): (1) `verify.multi_club` follows the roster's layout (`layout_mirrors`). (2) `Builder.mend(source)`,
+last before `finish()` in `pipeline.build`: what a step left that verify would refuse and has one safe answer is put right with a row
+under `builder.REPAIRS` ("Repairs" in the List of changes, a line in the result): a second place on one team, a player on two NHL / AHL
+clubs (contract team, else NHL, else lowest), free-agent list doubles and club players on it, free agents' deals, a deal naming another
+team, an NHL player without a deal (default terms). What the source already had and the player's own edits (`free`) are left alone.
+tests/test_mend.py. (3) **Tester rosters** (`tests/test_tester_rosters.py`): every roster in `private/tester_rosters/<name>/SYS-DATA`
+(git-ignored, README there; or `LEGACY_ROSTER_TESTERS`) gets a full offline update (+ `patch_roster` when patched) that must pass and
+be byte-identical on a second update. Add each refused tester roster there once fixed. Held now: the Jensen roster and the community's
+26-27 Extras roster. The latter showed: `nhl_rosters` step 2 drops a listed player's places on other NHL teams (slot 31 still the
+All-Star "Black / Blue"); step 1b retires a copy-only leaver (Kopitar on 227); `clubs._match_on_club` (a listed player with another
+birthday found on his own club by name + year, takes the list's birthdate: Livingstone was doubled); the 40 cap drops kept juniors
+before listed players (Kaiser). (4) **Reichel**: `clubs._feed_position` defers a position change of a player still on a national
+team (`Builder.later_positions`), `clubs.late_positions` applies it after `national_teams()`.
+
 **Socks, pants and masks (2026-11-03, part of the held 0.95.0; plan top of docs/plans/we-have-big-job-cached-ladybug.md):** two
 testers: Leafs in black pants, Bruins' socks with Utah's one low stripe, Swayman in a red club's mask. (1) The look pack carries each
 kit's own sock (`s/<slot>_<role>.webp`, the game's layout 1024 x 512) and pants colours (index `kits.<role>.pants`); `PackKit.sock` /

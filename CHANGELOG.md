@@ -3,6 +3,26 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.95.1 (2026-11-03)
+
+**Fixed: "The new roster failed the safety checks ... free agent Nick Jensen is also on Knights".** On a roster that began as the
+game's own, the program treated custom teams 222-233 as copies of NHL teams, as they are on the community roster. A player who
+left his NHL team but was also on one of those custom teams went onto the free-agent list and stayed on the custom team, and the
+safety check stopped the save. He now keeps his custom team place. Also, if any step ever leaves a player on a team and on the
+free-agent list, the program takes him off the list by itself (the List of changes says so) instead of refusing to save.
+
+**Fewer refused updates on rosters other people made.** When an update leaves something behind that the safety check would refuse
+and that has one safe answer (a player listed twice on a team or on the free-agent list, a player on two clubs, a contract naming
+the wrong team, an NHL player with no contract), the program now puts it right itself and lists it under "Repairs" in the List of
+changes. Problems the roster already had before the update are still never held against it.
+
+**Fixed on the community's 26-27 roster:** the update stopped with "Devon Toews on [7, 31]" (slot 31 there was still the All-Star
+team "Black / Blue", holding players of other NHL teams). A player on NHL.com's roster now leaves every other NHL team. Also: a club
+player whose birthday differs from the league's list is no longer doubled, Kopitar (on the Kings' copy only) retires at once, and a
+club over 40 players lets young players its list leaves out go before a player the list names.
+
+**Updating twice changes nothing.** A second update of a roster no longer moves Lukas Reichel (Providence) from left wing to centre.
+
 ## 0.95.0 (2026-11-03)
 
 **NHL Legacy Native.** The program now works with the PC port as well as with RPCS3. Pick `NHLLauncher.exe` or the port's

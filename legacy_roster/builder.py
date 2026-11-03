@@ -63,6 +63,7 @@ FA_RETIRE_AGE = 35
 # an unsigned player of last season retires at this age (born season_year - 38 or earlier; owner, 2026-10-28: Kopitar, Toews)
 UNSIGNED_RETIRE_AGE = 38
 FREE_AGENTS = "Free agents"     # the part of the list of changes for retired and unsigned free agents
+REPAIRS = "Repairs"             # what Builder.mend put right before the roster was written
 
 
 def stock_retire_age():
@@ -194,6 +195,9 @@ class Builder:
         # copy -> its NHL team, by the roster's own layout: the game's own roster has no copies, and a player may fill
         # those slots with clubs of his own (a tester's KHL clubs in 222-227: real clubs, not Blues / Bruins ...)
         self.mirror_of = {m: p for p, ms in self.mirrors.items() for m in ms}
+        # NHL teams and their copies in this roster (L.NHL_ALL is the community layout's: on the game's own roster
+        # slots 222-233 are prospect pools, real places a player keeps when he leaves his NHL team)
+        self.nhl_all = L.NHL_PRIMARY | set(self.mirror_of)
         # players who leave a team, or are free agents, at this age retire (their records become
         # spare) unless they played in the NHL last season: in the game's own roster from 30
         # (stock.RETIRE_AGE: its 2014 players), in a community roster from FA_RETIRE_AGE
@@ -234,6 +238,9 @@ class Builder:
         self.filled_now = set() # national teams filled from scratch in this run
         self.joined_depth = {}  # player row -> the NHL slot he joined as depth NHL.com does not list (call_ups)
         self.placed = set()     # pids a club league has placed in this run (the first league to list him keeps him)
+        # row -> (position, club slot, team code, log section): a league's position for a player still on a national team,
+        # put in after the national step if he is off it then (clubs.late_positions: else a second run would do it)
+        self.later_positions = {}
         self.core_reserve = Counter()   # records kept back for the line-ups of leagues still to come ('G', 'S')
         self.held_records = {}          # position -> records taken for the player's own new players (hold_records)
         self.list_rated = set()   # pids whose attributes the ratings list set in this run (never estimated over)
@@ -464,10 +471,14 @@ class Builder:
     def unlist_club_players(self):
         """Take players who are on a club team (not a national team, a copy of an NHL team or an event team) off the
         free-agent list. The game itself can save one on both (a tester's roster: Joe Sakic on Colorado and on the list);
-        contracts() would clear the deal of everyone listed, so his club keeps him and his deal as the game saved it."""
+        contracts() would clear the deal of everyone listed, so his club keeps him and his deal as the game saved it.
+        Run again at the start of contracts(): a step that left someone on both (0.95.0 on the game's own roster: Nick
+        Jensen left Anaheim for the list and kept his prospect pool place) mends here instead of failing verify."""
         R, U = self.R, self.U
         club = {}
         for i in range(U.cur_rec):
+            if i in self.deleted:
+                continue
             t = U.get(i, 'BSXd')
             if t not in L.NATIONAL and t not in self.mirror_of and t not in L.EVENTS:
                 club.setdefault(R.link_to_pid.get(U.get(i, 'TWSX')), set()).add(t)
@@ -1000,7 +1011,7 @@ class Builder:
                 self.depart(e)
                 self.deleted.add(e)
                 other = [x for x in R.entries_by_pid.get(pid, []) if x != e
-                         and U.get(x, 'BSXd') not in L.NHL_ALL and U.get(x, 'BSXd') not in L.NATIONAL]
+                         and U.get(x, 'BSXd') not in self.nhl_all and U.get(x, 'BSXd') not in L.NATIONAL]
                 status = 'free agent'
                 if other:
                     status = 'stays with ' + R.team_name(U.get(other[0], 'BSXd'))
@@ -1011,6 +1022,22 @@ class Builder:
                 if status == 'free agent' and pid in self.contract_full:
                     status += ' (under contract for 2026-27, no room)'
                 self.log.append([L.SLOT_TO_API[t], 'left NHL roster', R.name(R.p_by_id[pid]), status, U.get(e, 'tRVs')])
+                self.left_keys.add(self.person(R.p_by_id[pid]))
+
+        # 1b. a player on a copy of an NHL team alone (a community roster whose copies are out of step: Kopitar on Los
+        # Angeles' copy only) who is on no NHL.com roster and would retire, retires now, as step 1 retires the others;
+        # sync_mirrors would list him as a free agent, and the next update's settle_free_agents retire him (0.95.1)
+        on_primary = {self.pid_of_entry(e) for e in range(U.cur_rec) if e not in self.deleted
+                      and U.get(e, 'BSXd') in L.NHL_PRIMARY}
+        for e in range(U.cur_rec):
+            t = U.get(e, 'BSXd')
+            pid = self.pid_of_entry(e)
+            if (e in self.deleted or t not in self.mirror_of or pid in api_pids or pid in on_primary
+                    or pid not in R.p_by_id or pid in keep):
+                continue
+            if self.retires(pid):
+                self.log.append([L.SLOT_TO_API[self.mirror_of[t]], 'left NHL roster', R.name(R.p_by_id[pid]), 'retired',
+                                 U.get(e, 'tRVs')])
                 self.left_keys.add(self.person(R.p_by_id[pid]))
 
         # 2. every player onto his team
@@ -1044,7 +1071,7 @@ class Builder:
                 self.move_entry(e, target)
                 self.log.append([p['team'], 'moved', f"{p['first']} {p['last']}", f"from {frm}", p['num']])
             else:
-                src = sorted((x for x in ents if U.get(x, 'BSXd') not in L.NHL_ALL | L.NATIONAL),
+                src = sorted((x for x in ents if U.get(x, 'BSXd') not in self.nhl_all | L.NATIONAL),
                              key=lambda x: source_rank(U.get(x, 'BSXd')))
                 if src:
                     e = src[0]
@@ -1057,6 +1084,15 @@ class Builder:
                     self.arrivals.setdefault(target, []).append(e)
                     frm = 'free agent' if fa else 'no team'
                 self.log.append([p['team'], 'added', f"{p['first']} {p['last']}", f"from {frm}", p['num']])
+            # his places on other NHL teams go (0.95.1: a community roster whose slot 31 was still an All-Star team
+            # listed Toews on Colorado and on it; he stayed on both)
+            for x in ents:
+                t = U.get(x, 'BSXd')
+                if x != e and x not in self.deleted and t in L.NHL_PRIMARY and t != target:
+                    self.depart(x)
+                    self.deleted.add(x)
+                    self.log.append([L.SLOT_TO_API[t], 'left NHL roster', f"{p['first']} {p['last']}",
+                                     f"plays for {p['team']}", U.get(x, 'tRVs')])
             self.drop_fa(pid)
             target_entry[e] = p
         for p in api:
@@ -1695,6 +1731,141 @@ class Builder:
         self.old_fa_links = set(old)
         return len(old)
 
+    def mend(self, source):
+        """Put right, just before the roster is written, what a step left behind that verify would refuse and that has
+        one safe answer (0.95.1: tester rosters kept failing on such leftovers, the last one Nick Jensen on a custom
+        team and on the free-agent list). Each repair is a row under REPAIRS in the list of changes. What `source` (the
+        roster the build started from, as verify sees it) already had is left alone, as verify allows it, and so is
+        what the player's own edits did (verify's `free`). Returns how many repairs were made.
+
+        - a team that lists a player twice keeps one of his places (the one holding line slots);
+        - a player on two NHL / AHL teams (a copy of an NHL team counts as that team) keeps the team his contract
+          names, else his NHL team, else the lowest; his other places go;
+        - the free-agent list holds nobody twice and nobody who is on a club (unlist_club_players);
+        - a free agent carries no contract, a contract names a team the player is on (else it is cleared), and every
+          player on an NHL team has a contract (the default terms, as contracts() gives a new player).
+        Teams that lost a dressed player get their lines dealt again."""
+        from . import verify as V
+        R, U, P = self.R, self.U, self.P
+        free = getattr(self, 'free', None)
+        mine = V.free_editing(R, source, free)[0] if free else (lambda pid: False)
+        section, self.log.section = self.log.section, REPAIRS
+        made = 0
+
+        def note(t, what, prow, detail):
+            nonlocal made
+            made += 1
+            self.log.append([R.T.get(t, 'nnsx') if t is not None else 'ALL', what, R.name(prow), detail, ''])
+
+        def live():
+            out = {}
+            for e in range(U.cur_rec):
+                if e not in self.deleted:
+                    out.setdefault(self.pid_of_entry(e), []).append(e)
+            return {pid: es for pid, es in sorted(out.items(), key=lambda kv: (kv[0] is None, kv[0] or 0))
+                    if pid in R.p_by_id and not mine(pid)}
+
+        def drop(e, relines):
+            if self.held(e) or U.get(e, 'jZSh'):
+                relines.add(U.get(e, 'BSXd'))
+            self.depart(e)
+            self.deleted.add(e)
+
+        relines, primaries = set(), False
+        twice_before = Counter((source.U.get(i, 'BSXd'), source.link_to_pid.get(source.U.get(i, 'TWSX')))
+                               for i in range(source.U.cur_rec))
+        for pid, ents in live().items():
+            by_team = {}
+            for e in ents:
+                by_team.setdefault(U.get(e, 'BSXd'), []).append(e)
+            for t, es in sorted(by_team.items()):
+                if len(es) < 2 or twice_before[(t, pid)] > 1 or t in self.mirror_of:   # copies follow their team
+                    continue
+                keep = max(es, key=lambda e: (len(self.held(e)), bool(U.get(e, 'jZSh')), -e))
+                for e in es:
+                    if e != keep:
+                        drop(e, relines)
+                primaries |= t in self.mirrors
+                note(t, 'listed twice: one place removed', R.p_by_id[pid], f"on {R.team_name(t)}")
+
+        multi_before = V.multi_club(source)
+        for pid, ents in live().items():
+            teams = {self.mirror_of.get(U.get(e, 'BSXd'), U.get(e, 'BSXd')) for e in ents} & L.CLUB
+            if len(teams) < 2 or pid in multi_before:
+                continue
+            prow = R.p_by_id[pid]
+            named = P.get(prow, 'BSXd') - 1
+            nhl = sorted(teams & L.NHL_PRIMARY)
+            keep = named if named in teams else (nhl[0] if nhl else min(teams))
+            for e in ents:
+                t = U.get(e, 'BSXd')
+                if t in L.CLUB and t != keep and t not in self.mirror_of:
+                    primaries |= t in self.mirrors
+                    drop(e, relines)
+            note(keep, 'on two teams: kept on one', prow, f"stays on {R.team_name(keep)}, off "
+                 + ", ".join(R.team_name(t) for t in sorted(teams - {keep})))
+        if primaries:
+            self.sync_mirrors()
+        for t in sorted(relines - set(self.mirror_of)):
+            try:
+                lines.build_lines(self, t)
+            except lines.NotEnoughPlayers:
+                pass                # verify names the team; nothing safe to do here
+        if relines & set(self.mirrors):
+            self.sync_mirrors()
+
+        self.unlist_club_players()
+        listed_before = Counter(source.link_to_pid.get(source.Q.get(k, 'TWSX')) for k in range(source.Q.cur_rec))
+        seen, kept = set(), []
+        for link in self.fa_links:
+            pid = R.link_to_pid.get(link)
+            if pid in seen and pid in R.p_by_id and listed_before[pid] < 2 and not mine(pid):
+                note(None, 'free agent listed twice: one entry removed', R.p_by_id[pid], '')
+                continue
+            seen.add(pid)
+            kept.append(link)
+        self.fa_links = kept
+
+        on = {pid: {U.get(e, 'BSXd') for e in es} for pid, es in live().items()}
+        clubs = pay.contract_clubs(R)
+        deal = ('BSXd', 'GDhI', 'dhKk', 'IrlK', 'IzRv')
+        no_deal_before = set()
+        for i in range(source.U.cur_rec):
+            pid = source.link_to_pid.get(source.U.get(i, 'TWSX'))
+            if source.U.get(i, 'BSXd') in L.NHL_PRIMARY and pid in source.p_by_id:
+                srow = source.p_by_id[pid]
+                if not (source.P.get(srow, 'GDhI') and source.P.get(srow, 'dhKk')):
+                    no_deal_before.add(pid)
+        for pid in sorted({R.link_to_pid.get(link) for link in self.fa_links} - {None}):
+            prow = R.p_by_id.get(pid)
+            if prow is not None and not mine(pid) and any(P.get(prow, f) for f in deal):
+                for f in deal:
+                    P.set(prow, f, 0)
+                note(None, 'free agent: contract cleared', prow, '')
+        for pid, teams in on.items():
+            prow = R.p_by_id[pid]
+            b = P.get(prow, 'BSXd')
+            if b and pid not in self.orig_contract_bad and not self.same_team(b - 1) & teams:
+                if teams:
+                    t = min(teams & clubs or teams)
+                    P.set(prow, 'BSXd', t + 1)
+                    note(t, 'contract moved to his team', prow,
+                         f"named {R.team_name(b - 1)}, he plays for {R.team_name(t)}")
+                else:
+                    for f in deal:
+                        P.set(prow, f, 0)
+                    note(None, 'contract cleared', prow, f"named {R.team_name(b - 1)}, he is on no team")
+            nhl = sorted(teams & L.NHL_PRIMARY)
+            if nhl and pid not in no_deal_before and not (P.get(prow, 'GDhI') and P.get(prow, 'dhKk')):
+                years, cap = pay.default_terms(P.get(prow, 'dnFq') + 1910 >= self.data.season_year - 22, self.money)
+                P.set(prow, 'BSXd', nhl[0] + 1)
+                P.set(prow, 'GDhI', years)
+                P.set(prow, 'dhKk', cap)
+                note(nhl[0], 'given a contract', prow, f"on {R.team_name(nhl[0])} with none")
+        self.log.section = section
+        self.repairs = made
+        return made
+
     def finish(self):
         """Remove deleted entries, give every entry its team slot id, write the free-agent list, and
         give back the links of removed roster places that nothing uses any more (the link table
@@ -2244,7 +2415,7 @@ class Builder:
                 nhl_now[self.person(self.prow_of_entry(e))] = self.prow_of_entry(e)
         for e in range(U.cur_rec):
             t = U.get(e, 'BSXd')
-            if e not in self.deleted and t not in L.NHL_ALL and t not in L.NATIONAL and t not in L.EVENTS:
+            if e not in self.deleted and t not in self.nhl_all and t not in L.NATIONAL and t not in L.EVENTS:
                 elsewhere.setdefault(self.person(self.prow_of_entry(e)), self.prow_of_entry(e))
         for link in self.fa_links:
             prow = R.p_by_id.get(R.link_to_pid.get(link))
@@ -2777,6 +2948,7 @@ class Builder:
         The game walks a team's contracts on screens like Team Management; a contract that
         points at a player who is not on that roster makes it crash. First the line-ups get what
         they miss (repair_lineups)."""
+        self.unlist_club_players()      # nobody on a club and on the free-agent list (verify 'fa on team')
         self.repair_lineups()
         P, R = self.P, self.R
         final = self.club_teams()

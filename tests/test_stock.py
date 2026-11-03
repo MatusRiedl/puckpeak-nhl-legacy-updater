@@ -153,3 +153,35 @@ def test_namesakes_are_not_mixed_up(stock_built):
     assert len(_rows(R, 'Sebastian', 'Aho')) == 2
     assert R.P.get(ahos[3], 'draftyear') == 117 and R.P.get(ahos[0], 'draftyear') == 115
     assert any(t == L.API_TO_SLOT['CAR'] for _, t in R.teams_of(ahos[0]))
+
+
+def test_a_player_who_leaves_his_nhl_team_keeps_his_custom_team_place(stock_built):
+    """0.95.0, a tester's roster from the game's own: Nick Jensen was on Anaheim and on the player's custom teams in
+    slots 222 / 223 (which the community roster uses as copies of St. Louis / Boston). He left Anaheim for the free-agent
+    list and kept those places, so verify refused the roster: "free agent Nick Jensen is also on Knights". On this
+    roster 222-233 are no copies: a place there is a real team's."""
+    from legacy_roster.builder import Builder
+    res, data = stock_built
+    R = Roster(res.data)
+    kind = L.check_base(R)
+    assert not L.mirrors(kind)
+    b = Builder(R, Data(season_year=2026), layout=kind)
+    nhl_people = {(p['first'], p['last']) for p in data.nhl_players}
+    link = next(lk for lk in b.fa_links if R.P.get(R.p_by_id[R.link_to_pid[lk]], 'aljv') != 4
+                and not R.entries_by_pid.get(R.link_to_pid[lk])
+                and tuple(R.name(R.p_by_id[R.link_to_pid[lk]]).split(' ', 1)) not in nhl_people)
+    pid = R.link_to_pid[link]
+    prow = R.p_by_id[pid]
+    b.drop_fa(pid)
+    b.new_entry(0, link, prow)                      # on Anaheim and on two custom teams, as the tester's roster had him
+    b.new_entry(222, b.new_link(pid), prow)
+    b.new_entry(223, b.new_link(pid), prow)
+    R.P.set(prow, 'BSXd', 1)
+    b.finish()
+    again = pipeline.build(R.f.build(), data, [pipeline.NHL])
+    assert again.ok, again.problems[:5]
+    R2 = Roster(again.data)
+    assert sorted(t for _, t in R2.teams_of(R2.p_by_id[pid])) == [222, 223]
+    assert pid not in {R2.link_to_pid.get(R2.Q.get(i, 'TWSX')) for i in range(R2.Q.cur_rec)}
+    name = R.name(prow)                             # the NHL step kept him off the list (not the mend in contracts())
+    assert not any(row[1] == 'taken off the free-agent list' and row[2] == name for row in again.log)

@@ -148,6 +148,36 @@ def own_kit(R, slot):
                 E.set(i, f'zone{z}_{c}', v)
 
 
+def _match_on_club(b, people, leftovers):
+    """A listed player match_club found no record for, whose club already has one record of his kind under his full
+    name with a birth year within one of his (either convention): that record is him, and it takes the list's birthdate.
+    0.95.1: the community's 26-27 roster had Jake Livingstone on the Calgary Wranglers with another birthday; the update
+    made a second Livingstone and sent the first to the free-agent list, from which the next update retired him. Being
+    on his own club is what makes a name and a year enough here."""
+    P = b.P
+    on_club = {}
+    for e, slot in leftovers.items():
+        row = b.prow_of_entry(e)
+        if row is not None:
+            on_club.setdefault((slot, norm(P.get(row, 'PedH')), norm(P.get(row, 'RMbQ'))), set()).add(row)
+    taken = {p['row'] for p in people if p.get('row') is not None}
+    for p in people:
+        if p.get('row') is not None or p.get('birth_approx'):
+            continue
+        y, m, d = p['birth']
+        rows = [r for r in on_club.get((p['slot'], norm(p['first']), norm(p['last'])), ())
+                if r not in taken and (P.get(r, 'aljv') == 4) == (p.get('pos') == 'G')
+                and min(abs(P.get(r, 'dnFq') + 1910 - y), abs(P.get(r, 'dnFq') + 1900 - y)) <= 1]
+        if len(rows) != 1:
+            continue
+        row = rows[0]
+        P.set(row, 'dnFq', y - 1910)
+        P.set(row, 'pLKJ', m - 1)
+        P.set(row, 'iwsK', d - 1)
+        p['row'], p['stale'] = row, False
+        taken.add(row)
+
+
 def update_league(b, key, league, say):
     """Rebuild the slots of one league. Returns the set of team ids that were rebuilt."""
     R, U, P, T = b.R, b.U, b.P, b.R.T
@@ -162,6 +192,7 @@ def update_league(b, key, league, say):
 
     # who is on these slots now, and what the slots were called before they get their club names
     leftovers = {e: slot for slot in slots for e in b.entries_on(slot)}
+    _match_on_club(b, people, leftovers)
     was_pool = {slot: ((T.get(slot, 'JkmY'), T.get(slot, 'RPbr')) if pools.is_pool(R, slot) else None) for slot in slots}
     for t in teams:
         if t.get('own'):                            # a player's own team: his name, city and logo stay
@@ -204,7 +235,7 @@ def update_league(b, key, league, say):
             here = [e for e in ents if U.get(e, 'BSXd') == target]
             # one club at a time: his entries on other clubs, pools and junior teams go
             others = [e for e in ents if U.get(e, 'BSXd') != target
-                      and U.get(e, 'BSXd') not in L.NATIONAL and U.get(e, 'BSXd') not in L.NHL_ALL]
+                      and U.get(e, 'BSXd') not in L.NATIONAL and U.get(e, 'BSXd') not in b.nhl_all]
             if here:
                 e = here[0]
             elif others:
@@ -327,7 +358,7 @@ def update_league(b, key, league, say):
         _fill_lineup(b, slot, leftovers, live, T.get(slot, 'nnsx'), stats, JUNIOR_AGE.get(key), under_contract)
 
     # whoever is still on these slots is not on the new rosters
-    displaced = {}
+    displaced, kept_young = {}, set()
     for e, slot in sorted(leftovers.items()):
         if e in under_contract:
             # under contract with the parent club (2026-27) and on no list: he stays, as Builder.contract_strays would
@@ -351,6 +382,7 @@ def update_league(b, key, league, say):
                               "a young player the league's list leaves out", U.get(e, 'tRVs')])
                 stats['juniors kept'] += 1
             P.set(b.prow_of_entry(e), 'BSXd', slot + 1)      # his contract team is the club he stays with
+            kept_young.add(e)
         else:
             name = R.name(b.prow_of_entry(e))
             became_fa = b.release(e, live)
@@ -364,7 +396,9 @@ def update_league(b, key, league, say):
     rebuilt = set(slots)
     for slot in slots:
         ents = b.entries_on(slot)
-        for e in sorted(ents, key=lambda e: (b.q(e), e))[:max(0, len(ents) - L.MAX_PER_TEAM)]:   # 40 a team
+        # 40 a team: young players the list leaves out go before anyone it names (0.95.1: Munich on the community's
+        # 26-27 roster held 20 of them; the list's Rio Kaiser went, and joined again on the next update)
+        for e in sorted(ents, key=lambda e: (e not in kept_young, b.q(e), e))[:max(0, len(ents) - L.MAX_PER_TEAM)]:
             name = R.name(b.prow_of_entry(e))
             b.release(e, live)
             b.log.append([T.get(slot, 'nnsx'), 'left the club', name, 'no room (40 players at most)', U.get(e, 'tRVs')])
@@ -574,6 +608,28 @@ def _fill_lineup(b, slot, leftovers, live, abbr, stats, max_age=None, staying=()
             stats['signed to fill the line-up'] += 1
 
 
+def late_positions(b, say=lambda msg: None):
+    """The league positions _feed_position held back for players on a national team, put in after the national step for
+    those it took off (a second run would find them off it and change the position then: Lukas Reichel, LW in the first
+    run and C in the second). Their club's lines are dealt again, as update_league does for a changed club."""
+    section = b.log.section
+    for row, (want, slot, team, part) in sorted(b.later_positions.items()):
+        pid = b.P.get(row, 'zIBw')
+        teams = {b.U.get(e, 'BSXd') for e in range(b.U.cur_rec) if e not in b.deleted and b.pid_of_entry(e) == pid}
+        cur = b.P.get(row, 'aljv')
+        if teams & L.NATIONAL or slot not in teams or want == cur or 4 in (cur, want):
+            continue
+        b.set_position(row, want)
+        b.log.section = part
+        b.log.append([team, 'position changed', b.R.name(row), f"{L.POS_NAME[cur]} to {L.POS_NAME[want]}", ''])
+        try:
+            lines.build_lines(b, slot)
+        except lines.NotEnoughPlayers as err:
+            say(str(err))
+    b.later_positions = {}
+    b.log.section = section
+
+
 def _feed_position(b, row, p, live, name):
     """The league's current position for a player it lists (a feed that only says 'forward' moves a
     defenceman up front, and leaves a forward's position alone). Goalies never change, and neither
@@ -584,6 +640,8 @@ def _feed_position(b, row, p, live, name):
     if want is None or want == cur or 4 in (cur, want):
         return False
     if any(b.U.get(e, 'BSXd') in L.NATIONAL for e in live.get(b.P.get(row, 'zIBw'), [])):
+        # the national step may take him off (Lukas Reichel, out of the NHL: off Germany): late_positions then
+        b.later_positions[row] = (want, p['slot'], p['team'], b.log.section)
         return False
     b.set_position(row, want)
     b.log.append([p['team'], 'position changed', name, f"{L.POS_NAME[cur]} to {L.POS_NAME[want]}", ''])

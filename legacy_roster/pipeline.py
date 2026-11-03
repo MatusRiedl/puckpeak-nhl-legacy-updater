@@ -10,7 +10,7 @@ from collections import Counter
 
 from . import contracts, datasource, draft, gamepatch, restore, savedata, schedule, sticks, stock
 from . import layout as L
-from .builder import FREE_AGENTS, Builder, Data, drop_removed_player
+from .builder import FREE_AGENTS, REPAIRS, Builder, Data, drop_removed_player
 from .leagues import clubs, pools
 from .roster import Roster
 from .verify import verify
@@ -41,6 +41,7 @@ SECTION_POOLS, SECTION_EDITS, SECTION_CONTRACTS = "Prospect pools", "My edits", 
 SECTION_STOCK = "The game's own roster"
 SECTION_FREE_AGENTS, SECTION_PLAYER_DATA = FREE_AGENTS, "Player data"
 SECTION_PICTURES = "Pictures not installed"
+SECTION_REPAIRS = REPAIRS
 
 
 def usable_clubs(R, league):
@@ -226,6 +227,8 @@ class BuildResult:
             if s.get('skipped: no free record'):
                 text += f", {s['skipped: no free record']} skipped (no room)"
             out.append((LEAGUE_NAMES[key], text))
+        if getattr(self.builder, 'repairs', 0):
+            out.append((SECTION_REPAIRS, f"{self.builder.repairs} put right that the update had left wrong"))
         if getattr(self.builder, 'pool_released', 0):
             out.append((SECTION_POOLS, f"{self.builder.pool_released} without room, now free agents"))
         for club, team in getattr(self.builder, 'own_teams', ()):
@@ -327,6 +330,10 @@ class BuildResult:
             if s.get('skipped: no free record'):
                 text += f"; {s['skipped: no free record']} skipped, no free player record left"
             lines.append(text + ".")
+        if getattr(self.builder, 'repairs', 0):
+            n = self.builder.repairs
+            lines.append(f"Repairs: {n} thing{'s' if n != 1 else ''} the update had left wrong put right "
+                         "(the List of changes says which).")
         if getattr(self.builder, 'pool_released', 0):
             lines.append(f"Prospect pools: no room left for {self.builder.pool_released} players; "
                          "they are free agents now and can be signed.")
@@ -514,6 +521,7 @@ def build(source, data, steps=ALL_STEPS, progress=None, check=True, art_registry
         log.section = SECTION_NATIONAL
         say("National teams")
         b.national_teams()
+        clubs.late_positions(b, say)    # league positions held back for players the national step took off
         b.national_lines()
     if NHL in steps and b.data.contracts:
         log.section = SECTION_NHL
@@ -595,6 +603,7 @@ def build(source, data, steps=ALL_STEPS, progress=None, check=True, art_registry
     if calendar_from is not None and SCHEDULE not in steps:
         say("Calendar: putting the game's own calendar back")
         restore.copy_calendar(R, calendar_from)
+    b.mend(Roster(src_bytes))           # leftovers verify would refuse and that have one safe answer (Builder.mend)
     b.finish()
     # after finish: the tables say who is on a team and who is a free agent. Every record is fitted after a step that
     # moves players or writes deals or birth years; the Roster editor's Save (no step) and a ratings / calendar update

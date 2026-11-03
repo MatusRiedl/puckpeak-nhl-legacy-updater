@@ -113,14 +113,16 @@ def rating_problems(R, source, free=lambda pid: False):
 
 
 def multi_club(R):
-    """pids on two different club teams (mirror copies count as one team)."""
+    """pids on two different club teams (mirror copies count as one team). The copies are the roster's own
+    (layout_mirrors): on the game's own roster 222-233 are the player's custom teams, not Blues / Bruins ... (0.95.1)."""
     U = R.U
-    club = L.CLUB | set(L.MIRROR_OF)
+    mirror_of = {m: p for p, ms in layout_mirrors(R).items() for m in ms}
+    club = L.CLUB | set(mirror_of)
     teams = {}
     for i in range(U.cur_rec):
         t = U.get(i, 'BSXd')
         if t in club:
-            teams.setdefault(R.link_to_pid[U.get(i, 'TWSX')], set()).add(L.MIRROR_OF.get(t, t))
+            teams.setdefault(R.link_to_pid[U.get(i, 'TWSX')], set()).add(mirror_of.get(t, t))
     return {pid for pid, ts in teams.items() if len(ts) > 1}
 
 

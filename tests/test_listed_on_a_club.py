@@ -48,3 +48,17 @@ def test_a_player_on_a_club_and_the_free_agent_list_keeps_his_club_and_deal(base
     assert any(row[1] == 'taken off the free-agent list' and row[2] == 'Joe Sakic' for row in res.log)
     again = model.apply_edits(res.data, {}, {}, 2026)
     assert again.problems == [] and again.data == res.data
+
+
+def test_a_step_that_leaves_a_club_player_on_the_free_agent_list_is_mended_before_the_contracts(base_bytes):
+    """A step that lists a player who still has a club place (0.95.0: Nick Jensen and his prospect pool) no longer
+    fails verify: contracts() takes him off the list, as the start of the build does with the game's own doubles."""
+    R = Roster(base_bytes)
+    b = Builder(R, Data(season_year=2026))
+    club = next(t for t in sorted(L.CLUB) if t not in L.NHL_ALL and R.team_roster(t))
+    e = next(i for i in range(R.U.cur_rec) if R.U.get(i, 'BSXd') == club)
+    pid = b.pid_of_entry(e)
+    b.fa_links.append(b.new_link(pid))
+    b.contracts()
+    assert pid not in {R.link_to_pid.get(link) for link in b.fa_links}
+    assert any(row[1] == 'taken off the free-agent list' and row[2] == R.name(R.p_by_id[pid]) for row in b.log)
