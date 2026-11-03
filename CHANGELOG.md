@@ -3,7 +3,7 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## 0.95.0 (not released yet)
+## 0.95.0 (2026-11-03)
 
 **NHL Legacy Native.** The program now works with the PC port as well as with RPCS3. Pick `NHLLauncher.exe` or the port's
 folder in the same place you pick `rpcs3.exe`; the program works out the rest. Rosters, the Roster editor, careers, photos,
@@ -22,7 +22,7 @@ roster, crest, jerseys and arena. Their 68 games are in the Calendar tab. Season
 the Vees are not in careers and do not play in the game's own WHL calendar. On the unpatched game, RPCS3 or NHL Legacy
 Native, they are at the end of the custom teams, as **Custom Team 30** in Select Teams (the game numbers every custom team there),
 and from Starting Lineups on the game says Penticton Vees. A roster made from the game's own disc has no room for them
-there, so it has no Vees unless the game is patched.
+there, so it has no Vees unless the game is patched. The program's team list shows them under the WHL on every roster.
 
 **Apply names.** The Team names row has a new button. It changes only the team names, in seconds: no roster is saved and no
 picture is looked at.

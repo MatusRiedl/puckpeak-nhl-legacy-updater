@@ -422,7 +422,8 @@ def _port_pack(rpcs3):
     packs.sync(wanted=[PORT_PACK])
     path = packs.path(PORT_PACK)
     if path is None:
-        raise PatchError("The game patch could not be downloaded. Check your connection and try again.")
+        raise PatchError("The game patch could not be downloaded from our server. Check your connection and try again; "
+                         "if it keeps failing, tell us on Discord.")
     with zipfile.ZipFile(path) as z:
         index, body = json.loads(z.read('index.json')), z.read(PORT_FILE)
     if (int(index['stamp'], 16), int(index['image'], 16)) != savedata.exe_id(rpcs3.exe):
