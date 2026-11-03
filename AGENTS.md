@@ -77,7 +77,7 @@ The window carries the look and logo of **Puck Peak**, the owner's other NHL pro
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 on 2026-11-03, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -245,7 +245,9 @@ shootout, a quit filed by both sides), EU 1.01, EU 1.00, the port's AVX2 copy, p
 the app. Not seen: a normal match end with a goal, a real second CPU kind, the port's overlay / fullscreen, the public server (docs/notes/native-patch.md
 "Every pairing").
 
-**Version 0.95.0 (2026-11-02, committed locally, NOT released: waiting for the owner's final check; plan
+**Version 0.95.0 (released 2026-11-03 with the owner's go-ahead: commit 40d751f, tag `v0.95.0`, GitHub release with
+`PuckPeakLegacyUpdater.exe`, the Linux tar.gz and `SHA256SUMS.txt`; packs `looks` and `portpatch` were already on the server, the data
+pack of 2026-11-01 unchanged; plan
 docs/plans/we-have-big-job-cached-ladybug.md, PLAN.md top, notes docs/notes/native-port.md, lab-round-59.md):** (1) **NHL Legacy
 Native**, the PC port, as a second host (`savedata.Native`, `native.py`, one picture list per host). Played on a
 copy: rosters, pictures through `--compose`, a game, a Season to 22 Oct, a Be a NHL Pro career edited by the program. Not played
