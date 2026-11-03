@@ -77,7 +77,7 @@ The window carries the look and logo of **Puck Peak**, the owner's other NHL pro
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 on 2026-11-03, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -220,7 +220,7 @@ wording (`progress.py`).
 
 ## Current state
 
-**Hotfix 0.95.1 (2026-11-03, not released):** a tester's roster that began as the game's own (patched) failed verify:
+**Hotfix 0.95.1 (released 2026-11-03 with the owner's go-ahead: commit 74867b5, tag `v0.95.1`, GitHub release with `PuckPeakLegacyUpdater.exe`, the Linux tar.gz (Ubuntu / Fedora / Arch boxes passed) and `SHA256SUMS.txt`; no pack or server change):** a tester's roster that began as the game's own (patched) failed verify:
 "free agent Nick Jensen is also on Knights". The builder used `L.NHL_ALL` (the community layout's copies 222-233) where a
 roster from the disc has real custom teams there, so the NHL step listed Jensen as a free agent and left his places on 222 / 223.
 `Builder.nhl_all` (= NHL + this roster's copies) replaces it in `nhl_rosters`, `fill_empty_national` and `clubs.update_league`;
