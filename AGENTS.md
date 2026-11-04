@@ -220,6 +220,19 @@ wording (`progress.py`).
 
 ## Current state
 
+**Fix 0.95.2 (2026-11-04, built and played in the lab, released 2026-11-04 with the owner's go-ahead (tag `v0.95.2`, exe + Linux tar.gz + SHA256SUMS), pack `portpatch` 0.27 published the same day; owner: "do all 4 points"):** a
+tester's NHL Legacy Native crashed at the start of a Be a CHL Pro career (the round 44 bug, GAME_PATCH.md section 6). A patched CHL
+career had 128 team keys in a 7-bit field; key 127 (Victoria Royals) is the field's "no team". **Stage Z** (`gamepatch.STAGE_Z`, patch
+**0.27**, `TEAMS_VERSION`): `0x28715c` `bl 0x285740` (the Top Prospects maker, only in Be a Pro modes) -> nop (1.01 `0x28824c`,
+`patch101.py` regenerated); a career keeps 126 keys and has no Top Prospects game. `tools/audit_patch.py` 0 problems on EU 1.00, NA 1.00,
+1.01. Lab round 61 (docs/notes/lab-round-61.md): RPCS3 control crashed on 12 Sep, Z played to 13 Mar 2027 + save / reload; the port's DLL
+rebuilt (`private/packs/portpatch.zip` 0.27, the 0.26 one kept as `portpatch-026-20261103.zip.bak`), Patch again / Unpatch through the
+program, a CHL career to 22 Nov 2026. CHANGELOG 0.95.2, `__version__` 0.95.2. Then (owner: "do the testing ... rebuild exe and Linux and upload new patch"): a QMJHL career
+(Blace, Moncton) on the port to 13 Nov, 19 games, no crash; exe 0.95.2 built; **`portpatch` 0.27 published 2026-11-04**
+(`portpatch-8d77c107ac86.zip`), the program not released yet. **Pack and app go out together** (a 0.27 pack under 0.95.1
+or the 0.26 pack under 0.95.2 shows "Patch again" for ever; online word "0.27 exact"). Open: Quinn Kennedy (QMJHL) crashes loading his
+Be a Pro career with or without Z; the lab RPCS3's own hand-made patch files are lost (lab-round-61.md "The lab afterwards").
+
 **Hotfix 0.95.1 (released 2026-11-03 with the owner's go-ahead: commit 74867b5, tag `v0.95.1`, GitHub release with `PuckPeakLegacyUpdater.exe`, the Linux tar.gz (Ubuntu / Fedora / Arch boxes passed) and `SHA256SUMS.txt`; no pack or server change):** a tester's roster that began as the game's own (patched) failed verify:
 "free agent Nick Jensen is also on Knights". The builder used `L.NHL_ALL` (the community layout's copies 222-233) where a
 roster from the disc has real custom teams there, so the NHL step listed Jensen as a free agent and left his places on 222 / 223.

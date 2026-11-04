@@ -34,7 +34,7 @@ VERSIONS = ('01.00', '01.01')
 YEARS_LATER = 11                                         # 2015 -> 2026
 YEAR_ENTRY = "NHL Legacy year 2026 (test)"
 PATCH_VERSION = '0.9'                                    # 0.9: the Calendar screen's Home / Away marks
-TEAMS_VERSION = '0.26'                                   # 0.23: the roster's player rights in six bits, Vegas's too (lab round 42);
+TEAMS_VERSION = '0.27'                                   # 0.27: stage Z (Be a CHL Pro); 0.23: the roster's player rights in six bits, Vegas's too (lab round 42);
 #                                                          0.24: the same words, the news entry (NEWS_ENTRY) ticked with them;
 #                                                          0.25: the same words, also for update 1.01;
 #                                                          0.26: the year entry 0.9 (the Calendar screen's marks)
@@ -1059,6 +1059,18 @@ AHL_PACIFIC = (1, 7, 8, 13)
 WHL_BC = (11, 31, 32, 34)               # a club of the WHL's B.C. Division (Prince George, slot 204)
 LEAGUE_SLOTS = {234: AHL_PACIFIC, 235: AHL_PACIFIC, 251: WHL_BC}        # 251: the Vees (owner, 2026-11-02), in_the_roster
 
+# Stage Z, Be a CHL Pro (2026-11-04, docs/notes/chl-pro-key-127.md; lab rounds 44 / 59, a tester on NHL Legacy Native). A
+# career's teams get keys 0, 1, 2 ... (0x12d84c), 7 bits, room 128. With 32 NHL + 32 AHL teams a CHL career filled all 128:
+# NHL 0-31, AHL 32-63, All-Stars 64-65, the Top Prospects teams 66-67 (slots 214 / 215), the CHL 68-127. Key 127 (the last
+# WHL club) is also a 7-bit key field's "no team", and those careers crashed on the first days. The career setup 0x286e00
+# adds the Top Prospects teams last (0x285740: their keys go to settings 0x39 / 0x3a); without that call no key is stored,
+# 0x1635b4 gives -16 ("none") as in every career the game makes without them, and a CHL career has 126 teams.
+STAGE_Z = (
+    (0x28715c, 0x4bffe5e5, NOP, "career setup: nop (was bl 0x285740, the Top Prospects teams): a CHL career keeps 126 "
+                                "team keys, none of them 127"),
+)
+STAGE_Z_CAVES = ()
+
 # yearfirstsigned, yearprodebut, yearufa, yearwaivereligible: read against the league's own year, so year_shift leaves
 # them (patch 0.4 moved them 11 later; in Be a GM the game then wrote the league year into every debut year). yearufa is
 # then refitted from the shifted birth year (contracts.ufa_fit in patch_roster): birth + 27 on the league's own clock
@@ -1138,6 +1150,9 @@ TEAM_STAGES = (
     ("NHL Legacy 32 teams Y - Coachella Valley and Henderson in the AHL (test)", STAGE_Y, STAGE_Y_CAVES,
      "Coachella Valley and Henderson in the AHL's team lists (Play Now, Roster Management), with their own names, not "
      "under Custom Teams. Only with a roster made for it and the team names written by the NHL Legacy Roster Updater."),
+    ("NHL Legacy 32 teams Z - Be a CHL Pro (test)", STAGE_Z, STAGE_Z_CAVES,
+     "A Be a CHL Pro career no longer crashes in its first days. It leaves out the Top Prospects teams, so its teams fit "
+     "the room the game has for them. Only with all other 32-team entries."),
 )
 
 

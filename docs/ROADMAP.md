@@ -554,9 +554,10 @@ Notes docs/notes/lab-round-44.md. Played by the agent in the lab with a hand-mad
 - **Played:** made-up juniors on OHL and Liiga clubs are in a new Be a GM's 2027 pool and drafted by potential (a tier-1
   player went 2nd overall); AHL and teamless players are not pooled; the game fits potential into a band per growth tier
   (`draftclass.TIER_BANDS`). Be a NHL Pro lists NHL roster players, Be a CHL Pro the juniors.
-- **Bug, not fixed:** Be a CHL Pro crashes in the patched game, with an undrafted junior and (lab round 59) a drafted one when
-  the career has 128 team keys (GAME_PATCH.md section 6). Until
-  it is fixed, a made-up pro in the patched game should be on an NHL club or a drafted junior.
+- **Bug, fixed by stage Z (patch 0.27, lab round 61, 2026-11-04):** Be a CHL Pro crashed in the patched game (RPCS3 and the port) when
+  the career had 128 team keys (GAME_PATCH.md section 6). The career now leaves out the two Top Prospects teams (126 keys); played on
+  RPCS3 to March 2027 and on the port to late November. Goes out with 0.95.2 and the `portpatch` pack (players press Patch again).
+  Still open: Quinn Kennedy (QMJHL) crashes while his Be a Pro career loads, with or without Z (docs/notes/lab-round-61.md).
 - **Built (engine only, `'draft classes'` / `'new player records'` experimental):** `draftclass.py`, records held for
   new players (`edits.records_needed`, `Builder.hold_records`), `verify` checks the class. Not played: the second draft
   (June 2028), the face table, commentary names, the built exe.

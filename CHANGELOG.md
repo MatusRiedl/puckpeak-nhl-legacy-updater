@@ -3,6 +3,16 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.95.2 (2026-11-04)
+
+**Fixed: Be a CHL Pro crashed at the start of a career in the patched game** (32 teams), on RPCS3 and on NHL Legacy Native. The game
+has room for 128 teams in a Be a Pro career, and a junior's career with the 32-team patch needed exactly 128, one of which the game
+reads as "no team". Game patch 0.27 leaves the two Top Prospects teams out of Be a Pro careers, so everything fits. A Be a Pro career
+no longer has a Top Prospects game. Season mode and Be a GM are not changed.
+
+**What to do:** open the program and press **Patch again** on the Game patch tab (RPCS3 and NHL Legacy Native). A Be a CHL Pro
+career started before the fix still crashes: start it again after patching. Other careers keep going. To play online, both players need this version.
+
 ## 0.95.1 (2026-11-03)
 
 **Fixed: "The new roster failed the safety checks ... free agent Nick Jensen is also on Knights".** On a roster that began as the
