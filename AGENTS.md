@@ -77,7 +77,7 @@ The window carries the look and logo of **Puck Peak**, the owner's other NHL pro
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -220,7 +220,7 @@ wording (`progress.py`).
 
 ## Current state
 
-**Fix 0.95.2 (2026-11-04, built and played in the lab, released 2026-11-04 with the owner's go-ahead (tag `v0.95.2`, exe + Linux tar.gz + SHA256SUMS), pack `portpatch` 0.27 published the same day; owner: "do all 4 points"):** a
+**Fix 0.95.2 (2026-11-04, built and played in the lab, released 2026-11-04 with the owner's go-ahead (commit 1f7425f, tag `v0.95.2`, GitHub release with the exe, the Linux tar.gz (Ubuntu / Fedora / Arch passed) and `SHA256SUMS.txt`), pack `portpatch` 0.27 published the same day; owner: "do all 4 points"):** a
 tester's NHL Legacy Native crashed at the start of a Be a CHL Pro career (the round 44 bug, GAME_PATCH.md section 6). A patched CHL
 career had 128 team keys in a 7-bit field; key 127 (Victoria Royals) is the field's "no team". **Stage Z** (`gamepatch.STAGE_Z`, patch
 **0.27**, `TEAMS_VERSION`): `0x28715c` `bl 0x285740` (the Top Prospects maker, only in Be a Pro modes) -> nop (1.01 `0x28824c`,
