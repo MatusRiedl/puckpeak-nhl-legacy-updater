@@ -77,7 +77,7 @@ The window carries the look and logo of **Puck Peak**, the owner's other NHL pro
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, 0.96.0 on 2026-11-05, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -220,7 +220,7 @@ wording (`progress.py`).
 
 ## Current state
 
-**Version 0.96.0 (2026-11-05, built in the working tree, tests green apart from what is listed below, NOT committed; plan docs/plans/quiet-soaring-beaver.md, notes docs/notes/skin-tones.md):**
+**Version 0.96.0 (2026-11-05, RELEASED the same day with the owner's go-ahead: tag `v0.96.0` on 8b25f19, GitHub release with the exe, the Linux tar.gz (Ubuntu / Fedora / Arch passed) and `SHA256SUMS.txt`; open: players on scanned heads (Byfield, head 2176) keep a light face, planned 0.96.1; plan docs/plans/quiet-soaring-beaver.md, notes docs/notes/skin-tones.md):**
 four asks of the owner. (1) **Native forgot its patch state**: `scan()` read `patchinstall.state` before `art_install.use_host(found)`, so
 `_port_entry` read RPCS3's list; `use_host` now comes first (also "Switch to"), `_port_entry` reads the host's list explicitly, the DLL's entry is
 keyed by `os.path.normcase(folder)` (old key still read). RPCS3 was never affected. tests/test_native.py (a new controller after Patch still
