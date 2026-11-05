@@ -71,7 +71,7 @@ Questions or ideas? Come to our [Discord](https://gg.puckpeak.com) (the **Join o
 | Draft prospects | Undrafted prospects of the next drafts play for a real club of their country (the CHL for North Americans), where the game's draft finds them, instead of on custom "Prospects" teams | the community roster's prospect lists |
 | Photos and logos | Today's player photos and club logos in the game's menus (the National League publishes no photos) | the leagues' sites, downloaded on your PC (see below) |
 | Team names | Real team names and short codes (Utah, Seattle, Vegas, rebuilt clubs) in Select Teams and on the scoreboard; nothing to download | made on your PC |
-| This season's jerseys and centre ice, arenas, team goalie masks | Optional picture switches, each downloads only its own small pack (see below) | downloaded from the program's file server |
+| This season's jerseys, this season's centre ice, community centre ice, arenas, team goalie masks | Optional picture switches, each downloads only its own small pack (see below) | downloaded from the program's file server |
 | Goalie equipment | A goalie who changed teams wears his new team's colours | the team's colours in the game |
 
 Everything is switched on to start with; switch off what you do not want. Every part passes the
@@ -222,7 +222,7 @@ with it, so you download only what you want:
 |---|---|---|
 | Photos and logos: Player photos and team logos | Current player photos and club logos | about 105 MB |
 | Team names | Real team names and short codes, the main menu texts | none |
-| Photos and logos: This season's jerseys and centre ice | New jerseys with their own names and numbers, pants, socks and centre-ice logos; 30 NHL teams get centre-ice logos with the arenas' current names, the clubs this season's (Seattle and Vegas play at home on Nashville's) | about 88 MB |
+| Photos and logos: This season's jerseys and centre ice (two switches: jerseys, centre ice) | New jerseys with their own names and numbers, pants, socks and centre-ice logos; 30 NHL teams get centre-ice logos with the arenas' current names, the clubs this season's (Seattle and Vegas play at home on Nashville's) | about 88 MB |
 | Photos and logos: NHL arenas | Newer boards and banners in the 32 NHL arenas | about 13 MB |
 | Photos and logos: Team goalie masks | The goalie masks of the teams | about 3 MB |
 

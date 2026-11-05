@@ -48,7 +48,7 @@ import re
 from collections import namedtuple
 
 from .. import layout as L
-from . import clubart, rpsgl
+from . import clubart, parts, rpsgl
 
 STYLE = 1
 CHASSIS_ART = 22                   # Utah's (Arizona's) own files are the chassis
@@ -2126,12 +2126,34 @@ def _art_patterns():
     return out
 
 
-def install_looks(rpcs3, title_id, looks, say=print, also=(), look_pack=None, only=None):
+def split_looks(made, jerseys=True, centres=True):
+    """`made` (looks_from) for the two switches "This season's jerseys" and "This season's centre ice" (0.96.0): with
+    `centres` off the pack's centre ice becomes the game's own; with `jerseys` off only the pack's centre ice is left (no
+    kits). Both on: as they are (the digest of every look stays, so nothing is made again)."""
+    if jerseys and centres:
+        return list(made)
+    out = []
+    for m in made:
+        packed = str(m.centre).startswith('pack:')
+        if jerseys:
+            m = m._replace(centre='game') if packed else m
+            if m.centre == 'game' and not (m.versions or m.files or m.pack):
+                continue
+        elif packed:
+            m = m._replace(versions=(), files=(), pack=())
+        else:
+            continue
+        out.append(m)
+    return out
+
+
+def install_looks(rpcs3, title_id, looks, say=print, also=(), look_pack=None, only=None, kind=None):
     """Make the files of `looks` from the player's disc and write them into the game folder(s) (RPCS3 closed), with kept
     copies of anything replaced and the manifest "Restore the game's own pictures" uses. Returns how many files were
     written; a look that is installed already is skipped, and a file an earlier run wrote that no look wants any more
     is put back as the game had it. `look_pack`: the pack's pictures, for looks with pack kits. `only` (art ids): `looks` are
-    those teams' alone, so only their files are put back (path_art); None: `looks` are every team's."""
+    those teams' alone, so only their files are put back (path_art); None: `looks` are every team's. `kind`: 'jerseys'
+    or 'centres' when only one of this season's two switches is on: the files of the other kind stay as they are."""
     from . import install
     from .lab import Disc
     install.check(rpcs3, title_id)
@@ -2157,6 +2179,8 @@ def install_looks(rpcs3, title_id, looks, say=print, also=(), look_pack=None, on
                 written += 1
             writer.save()
         for key in writer.stale('looks:', wanted):                   # chosen "the game's own" since the last time
+            if kind and parts.writes_centre(key) != (kind == 'centres'):
+                continue
             if only is None or path_art(key) in only:
                 writer.drop(tuple(key.split('/')))
     finally:

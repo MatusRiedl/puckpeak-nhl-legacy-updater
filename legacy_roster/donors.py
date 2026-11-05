@@ -17,6 +17,7 @@ import zlib
 from collections import Counter
 
 from . import layout as L
+from . import faces
 from .faces import RESERVED
 from .matching import norm
 
@@ -68,9 +69,14 @@ class Donors:
         self.spare = {pos: [] for pos in range(5)}   # other teamless records, oldest first
         self.reserved = set()                        # normalised (first, last) of people in the data
         heads, home = Counter(), {}
+        pool, eyes = {}, {}      # every generic head the roster's records wear, by skin group (and the eye colour they carry)
         for i in range(P.cur_rec):
             pid = P.get(i, 'zIBw')
             country = P.get(i, 'hleL')
+            if P.get(i, 'DaPp') >= GENERIC_HEAD and P.get(i, 'QDTK') in faces.BUCKET_OF:
+                group = faces.BUCKET_OF[P.get(i, 'QDTK')]
+                pool.setdefault(group, Counter())[(P.get(i, 'DaPp'), P.get(i, 'QDTK'))] += 1
+                eyes.setdefault(group, Counter())[P.get(i, 'jfuZ')] += 1
             if R.entries_by_pid.get(pid):
                 home.setdefault(country, Counter())[P.get(i, 'IxvQ')] += 1
                 if P.get(i, 'DaPp') >= GENERIC_HEAD and not P.get(i, 'LcvS'):
@@ -92,6 +98,14 @@ class Donors:
             skin[colour] += n
         usual = skin.most_common(1)[0][0] if skin else 1
         self.generic_heads = sorted(k for k in heads if k[1] == usual) or [(GENERIC_HEAD, 1)]
+        # the same by skin group: a new player whose photo (or country) says another skin gets a head of that group
+        wears = {}      # a head shows one skin whatever the field says: a head goes to the group that most records wear it in
+        for g, c in pool.items():
+            for (head, _skin), n in c.items():
+                wears.setdefault(head, Counter())[g] += n
+        self.group_heads = {g: sorted(k for k in c if wears[k[0]].most_common(1)[0][0] == g) for g, c in pool.items()}
+        self.group_eyes = {g: c.most_common(1)[0][0] for g, c in eyes.items()}
+        self.country_group = {L.NAT_CODE[c]: g for c, g in faces.COUNTRY_SKIN.items() if c in L.NAT_CODE}
         # the usual birth-state code per country (Ontario for Canada, ...)
         self.home_state = {c: cnt.most_common(1)[0][0] for c, cnt in home.items()}
 
@@ -180,15 +194,60 @@ class Donors:
         """People named in the data being applied: their existing records are not for reuse."""
         self.reserved.update((norm(p['first']), norm(p['last'])) for p in people)
 
+    def group_for(self, name, birth_year=None, country_code=None):
+        """The skin group a player's looks ask for ('medium', 'brown' or 'dark'), None for the game's usual one: the data
+        pack's `skins` (his photo; the birth year may be one off), else his country's (faces.COUNTRY_SKIN), else None."""
+        for year, group in (self.b.data.skins or {}).get(norm(name), ()):
+            if birth_year is None or abs(year - birth_year) <= 1:
+                return group
+        return self.country_group.get(country_code)
+
+    def head_of(self, name, group):
+        """A generic head (head id, skin) of the skin group `group` for the person `name`: the same one every run
+        (a hash of the name). None when the roster has no head of that group."""
+        heads = self.group_heads.get(group)
+        return heads[zlib.crc32(name.encode()) % len(heads)] if heads else None
+
+    def fit_skins(self, log=None):
+        """Players on a generic head of the wrong skin: the game gave the light ones to almost everybody. A player
+        whose photo or country asks for another group (`group_for`) and who wears a head of a lighter group gets a
+        head of his own (brown / dark from the photos: only from light or medium; medium from the country: only from
+        light). Never a head the game scanned (below 60000), a created head, or a record of the game's Create Player.
+        Doing it again changes nothing. Returns how many players changed."""
+        b, P = self.b, self.b.P
+        rank = {'light': 0, 'medium': 1, 'brown': 2, 'dark': 3}
+        changed = 0
+        for i in range(P.cur_rec):
+            head = P.get(i, 'DaPp')
+            now = faces.BUCKET_OF.get(P.get(i, 'QDTK'))
+            if head < GENERIC_HEAD or now is None or faces.is_reserved(P, i):
+                continue
+            name = f"{P.get(i, 'PedH')} {P.get(i, 'RMbQ')}"
+            want = self.group_for(name, real_birth_year(P, i, b.stale_years), P.get(i, 'hleL'))
+            if want is None or rank[want] <= rank[now] or (want == 'medium' and now != 'light'):
+                continue
+            new = self.head_of(name, want)
+            if new is None:
+                continue
+            P.set(i, 'DaPp', new[0])
+            P.set(i, 'QDTK', new[1])
+            P.set(i, 'jfuZ', self.group_eyes.get(want, P.get(i, 'jfuZ')))
+            changed += 1
+        return changed
+
     def reset_identity(self, prow, name, country_code=None, birth_year=None):
         """Wipe what belonged to the record's previous owner."""
         b, P = self.b, self.b.P
         P.set(prow, 'LcvS', 0)        # hasportrait
         P.set(prow, 'rnOl', 0)        # artid (menu portrait)
         P.set(prow, 'Nzao', 0)        # audioid (commentary name)
-        head, skin = self.generic_heads[zlib.crc32(name.encode()) % len(self.generic_heads)]
+        group = self.group_for(name, birth_year, country_code)
+        own = self.head_of(name, group) if group else None
+        head, skin = own or self.generic_heads[zlib.crc32(name.encode()) % len(self.generic_heads)]
         P.set(prow, 'DaPp', head)     # headid: a generic head model, never the previous owner's
         P.set(prow, 'QDTK', skin)
+        if own:
+            P.set(prow, 'jfuZ', self.group_eyes.get(group, P.get(prow, 'jfuZ')))
         P.set(prow, 'WzKY', UNDRAFTED)
         for f in ('Ujcc', 'WfTt', 'uWgv', 'WBbd', 'yNbZ', 'MHEA'):   # draft round/position/team, proteam, junior team/league
             P.set(prow, f, 0)

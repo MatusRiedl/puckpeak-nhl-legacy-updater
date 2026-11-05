@@ -222,7 +222,7 @@ def _games_of(rpcs3, games, source):
 
 def run(out_root=None, source=None, rpcs3=None, steps=pipeline.ALL_STEPS, targets=None, name=None, photos=False,
         game_patch=False, intro=True, login=False, my_edits=None, team_edits=None, progress=None, offline=False, data=None,
-        games=None, now=None, system=None, art_parts=None):
+        games=None, now=None, system=None, art_parts=None, ice_order=None):
     """Make the update and write its files into a new folder in `out_root` (default: next to the program).
 
     `source`: the roster to start from: a savedata.Slot (a roster save of `rpcs3`, or of a save folder), a DiscSlot (the
@@ -274,7 +274,7 @@ def run(out_root=None, source=None, rpcs3=None, steps=pipeline.ALL_STEPS, target
             result = pipeline.update(work_savedata, folder, steps, name, progress, offline=offline, data=data,
                                      art_rpcs3=target if photos else None, art_registry=registry, my_edits=my_edits,
                                      team_edits=team_edits, targets=targets, disc=disc_slot, rpcs3=target,
-                                     game_patch=bool(game_patch), art_parts=art_parts)
+                                     game_patch=bool(game_patch), art_parts=art_parts, ice_order=ice_order)
             if result.slot is None:                # the safety checks failed: nothing is kept
                 return ExportResult(result)
             entries = []

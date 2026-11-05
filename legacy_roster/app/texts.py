@@ -67,14 +67,19 @@ PICTURE_ROWS = {
                PHOTOS_SIZE),
     'names': ("Team names", "Team names and short codes in Select Teams and on the scoreboard, and the main menu texts. "
                             "RPCS3 must be closed.", 0),
-    'looks': ("This season's jerseys and centre ice", "New jerseys, pants and socks for the teams, and new centre-ice "
-                                                      "logos: 30 NHL teams with the arenas' current names.", 55 * 1000 * 1000),
+    'looks': ("This season's jerseys", "New jerseys, pants and socks for the teams.", 55 * 1000 * 1000),
+    'pack_ice': ("This season's centre ice", "New centre-ice logos for the NHL teams, Seattle, Vegas and the clubs whose "
+                                             "home games show them. The DEL clubs and the national teams keep the game's "
+                                             "own. Comes in the same download as the jerseys.", 55 * 1000 * 1000),
+    'bright_ice': ("Community centre ice", "The community's centre-ice logos for 30 NHL teams, with the arenas' current "
+                                           "names. Switch on both centre ices and the one you switch on second lies over "
+                                           "the first.", 6 * 1000 * 1000),
     'arenas': ("NHL arenas", "New boards and banners in the NHL arenas.", 13 * 1000 * 1000),
     'team_masks': ("Team goalie masks", "The goalie masks of the teams.", 3 * 1000 * 1000),
 }
 PICTURE_SIZES = {pack: PICTURE_ROWS[key][2] for pack, key in (('photos', 'photos'), ('looks', 'looks'), ('arenas', 'arenas'),
                                                                       ('masks', 'team_masks'))}
-PICTURE_SIZES['ice'] = 6 * 1000 * 1000      # the new centre ice, downloaded with this season's (0.80.0); about how big, before the server says
+PICTURE_SIZES['ice'] = PICTURE_ROWS['bright_ice'][2]      # the community centre ice (0.96.0 a row of its own); about how big, before the server says
 PICTURE_NAMES_OFF = "Off: the game keeps its own team names."
 NAMES_TIP = "Writes the team names of the roster you picked now. Your rosters and your graphics are not touched."
 NAMES_DONE = "Team names are in. Your graphics were not touched."
@@ -82,7 +87,7 @@ PICTURE_NO_DOWNLOAD = "Nothing to download."
 SAVED_DESPITE = ("The roster is saved: you can load it in the game. The details of what went wrong are in {log}; "
                  "send that file with a bug report.")
 SAVED_SOME_FAILED = "Something after the save went wrong."
-LOOKS_MISSING = "This season's jerseys come with the switch \"This season's jerseys and centre ice\" (Update tab)."
+LOOKS_MISSING = "This season's jerseys come with the switch \"This season's jerseys\" (Update tab)."
 # the line under each jersey version in the Jerseys & ice tab: what its socks and pants become (testers, 2026-11-03)
 LEGS_PACK = "Socks and pants: this season's"
 LEGS_MADE = "Socks and pants: made in the jersey's colours"

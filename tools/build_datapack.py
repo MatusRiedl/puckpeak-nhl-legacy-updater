@@ -29,6 +29,8 @@ The pack holds everything the updater does not fetch live:
                  (--refresh ratings_full [--db FILE], no network)
     retired      players who announced their retirement, kept by hand in tools/retired.json (copied on every build;
                  NHL.com marks no retirement); the unsigned of last season aged 38+ retire without it (builder)
+    skins        the skin group (medium / brown / dark) of players whose photos say so, kept by hand in tools/skin_marks.json
+                 (copied on every build; the builder gives created players a head that fits: donors.py `group_for`)
     equipment    the real sock tuck, pants, tape and neck guard of the NHL's and AHL's players, as raw numbers
                  (--refresh equipment [--db FILE], no network; `datasource.equipment_part`)
     club_lines   the clubs' real lines outside the NHL, per club slot: the Extraliga's match line-ups (--refresh
@@ -530,6 +532,15 @@ def main():
             pack['equipment'] = json.load(f)
         pack['sources']['equipment'] = {'label': "Real equipment of NHL and AHL players", 'date': file_date(cache),
                                         'count': len(pack['equipment']['players'])}
+
+    # the skin groups of players whose photos show brown or dark skin, kept by hand (tools/skin_marks.json, docs/notes/skin-tones.md)
+    marks = os.path.join(ROOT, 'tools', 'skin_marks.json')
+    if os.path.exists(marks):
+        with open(marks, encoding='utf-8') as f:
+            players = json.load(f)
+        pack['skins'] = {'format': datasource.SKINS_FORMAT, 'players': players}
+        pack['sources']['skins'] = {'label': "Skin groups of players (from their photos)", 'date': file_date(marks),
+                                    'count': len(players)}
 
     old = datasource.read_pack(args.out) if os.path.exists(args.out) else None
     for key in PRIVATE_PARTS:                 # no private maker and no cache: keep what the pack has

@@ -6,10 +6,12 @@ from .. import datasource
 FILE = 'settings.json'
 PHOTOS = 'photos'           # the "Photos and logos" switch in settings['steps'] (before 0.76.0 also names and jerseys)
 NAMES, LOOKS, ARENAS, BRIGHT_ICE, TEAM_MASKS = 'names', 'looks', 'arenas', 'bright_ice', 'team_masks'    # 0.76.0: switches of their own
-PICTURE_KEYS = (PHOTOS, NAMES, LOOKS, ARENAS, BRIGHT_ICE, TEAM_MASKS)     # the rows of art/parts.py (same words)
+PACK_ICE = 'pack_ice'       # 0.96.0: this season's centre ice, a switch of its own (before it came with `looks`)
+ICE_ORDER = 'ice_order'     # 0.96.0: the two centre-ice keys in the order they were switched on (the second lies on top)
+PICTURE_KEYS = (PHOTOS, NAMES, LOOKS, PACK_ICE, ARENAS, BRIGHT_ICE, TEAM_MASKS)     # the rows of art/parts.py (same words)
 PICTURES = 'pictures'    # the Update tab's group row "Photos and logos": switches GROUP together, never stored
-GROUP = (PHOTOS, LOOKS, ARENAS, TEAM_MASKS)     # what the group holds; team names are a row of their own
-TOGETHER = {LOOKS: (LOOKS, BRIGHT_ICE)}     # 0.80.0 (owner): the new centre ice comes with this season's, no row of its own
+GROUP = (PHOTOS, LOOKS, PACK_ICE, BRIGHT_ICE, ARENAS, TEAM_MASKS)     # what the group holds; team names are a row of their own
+TOGETHER = {}               # rows that switch more than one part (none since 0.96.0: the centre ice has rows of its own)
 EDITS = 'edits'             # the "My edits" switch
 GAME_PATCH = 'game_patch'   # "32 teams and the year 2026 (game patch)"
 SKIP_INTRO, NO_LOGIN = 'skip_intro', 'no_login'     # its two small switches (on / off at first)
@@ -25,7 +27,7 @@ BOTH = "EU + NA"
 
 
 def row_parts(keys):
-    """The picture parts the rows `keys` switch (TOGETHER): "This season's jerseys and centre ice" also the new centre ice."""
+    """The picture parts the rows `keys` switch (TOGETHER)."""
     return tuple(p for k in keys for p in TOGETHER.get(k, (k,)))
 
 

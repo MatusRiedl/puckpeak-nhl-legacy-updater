@@ -364,6 +364,18 @@ def test_patch_and_unpatch_on_the_port(patched_port, port):
     assert not patchinstall.patched_titles(patched_port) and not patchinstall.installed(patched_port)
 
 
+def test_a_patched_port_is_still_patched_after_a_restart(patched_port, port):
+    """0.95.2 read RPCS3's list at the first scan after a start (the port's list was chosen only later), so a patched port
+    showed 'not patched'. The state follows the port asked about, whatever game the program used last."""
+    title = savedata.NATIVE_TITLE
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    install.use_host(None)                                  # a new start: no game chosen yet
+    found = savedata.find_rpcs3(str(port))
+    assert patchinstall.state(found)[title]['patched'] and patchinstall.installed(found)
+    again = savedata.find_rpcs3(str(port).swapcase() if os.name == 'nt' else str(port))     # the same folder spelled another way
+    assert patchinstall.state(again)[title]['patched']
+
+
 def test_the_launcher_must_be_closed_it_holds_the_patch_file(patched_port, port, monkeypatch):
     title = savedata.NATIVE_TITLE
     patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)

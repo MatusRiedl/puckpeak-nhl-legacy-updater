@@ -433,7 +433,9 @@ def _port_pack(rpcs3):
 
 def _port_entry(rpcs3):
     """The list's line for our patch file next to NHLLegacy.exe, None when it is not there or is not ours any more."""
-    entry = install.load_manifest(STORE)['games'].get(rpcs3.folder, {}).get(PORT_FILE)
+    games = install.load_manifest(STORE, host=install.host_key(rpcs3))['games']     # this port's list, whatever game was used last
+    want = os.path.normcase(rpcs3.folder)           # D:\... and d:\... are the same folder
+    entry = next((files for folder, files in games.items() if os.path.normcase(folder) == want), {}).get(PORT_FILE)
     path = os.path.join(rpcs3.folder, PORT_FILE)
     return entry if entry and os.path.isfile(path) and install.ours(entry, path) else None
 
@@ -787,7 +789,7 @@ def installed_rights(rpcs3, title):
 def installed(rpcs3):
     """Is anything of the patch in (a switch, our patch file, a db file): what Unpatch would take out."""
     if rpcs3 is not None and rpcs3.native:
-        return any(install.load_manifest(STORE)['games'].values())
+        return any(install.load_manifest(STORE, host=install.host_key(rpcs3))['games'].values())
     if rpcs3 is not None and not rpcs3.patchable:
         return False
     text = _read_config(rpcs3) if rpcs3 is not None else ''

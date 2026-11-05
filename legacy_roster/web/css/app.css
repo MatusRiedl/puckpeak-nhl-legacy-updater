@@ -273,8 +273,10 @@ input.field:disabled { color: var(--faint); }
 .step.featured:hover { background: linear-gradient(90deg, rgba(242, 185, 51, .22), rgba(242, 185, 51, .12) 45%, rgba(242, 185, 51, .06)); }
 .step.featured.restoring { box-shadow: inset 3px 0 0 var(--amber), inset 0 0 0 1px rgba(224, 178, 90, .3); }
 .step.featured .sub { color: var(--gold-hi); font-weight: 600; }
-.step .arrow { background: none; border: 0; color: var(--gold-hi); cursor: pointer; font-size: 17px; padding: 0 7px 0 0; line-height: 1;
-  transition: transform .15s var(--ease); }
+.step .arrow { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin: -2px 10px 3px 0;
+  vertical-align: middle; background: rgba(242, 185, 51, .14); border: 1px solid var(--gold-hi); border-radius: 4px; color: var(--gold-hi);
+  cursor: pointer; font-size: 17px; padding: 0 0 0 2px; line-height: 1; transition: transform .15s var(--ease), background .15s var(--ease); }
+.step .arrow:hover { background: rgba(242, 185, 51, .3); }
 .step .arrow.open { transform: rotate(90deg); }
 .stepgroup .kids { display: grid; gap: 2px; margin: 2px 0 0 18px; }
 .step.child { padding: 5px 10px; }

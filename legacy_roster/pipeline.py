@@ -8,7 +8,7 @@ import sys
 import traceback
 from collections import Counter
 
-from . import contracts, datasource, draft, gamepatch, restore, savedata, schedule, sticks, stock
+from . import contracts, datasource, draft, faces, gamepatch, restore, savedata, schedule, sticks, stock
 from . import layout as L
 from .builder import FREE_AGENTS, REPAIRS, Builder, Data, drop_removed_player
 from .leagues import clubs, pools
@@ -531,6 +531,12 @@ def build(source, data, steps=ALL_STEPS, progress=None, check=True, art_registry
         swapped = sticks.team_sticks(R, skip=b.deleted)     # not by a place the player is leaving
         if swapped:
             log.append(['ALL', 'summary', "sticks in team colours", len(swapped), ''])
+    if (set(steps) - {RATINGS, SCHEDULE}) and (b.data.skins or faces.COUNTRY_SKIN):
+        # created players in a skin their photo or country does not fit (only when a step that places players runs)
+        log.section = SECTION_PLAYER_DATA
+        fitted = b.donors.fit_skins()
+        if fitted:
+            log.append(['ALL', 'summary', "players given a head that fits their photo or country", fitted, ''])
     if NHL in steps and b.data.equipment:       # how the players really dress: before the player's own choices, which win
         log.section = SECTION_PLAYER_DATA
         real = b.real_equipment()
@@ -780,7 +786,7 @@ def write_report(result, title, heading=None, leagues=None):
 def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress=None,
            offline=False, dry_run=False, data=None, art_rpcs3=None, art_registry=None, my_edits=None,
            team_edits=None, targets=None, disc=None, in_place=False, backup_root=None, restore_parts=None,
-           default=None, rpcs3=None, game_patch=None, art_parts=None, also_looks=()):
+           default=None, rpcs3=None, game_patch=None, art_parts=None, also_looks=(), ice_order=None):
     """The whole job: read the chosen roster save, gather data, build, check, write a new save.
 
     `save_folder`: anything savedata.find_savedata() accepts. `source_folder`: the roster save to
@@ -790,7 +796,8 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
     `art_rpcs3` (a savedata.Rpcs3) switches photos and logos on: they are installed into that
     RPCS3's game folders (one per target) after the new roster is saved (RPCS3 must be closed). `art_parts` (art/parts.py)
     says which: default team names, photos and logos, and this season's jerseys and centre ice (the one switch of before
-    0.76.0); the arenas, bright ice and team masks are asked for by name.
+    0.76.0); the arenas, community centre ice and team masks are asked for by name. `ice_order`: the two centre-ice parts
+    (art/parts.py PACK_ICE, BRIGHT_ICE) in the order they were switched on, the second lies over the first.
     `disc` (a savedata.DiscSlot) starts from the game's own roster on the player's disc instead of a
     roster save; `save_folder` is then the save folder itself (it may not exist yet).
     `in_place` updates the chosen roster save itself instead of making a new one (savedata.update_in_place:
@@ -883,7 +890,7 @@ def update(save_folder, source_folder=None, steps=ALL_STEPS, name=None, progress
             shown = frozenset(art_parts) if art_parts is not None else art_kinds.LEGACY
             pictures = Pictures(pic_rpcs3, art_title, targets, own_only=own, registry=art_registry, say=say,
                                 parts=frozenset() if own else shown, looks_for=looks_for,
-                                season_looks=art_kinds.LOOKS in shown)
+                                season_looks=art_kinds.LOOKS in shown, ice_order=ice_order)
         except install.ArtError as err:
             if not own:
                 raise
@@ -1076,7 +1083,7 @@ class Pictures:
     (RPCS3 runs, no disc)."""
 
     def __init__(self, rpcs3, title_id, targets=None, own_only=False, registry=None, say=None, parts=None, looks_for=(),
-                 season_looks=True):
+                 season_looks=True, ice_order=None):
         from .art import install, portraits
         from .art import parts as P
         say = say or (lambda msg: None)
@@ -1085,6 +1092,7 @@ class Pictures:
         self.own_only = not self.photos         # photos and logos are off: the player's own pictures only
         self.names_on = P.NAMES in self.parts
         self.looks_for, self.season_looks = frozenset(looks_for or ()), season_looks
+        self.ice_order = P.ice_order(ice_order, self.parts)     # the centre-ice parts that are on, the first switched on first
         install.check(rpcs3, title_id, own=not self.parts)
         self.rpcs3, self.title_id = rpcs3, title_id
         self.targets = list(targets or [title_id])
@@ -1118,9 +1126,14 @@ class Pictures:
             if self.photos:
                 install.give_back((set(self.moved) | self.claims.contested()) - set(portraits_), say)
             new_ice, own_ice = self.new_centres(result)
-            if P.LOOKS in self.parts:
+            # two sets of centre ice can be on: the one switched on second is laid over the first
+            pack_wins = len(self.ice_order) == 2 and self.ice_order[1] == P.PACK_ICE
+            by_pack = set()             # the art ids this season's centre ice has (filled by install_looks)
+            if P.LOOKS in self.parts or P.PACK_ICE in self.parts:
                 look_teams = install_looks(result, self.rpcs3, self.title_id, self.targets, say,
-                                           new_ice=new_ice - own_ice)
+                                           new_ice=set() if pack_wins else new_ice - own_ice,
+                                           jerseys=P.LOOKS in self.parts, centres=P.PACK_ICE in self.parts,
+                                           covered=by_pack)
             elif self.looks_for:
                 look_teams = install_looks(result, self.rpcs3, self.title_id, self.targets, say, only=self.looks_for,
                                            season=self.season_looks)
@@ -1132,7 +1145,8 @@ class Pictures:
             if P.ARENAS in self.parts:
                 install_arenas(result, self.rpcs3, self.title_id, self.targets, say)
             if P.BRIGHT_ICE in self.parts:
-                install_bright_ice(result, self.rpcs3, self.title_id, self.targets, say, keep=own_ice)
+                install_bright_ice(result, self.rpcs3, self.title_id, self.targets, say,
+                                   keep=own_ice | (by_pack if pack_wins else set()))
             if P.TEAM_MASKS in self.parts:
                 install_team_masks(result, self.rpcs3, self.title_id, self.targets, say)
             art = (0, 0, 0)
@@ -1149,9 +1163,9 @@ class Pictures:
         return art, look_teams, bool(skipped)
 
     def new_centres(self, result):
-        """(the art ids the new centre ice has, the art ids among them whose centre the player chose in Jerseys & ice),
-        both empty while its switch is off or its pack is not here. Which centre a team gets: the player's own choice,
-        else the new centre ice, else this season's, else the game's."""
+        """(the art ids the community centre ice has, the art ids among them whose centre the player chose in Jerseys &
+        ice), both empty while its switch is off or its pack is not here. Which centre a team gets: the player's own choice,
+        else the one of the two sets switched on second, else the one switched on first, else the game's."""
         from .art import brightice
         from .art import parts as P
         from .art.extrapack import ExtraPack
@@ -1171,14 +1185,17 @@ class Pictures:
         return covered, own & covered
 
 
-def install_looks(result, rpcs3, title, targets, say, new_ice=(), only=None, season=True):
+def install_looks(result, rpcs3, title, targets, say, new_ice=(), only=None, season=True, jerseys=True, centres=True,
+                  covered=None):
     """The new jerseys, pants, socks, menu pictures and centre-ice logos (art/looks.py): Utah, Seattle and Vegas, the
     teams the player gave a look, and this season's jerseys and centre ice for every team the program's look pack has
     (art/lookpack.py), made from the player's own disc, with the photos and logos. A logo that cannot be had leaves the
     jerseys out, the rest goes on; a team the pack cannot dress gets a row in the list of changes. `new_ice`: art ids
     whose centre ice the new centre ice (install_bright_ice) gives; their looks leave the centre to it. `only`: these slots
     alone (the Roster editor's Save; `season`: with this season's kits, else the game's own where the player chose
-    nothing), the files of other teams stay as they are.
+    nothing), the files of other teams stay as they are. `jerseys` / `centres`: this season's jerseys and this season's
+    centre ice are two switches (0.96.0); one alone leaves the other's files as they are. `covered` (a set) gets the art
+    ids whose centre ice this season's pack writes.
     Returns how many teams get this season's jerseys or centre ice (with `only`: how many of those teams' looks went in)."""
     from .art import looks
     from .art.lookpack import LookPack
@@ -1208,9 +1225,12 @@ def install_looks(result, rpcs3, title, targets, say, new_ice=(), only=None, sea
     for slot, why in no_ice:
         result.log.append(['', "Centre ice not installed", R.team_name(slot), why, '', SECTION_PICTURES])
     made = [m._replace(centre=looks.OTHER) if m.art in new_ice else m for m in made]
+    made = looks.split_looks(made, jerseys, centres)
+    if covered is not None:
+        covered.update(m.art for m in made if str(m.centre).startswith('pack:'))
     if made or scope:
         looks.install_looks(rpcs3, title, made, say, also=[t for t in targets if t != title], look_pack=look_pack,
-                            only=scope)
+                            only=scope, kind=None if jerseys and centres else 'jerseys' if jerseys else 'centres')
     if only is not None:
         return len(made)
     return sum(1 for m in made if m.pack or str(m.centre).startswith('pack:'))

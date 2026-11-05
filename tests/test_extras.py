@@ -156,7 +156,7 @@ def test_a_centre_ice_file_of_another_kind_or_an_old_pack_is_left_as_it_is(base_
 INSTALL_BRIGHT = brightice.install_bright
 
 
-def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own):
+def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own, order=None):
     """One update's pictures with this season's looks for art 7 and 22 (covered by the new centre ice) and 30 (not
     covered): looks.install_looks is a stand-in that writes the centre and rink files a look names (looks.look_paths) and
     puts back the ones it no longer makes, as the real one does. Returns how many files each installer wrote."""
@@ -176,7 +176,7 @@ def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own):
         looks.Look(art, None, (), '', None, (), centre=centre(art)) for art in (7, 22, 30)])
     wrote = {'looks': 0, 'ice': 0}
 
-    def fake_install_looks(rpcs3, title, made, say, also=(), look_pack=None, only=None):
+    def fake_install_looks(rpcs3, title, made, say, also=(), look_pack=None, only=None, kind=None):
         writer = install._Writer([rpcs3.game_folder(title)])
         wanted = set()
         for m in made:
@@ -193,9 +193,9 @@ def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own):
     monkeypatch.setattr(brightice, 'install_bright', lambda *a, **k: wrote.__setitem__('ice', INSTALL_BRIGHT(*a, **k)))
     builder = SimpleNamespace(bad_pictures={}, mask_looks={}, logos={}, data=None,
                               looks_edits={7: {'ice': {'use': 'file:C:/mine.png'}}} if own else {})
-    chosen = {p for p, on in ((parts.LOOKS, looks_on), (parts.BRIGHT_ICE, ice_on)) if on}
+    chosen = {p for p, on in ((parts.LOOKS, looks_on), (parts.PACK_ICE, looks_on), (parts.BRIGHT_ICE, ice_on)) if on}
     result = SimpleNamespace(art=({}, {}, None), builder=builder, log=[], data=b'')
-    pipeline.Pictures(r, TITLE, parts=chosen).put_in(result, QUIET)
+    pipeline.Pictures(r, TITLE, parts=chosen, ice_order=order).put_in(result, QUIET)
     return wrote
 
 
@@ -302,6 +302,12 @@ def test_restoring_one_part_puts_back_only_its_files(base_dir, tmp_path, monkeyp
 
 def test_every_installed_file_belongs_to_exactly_one_part():
     assert parts.belongs('looks:abc', parts.LOOKS) and not parts.belongs('looks:abc', parts.PHOTOS)
+    jersey, centre, rink = (f"rendering/{d}" for d in ('jersey/jersey_1_7_0_cm.rpsgl', 'icesurface/centerlogo_7_cm.rpsgl',
+                                                          'icesurface/icesurface_22_bm.rpsgl'))
+    assert parts.belongs('looks:abc', parts.LOOKS, jersey) and not parts.belongs('looks:abc', parts.PACK_ICE, jersey)
+    assert parts.belongs('looks:abc', parts.PACK_ICE, centre) and not parts.belongs('looks:abc', parts.LOOKS, centre)
+    assert parts.belongs('looks:abc', parts.PACK_ICE, rink) and not parts.belongs('ice:#2:7:x', parts.PACK_ICE, centre)
+    assert parts.belongs('ice:#2:7:x', parts.BRIGHT_ICE, centre)
     assert parts.belongs('arenas:#1:3:x', parts.ARENAS) and not parts.belongs('arenas:#1:3:x', parts.PHOTOS)
     assert parts.belongs('names:abc', parts.NAMES) and parts.belongs('menus:#3hide', parts.NAMES)
     assert parts.belongs('https://photo/a.png#4', parts.PHOTOS) and parts.belongs('crests:x', parts.PHOTOS)
@@ -363,16 +369,60 @@ def test_the_test_versions_scoreboard_is_put_back_by_the_next_pictures_install(b
     assert install.remove_parts([parts.PHOTOS], QUIET) == 1
 
 
-def test_the_command_lines_jerseys_bring_the_new_centre_ice_as_the_window_does(monkeypatch):
+def test_the_command_lines_jerseys_bring_both_centre_ices_as_the_window_does(monkeypatch):
     from legacy_roster import cli
-    flags = dict(names=False, looks=False, arenas=False, bright_ice=False, team_masks=False, photos=False)
+    flags = dict(names=False, looks=False, pack_ice=False, arenas=False, bright_ice=False, team_masks=False, photos=False)
     ask = lambda **on: cli._art_parts(SimpleNamespace(**{**flags, **on}))
     assert ask() is None
     assert ask(photos=True) == parts.LEGACY | {parts.BRIGHT_ICE}
-    assert ask(looks=True) == {parts.LOOKS, parts.BRIGHT_ICE}
+    assert ask(looks=True) == {parts.LOOKS, parts.PACK_ICE, parts.BRIGHT_ICE}
     assert ask(arenas=True) == {parts.ARENAS} and ask(bright_ice=True) == {parts.BRIGHT_ICE}
+    assert ask(pack_ice=True) == {parts.PACK_ICE}
+    assert cli._ice_order(['x', '--bright-ice', '--pack-ice']) == ['bright_ice', 'pack_ice']
+    assert cli._ice_order(['x', '--pack-ice', '--bright-ice']) == ['pack_ice', 'bright_ice']
+    assert cli._ice_order(['x', '--pack-ice']) is None and cli._ice_order(['x']) is None
     asked = []
     monkeypatch.setattr(packs, 'manifest', lambda: {})
     monkeypatch.setattr(packs, 'sync', lambda *a, wanted=None, **k: (asked.append(set(wanted)), ([], None))[1])
     cli._download_packs()                       # `packs download` and export-files --photos
     assert asked == [set(parts.packs_for(parts.LEGACY | {parts.BRIGHT_ICE}))] and 'ice' in asked[0]
+
+
+@pytest.mark.parametrize('order,winner', [(['pack_ice', 'bright_ice'], 'ice'), (['bright_ice', 'pack_ice'], 'looks')])
+def test_of_two_centre_ices_the_one_switched_on_second_lies_over_the_first(base_dir, tmp_path, monkeypatch, order, winner):
+    r = fake_rpcs3(base_dir, tmp_path, monkeypatch)
+    Files.files = {}
+    monkeypatch.setattr(lab, 'Disc', Files)
+    monkeypatch.setattr(brightice, 'centre_file', lambda disc, art, entry, blob: f"ICE {art}".encode())
+    monkeypatch.setattr(brightice, 'rink_file', lambda disc, art: f"ICE {art}".encode())
+    update_pictures(r, monkeypatch, tmp_path, True, True, False, order=order)
+    who = {}
+    for art in (7, 22, 30):
+        entry = install.load_manifest()['games'][r.game_folder(TITLE)].get('/'.join(centre_key(art)))
+        who[art] = str(entry['source']).split(':')[0]
+    assert who == {7: winner, 22: winner, 30: 'looks'}                 # 30 only has this season's
+    again = update_pictures(r, monkeypatch, tmp_path, True, True, False, order=order)
+    assert again == {'looks': 0, 'ice': 0}
+    swapped = order[::-1]                                              # switch them the other way round: the winner changes
+    update_pictures(r, monkeypatch, tmp_path, True, True, False, order=swapped)
+    entry = install.load_manifest()['games'][r.game_folder(TITLE)].get('/'.join(centre_key(7)))
+    assert str(entry['source']).split(':')[0] == ('looks' if winner == 'ice' else 'ice')
+    assert open(loose(r, *centre_key(7)), 'rb').read() == (b'LOOK 7' if winner == 'ice' else b'ICE 7')
+
+
+def test_this_seasons_two_switches_make_the_jerseys_and_the_centres_apart():
+    from legacy_roster.art import looks
+    kit = looks.PackKit(0, True, 'm', None, 1, None, None, None, None, None, None)
+    both = looks.Look(7, None, (), '', None, (), pack=(kit,), centre='pack:c/7#1')
+    plain = looks.Look(8, None, (), '', None, (), pack=(kit,), centre='game')
+    mine = looks.Look(9, None, (), '', None, (), centre='C:/mine.png')
+    made = [both, plain, mine]
+    assert looks.split_looks(made, True, True) == made                 # both on: nothing changes (no new digest)
+    jerseys = looks.split_looks(made, True, False)                     # centres off: the pack's centre becomes the game's
+    assert [m.centre for m in jerseys] == ['game', 'game', 'C:/mine.png'] and jerseys[0].pack == (kit,)
+    centres = looks.split_looks(made, False, True)                     # jerseys off: only the pack's centre, no kits
+    assert [(m.art, m.centre, m.pack) for m in centres] == [(7, 'pack:c/7#1', ())]
+    assert parts.packs_for({parts.LOOKS, parts.PACK_ICE}) == ['looks']      # one download for both
+    assert parts.ice_order(['bright_ice', 'pack_ice'], {parts.PACK_ICE, parts.BRIGHT_ICE}) == ['bright_ice', 'pack_ice']
+    assert parts.ice_order(None, {parts.PACK_ICE, parts.BRIGHT_ICE}) == ['pack_ice', 'bright_ice']
+    assert parts.ice_order(['bright_ice', 'pack_ice'], {parts.PACK_ICE}) == ['pack_ice']

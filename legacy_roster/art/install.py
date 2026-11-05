@@ -86,13 +86,21 @@ _HOST = None                # use_host: the program's own lists and copies of NH
 _HOST_READS = ()            # the game folders of that host that are only read (the update)
 
 
+def host_key(rpcs3):
+    """The folder name (in the program's own folder) that keeps the lists and copies of the game `rpcs3`: None for RPCS3,
+    `native-<hash of the install folder>` for NHL Legacy Native."""
+    if rpcs3 is None or not getattr(rpcs3, 'native', False):
+        return None
+    return 'native-' + hashlib.sha1(os.path.normcase(rpcs3.folder).encode()).hexdigest()[:12]
+
+
 def use_host(rpcs3):
     """The game the program works on now. RPCS3's pictures and the PC port's are kept apart, each port install with its own
     lists and kept copies, so a player can have both and Restore takes away only the game picked. Set when a game is
     found: every list in this file then is that game's."""
     global _HOST, _HOST_READS
     native = rpcs3 is not None and getattr(rpcs3, 'native', False)
-    _HOST = 'native-' + hashlib.sha1(os.path.normcase(rpcs3.folder).encode()).hexdigest()[:12] if native else None
+    _HOST = host_key(rpcs3)
     _HOST_READS = (rpcs3.update_folder(),) if native else ()
 
 
@@ -110,21 +118,26 @@ def redirected(folder, read_dirs=()):
         _REDIRECT, _READ_ONLY_DIRS = before
 
 
-def _paths(store=ART_STORE):
+_CURRENT = object()         # "the game use_host set" (a host of None is RPCS3's)
+
+
+def _paths(store=ART_STORE, host=_CURRENT):
+    if host is _CURRENT:
+        host = _HOST
     if _REDIRECT:
         base = os.path.join(_REDIRECT, store)
         os.makedirs(base, exist_ok=True)
         return os.path.join(base, 'installed.json'), os.path.join(base, 'backup')
-    if _HOST:
-        store = os.path.join(_HOST, store)
+    if host:
+        store = os.path.join(host, store)
     return datasource.app_dir(store, 'installed.json'), datasource.app_dir(store, 'backup')
 
 
-def load_manifest(store=ART_STORE):
+def load_manifest(store=ART_STORE, host=_CURRENT):
     """{'games': {game folder: {file key: {'source': link, 'backup': path or None,
     'stamp': [size, time] of the file as written}}}}. 'stamp' tells a file of ours from one put
     there later (another picture pack); manifests before 0.6 have none."""
-    path, _ = _paths(store)
+    path, _ = _paths(store, host)
     try:
         with open(path, encoding='utf-8') as f:
             m = json.load(f)
@@ -700,7 +713,7 @@ def remove_parts(parts, say=print):
     part stays installed. Returns how many files were handled. RPCS3 must be closed."""
     from . import parts as P
     m = load_manifest()
-    chosen = {d: {k: e for k, e in files.items() if any(P.belongs(e.get('source'), p) for p in parts)}
+    chosen = {d: {k: e for k, e in files.items() if any(P.belongs(e.get('source'), p, k) for p in parts)}
               for d, files in m['games'].items()}
     chosen = {d: files for d, files in chosen.items() if files}
     if not chosen:

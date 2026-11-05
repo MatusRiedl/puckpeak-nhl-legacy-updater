@@ -1197,7 +1197,7 @@ def test_the_photos_row_is_first_highlighted_and_off_until_the_player_ticks_it(b
     row = upd._steps_view(False, False)[0]
     assert row['key'] == 'pictures' and row['featured'] and not row['on'] and row['bar'] is None
     assert row['sub'] == X.PHOTOS_OFF
-    assert [c['key'] for c in row['children']] == ['photos', 'looks', 'arenas', 'team_masks']     # 0.80.0: no ice row
+    assert [c['key'] for c in row['children']] == ['photos', 'looks', 'pack_ice', 'bright_ice', 'arenas', 'team_masks']     # 0.96.0: a row for each centre ice
     names = upd._steps_view(False, False)[1]                            # team names: a row of their own, on to start with
     assert names['key'] == 'names' and names['on'] and not names.get('featured') and 'children' not in names
     assert not any(r.get('featured') for r in upd._steps_view(False, False)[1:])
@@ -1208,9 +1208,13 @@ def test_the_photos_row_is_first_highlighted_and_off_until_the_player_ticks_it(b
     assert upd._steps_view(False, False)[1]['on']                       # and the names are not part of it
     upd.set_step('looks', False)                                        # one part off again: the group says how many
     row = upd._steps_view(False, False)[0]
-    assert row['on'] and row['sub'].startswith("3 of 4 parts on. ") and not upd.art_on['bright_ice']
-    upd.set_step('looks', True)                                         # this season's and the new centre ice go together
+    assert row['on'] and row['sub'].startswith("5 of 6 parts on. ") and upd.art_on['bright_ice']
+    upd.set_step('looks', True)                                         # the jerseys and the centre ices are switches of their own
     assert upd.art_on['looks'] and upd.art_on['bright_ice'] and {'looks', 'ice'} <= set(upd.packs_wanted())
+    assert upd.ice_order == ['pack_ice', 'bright_ice']                  # the group row switched them on in this order
+    upd.set_step('pack_ice', False)                                     # switch one off and on again: it lies over the other
+    upd.set_step('pack_ice', True)
+    assert upd.ice_order == ['bright_ice', 'pack_ice'] and pipeline_order(upd) == ['bright_ice', 'pack_ice']
     upd.set_step('pictures', False)                                     # off: all parts off, the names stay
     assert not any(c['on'] for c in upd._steps_view(False, False)[0]['children']) and upd.art_on['names']
     upd.set_step('pictures', True)
@@ -1223,25 +1227,41 @@ def test_restore_on_the_group_row_marks_every_part_in_it_and_again_undoes_it(bas
     monkeypatch.setattr(upd, 'download_pictures', lambda: None)
     upd.set_step('pictures', True)
     upd.toggle_restore('pictures')
-    assert set(upd.marks) == {'photos', 'looks', 'arenas', 'bright_ice', 'team_masks'} and not upd.parts_on() - {'names'}
+    assert set(upd.marks) == {'photos', 'looks', 'pack_ice', 'arenas', 'bright_ice', 'team_masks'} and not upd.parts_on() - {'names'}
     assert upd._steps_view(False, False)[0]['restoring']
     upd.toggle_restore('pictures')
     assert not upd.marks
     upd.toggle_restore('names')                                         # names keep their own Restore
     assert set(upd.marks) == {'names'}
     upd.set_step('looks', True)
-    upd.toggle_restore('looks')                                         # this season's: the new centre ice with it
-    assert set(upd.marks) == {'names', 'looks', 'bright_ice'} and not upd.art_on['bright_ice']
+    upd.toggle_restore('looks')                                         # the jerseys alone: the centre ices are theirs
+    assert set(upd.marks) == {'names', 'looks'} and not upd.art_on['looks']
     upd.toggle_restore('looks')
     assert set(upd.marks) == {'names'}
 
 
-def test_the_new_centre_ice_follows_this_seasons_switch_also_from_an_older_settings_file(pack):
+def pipeline_order(upd):
+    from legacy_roster.art import parts as P
+    return P.ice_order(upd.ice_order, upd.parts_on())
+
+
+def test_a_settings_file_from_before_has_both_centre_ices_on_with_the_jerseys(pack):
     from legacy_roster.app.update import UpdateController
-    upd = UpdateController(FakeHost(), settings={'steps': {'looks': True, 'bright_ice': False}}, pack=pack)
-    assert upd.art_on['bright_ice'] and {'looks', 'bright_ice'} <= upd.parts_on()
+    upd = UpdateController(FakeHost(), settings={'steps': {'looks': True, 'bright_ice': True}}, pack=pack)
+    assert upd.art_on['pack_ice'] and upd.art_on['bright_ice'] and {'looks', 'pack_ice', 'bright_ice'} <= upd.parts_on()
+    assert upd.ice_order == ['pack_ice', 'bright_ice']                  # as before: the community's on top
     upd = UpdateController(FakeHost(), settings={'steps': {'looks': False, 'bright_ice': True}}, pack=pack)
-    assert not upd.parts_on() & {'looks', 'bright_ice'}
+    assert not upd.parts_on() & {'looks', 'pack_ice', 'bright_ice'}
+
+
+def test_the_centre_ices_and_their_order_are_remembered(pack):
+    from legacy_roster.app.update import UpdateController
+    saved = {'steps': {'looks': True, 'pack_ice': True, 'bright_ice': True}, 'ice_order': ['bright_ice', 'pack_ice']}
+    upd = UpdateController(FakeHost(), settings=saved, pack=pack)
+    assert upd.ice_order == ['bright_ice', 'pack_ice']
+    saved = {'steps': {'looks': False, 'pack_ice': False, 'bright_ice': True}}
+    upd = UpdateController(FakeHost(), settings=saved, pack=pack)      # only the community's: this season's stay off
+    assert upd.parts_on() - {'names'} == {'bright_ice'} and upd.ice_order == ['bright_ice']
 
 
 def test_a_settings_file_of_a_test_version_with_the_scoreboard_on_loads_without_it(pack):
@@ -1316,7 +1336,12 @@ def test_the_pictures_download_by_themselves_only_while_the_switch_is_on(tmp_pat
         with upd.lock:
             pass
         assert packs.have('looks') and not packs.have('photos') and not packs.have('arenas')
-        assert upd._steps_view(False, False)[0]['children'][1]['sub'] == X.PICTURE_NOT_SERVED    # the ice is not listed
+        assert upd._steps_view(False, False)[0]['children'][1]['sub'] == X.PHOTOS_READY
+        upd.set_step('bright_ice', True)                                # the community centre ice: its pack is not listed
+        wait(lambda: not upd._fetching, 30)
+        with upd.lock:
+            pass
+        assert upd._steps_view(False, False)[0]['children'][3]['sub'] == X.PICTURE_NOT_SERVED
         upd.set_step('photos', True)                                    # on: the download starts by itself
         wait(lambda: not upd._fetching, 30)
         with upd.lock:                  # the thread clears _fetching first, then sets fetch and tells the page

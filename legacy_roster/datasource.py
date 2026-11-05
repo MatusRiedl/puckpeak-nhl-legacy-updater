@@ -298,6 +298,24 @@ def equipment_part(pack):
     return None
 
 
+SKINS_FORMAT = 1
+
+
+def skins_part(pack):
+    """The pack's skin groups of players (`skins`: {'format', 'players': {"<name, letters only>|<birth year>": 'brown' |
+    'dark'}}, from the photos, tools/skin_tones.py) as {name: [(birth year, group)]}, or None when the pack has none or
+    one in a layout this program does not know. Only the groups that differ from the game's usual light one are listed."""
+    part = (pack or {}).get('skins')
+    if not (isinstance(part, dict) and part.get('format') == SKINS_FORMAT and part.get('players')):
+        return None
+    out = {}
+    for key, group in sorted(part['players'].items()):
+        name, _, year = key.rpartition('|')
+        if name and year.isdigit() and group in ('medium', 'brown', 'dark'):
+            out.setdefault(name, []).append((int(year), group))
+    return out or None
+
+
 def load_pack(progress=None, offline=False, bundled=None):
     """The newest data pack available: downloaded if a newer one is published, else the cached
     download, else the copy shipped with the program. Packs made for a newer program are skipped."""
@@ -362,6 +380,7 @@ def gather(R, steps, pack, progress=None, offline=False, fresh=False):
                 contracts=pack.get('contracts') if pipeline.NHL in steps else None,
                 real_lines=pack.get('lines') if pipeline.NHL in steps else None,
                 equipment=equipment_part(pack) if pipeline.NHL in steps else None,
+                skins=skins_part(pack),
                 club_lines=pack.get('club_lines') if any(k in steps for k in pack.get('leagues', {})) else None,
                 drafts=pack.get('drafts'),
                 schedule=pack.get('schedule') if pipeline.SCHEDULE in steps else None,

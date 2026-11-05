@@ -1468,7 +1468,8 @@ class EditorController:
         def job():
             r = pipeline.update(rpcs3.savedata, source.folder, [], name, None, my_edits=mine or None,
                                 team_edits=teams or None, targets=targets, in_place=in_place,
-                                rpcs3=None if rpcs3.plain else rpcs3, art_parts=parts_on, also_looks=touched)
+                                rpcs3=None if rpcs3.plain else rpcs3, art_parts=parts_on, also_looks=touched,
+                                ice_order=list(upd.ice_order))
             if r.slot is not None and r.own_pictures and not isinstance(r.art, str):
                 with self.lock:
                     self.looks_touched -= touched

@@ -3,6 +3,28 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.96.0 (2026-11-05)
+
+**Fixed: NHL Legacy Native forgot that it was patched.** After you patched the port and started the program again, it said "not
+patched" and marked your roster as not fitting. The program looked in RPCS3's list instead of the port's. It now looks at the port's
+own list from the first moment. RPCS3 was never affected.
+
+**Players made by the program now have a fitting face.** New players (for example the Japanese national team, or a player the
+leagues list that the game does not have) were all given a light-skinned head. The program now picks the skin from the player's
+photo (a simple colour check of the face, no graphics card needed). Players without a photo get a skin by country where that is
+clear (Japan, Korea, China and others). Players who already had a head that does not fit their photo get a fitting one. Real
+scanned faces and faces you edited yourself are never touched.
+
+**Two centre-ice switches instead of one.** In step 4 there are now **This season's centre ice** and **Community centre ice**, next
+to "This season's jerseys". Use one, or both: the one you switch on second is laid on top of the first, for the teams both have.
+Your own centre ice (Jerseys & ice tab) still wins over both. The community centre ice is the newer set and has the ice colour
+under the logo, which should remove the square seen around some centre logos. Each switch has its own Restore. A settings file from
+before turns both on together with the jerseys, as before.
+
+**The little arrow on the Photos and logos row is bigger**, so it is clear that the row opens.
+
+**What to do:** nothing. The new centre-ice set and the skin data arrive as downloads.
+
 ## 0.95.2 (2026-11-04)
 
 **Fixed: Be a CHL Pro crashed at the start of a career in the patched game** (32 teams), on RPCS3 and on NHL Legacy Native. The game

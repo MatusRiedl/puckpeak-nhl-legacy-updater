@@ -7,7 +7,7 @@
             [--for EU|NA|both]                        which version(s) of the game to save it for
             [--in-place]                              update the roster save itself (old one copied first), no new folder
             [--photos]                                also install team names, photos and logos, this season's jerseys (RPCS3 closed)
-            [--names] [--looks] [--arenas] [--bright-ice] [--team-masks]   the parts one by one (each downloads only its own pack)
+            [--names] [--looks] [--pack-ice] [--arenas] [--bright-ice] [--team-masks]   the parts one by one (each downloads only its own pack)
             [--edits]                                apply your edits from the window's Roster editor
                                                       a patched RPCS3 (game-patch install) gets a roster for 32
                                                       teams and the year 2026, an unpatched one a normal roster
@@ -17,7 +17,7 @@
                                                       take the patch out again
     export-roster --file <SYS-DATA> [--out <folder>] [--for-patch]   update a roster file without RPCS3: writes a new
                                                       SYS-DATA folder next to the program (--for-patch: for a patched game)
-    photos remove [--part names|photos|looks|arenas|bright_ice|team_masks]   take the pictures away again (all, or only that part)
+    photos remove [--part names|photos|looks|pack_ice|arenas|bright_ice|team_masks]   take the pictures away again (all, or only that part)
     packs download | status | remove                  the pictures for --photos: download them now, show what is on
                                                       this PC, free the space (update --photos downloads by itself)
     export-files [--rpcs3 <rpcs3.exe> | --savedata <folder>] [--source <save>|<SYS-DATA>] --out <folder> [--photos]
@@ -193,7 +193,7 @@ def cmd_export_files(args):
                          photos=args.photos, game_patch=args.game_patch, intro=args.skip_intro, login=args.no_login,
                          my_edits=edits.load() if args.edits else None,
                          team_edits=edits.load_teams() if args.edits else None, progress=print, offline=args.offline,
-                         games=games, art_parts=_photo_parts() if args.photos else None)
+                         games=games, art_parts=_photo_parts() if args.photos else None, ice_order=_ice_order())
     except (export.ExportError, FileNotFoundError, layout.LayoutError, datasource.Offline, RuntimeError) as err:
         sys.exit(str(err))
     for line in res.update.build.summary():
@@ -266,7 +266,8 @@ def cmd_update(args):
         res = pipeline.update(folder, slot.folder, steps, args.name, print, args.offline, args.dry_run, data,
                               art_rpcs3=art_rpcs3, my_edits=mine, team_edits=teams,
                               targets=targets, disc=slot if getattr(slot, 'disc', False) else None,
-                              in_place=args.in_place, rpcs3=rpcs3, game_patch=game_patch, art_parts=art_parts)
+                              in_place=args.in_place, rpcs3=rpcs3, game_patch=game_patch, art_parts=art_parts,
+                              ice_order=_ice_order())
     except layout.LayoutError as err:    # e.g. EU patched, NA not, saving for both
         sys.exit(str(err))
     except RuntimeError as err:         # photos and logos: RPCS3 running, game not found; in place: refused
@@ -449,11 +450,19 @@ def cmd_photos(args):
 
 
 def _photo_parts(chosen=None):
-    """`chosen` (default --photos: team names, photos and logos, this season's jerseys) with the new centre ice when this
-    season's jerseys and centre ice are in it (0.80.0, as in the window)."""
+    """`chosen` (default --photos: team names, photos and logos, this season's jerseys and centre ice) with both centre
+    ices when this season's jerseys are in it (as since 0.80.0; 0.96.0: the window has a switch for each)."""
     from .art import parts
     chosen = set(parts.LEGACY if chosen is None else chosen)
-    return frozenset(chosen | ({parts.BRIGHT_ICE} if parts.LOOKS in chosen else set()))
+    return frozenset(chosen | ({parts.PACK_ICE, parts.BRIGHT_ICE} if parts.LOOKS in chosen else set()))
+
+
+def _ice_order(argv=None):
+    """The two centre ices in the order the options named them (--pack-ice, --bright-ice): the second lies over the first.
+    Nothing or one named: None (the community's on top, as before)."""
+    argv = list(sys.argv if argv is None else argv)
+    at = {name: argv.index(flag) for name, flag in (('pack_ice', '--pack-ice'), ('bright_ice', '--bright-ice')) if flag in argv}
+    return sorted(at, key=at.get) if len(at) == 2 else None
 
 
 def _art_parts(args):
@@ -461,7 +470,8 @@ def _art_parts(args):
     this season's jerseys and centre ice. The other switches add to it: --arenas alone is only the arenas."""
     from .art import parts
     extra = {p for p, flag in ((parts.NAMES, args.names), (parts.LOOKS, args.looks), (parts.ARENAS, args.arenas),
-                               (parts.BRIGHT_ICE, args.bright_ice), (parts.TEAM_MASKS, args.team_masks)) if flag}
+                               (parts.PACK_ICE, args.pack_ice), (parts.BRIGHT_ICE, args.bright_ice),
+                               (parts.TEAM_MASKS, args.team_masks)) if flag}
     if not extra and not args.photos:
         return None
     return _photo_parts(extra | (parts.LEGACY if args.photos else set()))
@@ -626,9 +636,10 @@ def main(argv=None):
                            help="also install current photos and logos into RPCS3's game folder (new; RPCS3 must "
                                 "be closed; 'photos remove' takes them away); with team names and this season's jerseys and centre ice")
             p.add_argument('--names', action='store_true', help="team names, short codes and menu texts in the game (RPCS3 closed)")
-            p.add_argument('--looks', action='store_true', help="this season's jerseys and centre ice, with the new centre ice for 30 NHL teams (downloads the look and ice packs)")
+            p.add_argument('--looks', action='store_true', help="this season's jerseys, with both centre ices (the community's on top; downloads the look and ice packs)")
+            p.add_argument('--pack-ice', action='store_true', help="only this season's centre ice (downloads the look pack; name --pack-ice and --bright-ice both: the second lies over the first)")
             p.add_argument('--arenas', action='store_true', help="the NHL arenas' newer pictures (downloads the arena pack)")
-            p.add_argument('--bright-ice', action='store_true', help="only the new centre ice with the arenas' current names for 30 NHL teams (downloads the ice pack; --looks has it too)")
+            p.add_argument('--bright-ice', action='store_true', help="only the community's centre ice for 30 NHL teams (downloads the ice pack; --looks has it too)")
             p.add_argument('--team-masks', action='store_true', help="the goalie masks of the teams (downloads the mask pack)")
             p.add_argument('--edits', action='store_true',
                            help="apply your own edits from the window's Roster editor after the update")
@@ -679,7 +690,7 @@ def main(argv=None):
     p = sub.add_parser('photos', help="remove the installed photos and logos (every file goes back as it was)")
     p.set_defaults(fn=cmd_photos)
     p.add_argument('action', choices=('remove',))
-    p.add_argument('--part', action='append', choices=('names', 'photos', 'looks', 'arenas', 'bright_ice', 'team_masks'),
+    p.add_argument('--part', action='append', choices=('names', 'photos', 'looks', 'pack_ice', 'arenas', 'bright_ice', 'team_masks'),
                    help="take away only this part (repeat for more); default: all of them")
     p = sub.add_parser('names', help="write the team names of a roster into the game, and nothing else")
     p.set_defaults(fn=cmd_names)

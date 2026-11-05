@@ -152,7 +152,7 @@ function StepRow({ row }) {
     <div class="main">
       <div class="title">
         ${kids && html`<button class=${cls('arrow', open && 'open')} aria-expanded=${open} title=${open ? 'Hide the parts' : 'Choose the parts'}
-            onClick=${() => setOpen(!open)}>▸</button>`}${row.title}</div>
+            onClick=${() => setOpen(!open)}>▶</button>`}${row.title}</div>
       <div class="sub">${row.sub}</div>
       ${row.bar != null && html`<div class="bar"><span style=${{ width: `${Math.round(row.bar * 100)}%` }}></span></div>`}
       ${row.warn && html`<div class="warn">${row.warn}</div>`}

@@ -111,7 +111,7 @@ python tools/publish_packs.py <ssh-host>:<folder> --only ice,looks     # just th
 `private/build_extras.py "<folder>" --ice "<new centre ice folder>"` (`.venv\Scripts\python -I`, `LEGACY_ROSTER_DISC` = the EU
 disc, read only). Since 0.78.0 `ice` is the owner's newer centre-ice set (`--ice`: the folder holding
 `icesurface/centerlogo_<art>_cm.rpsgl`, art 0-29), each centre's encoded raster as it is; since 0.80.0 it has no row of its
-own in the window: "This season's jerseys and centre ice" downloads and installs it too (`settings.TOGETHER`). Run it again when a folder changes;
+own in the window: "Community centre ice" is its own switch beside "This season's centre ice" (`settings.ICE_ORDER`: the one switched on second lies on top). Run it again when a folder changes;
 it prints what it took and what it left out. Arenas carry the sha1 of the disc's file: an NA or other game version whose
 file differs is skipped in the player's List of changes, so compare the NA files first. Findings:
 docs/notes/community-extras.md.

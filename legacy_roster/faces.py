@@ -31,6 +31,14 @@ CUSTOM_HEADS = range(20000, 22000)
 SHAPES = (21200, 21050, 20900, 20700, 20500, 21100, 20050, 21150, 20650, 20950, 20850, 20400, 20350, 20200, 20150)
 CREATED_HEADS = range(20050, 21201, 50)     # every created head the game can draw, the menu's 15 and 9 more (20300 ...)
 TONE_SKIN = (1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4, 6, 9, 9, 10)     # Skin Tone 1-16 -> cPbu skincolor
+# the generic heads come in four skin groups (lab and contact sheets, docs/notes/skin-tones.md): the group is the head's
+# own `QDTK` values, and a head only ever shows its own skin
+BUCKETS = {'light': (1, 2), 'medium': (3, 4), 'brown': (6, 7, 8), 'dark': (9, 10)}
+BUCKET_OF = {skin: name for name, skins in BUCKETS.items() for skin in skins}
+DARKER = ('brown', 'dark')
+# countries whose players the game's one generic skin (light) misses, where it is clear (owner, 2026-11-05): ISO code ->
+# group. Only the codes the roster has a country number for (layout.NAT_CODE) can be used.
+COUNTRY_SKIN = {'JPN': 'medium', 'KOR': 'medium', 'CHN': 'medium', 'TPE': 'medium', 'HKG': 'medium', 'MGL': 'medium'}
 COLOURS = ((5, "Black"), (0, "Blonde"), (2, "Brown"), (1, "Dirty Blonde"), (3, "Light Brown"), (4, "Red"))
 # key -> (customfacetable field or None: on the player record, the menu's choices in its order as (number, the game's
 # word)); the numbers are the game's own, the tone's 1-16 as the menu counts (the field holds tone - 1)

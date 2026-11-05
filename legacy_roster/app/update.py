@@ -119,7 +119,14 @@ class UpdateController:
                        S.LOOKS: bool(remembered.get(S.LOOKS, self.photos)),
                        S.ARENAS: bool(remembered.get(S.ARENAS, False)),
                        S.TEAM_MASKS: bool(remembered.get(S.TEAM_MASKS, False))}
-        self.art_on[S.BRIGHT_ICE] = self.art_on[S.LOOKS]    # 0.80.0: the new centre ice comes with this season's (S.TOGETHER)
+        # 0.96.0: the two centre ices have switches of their own. A settings file from before had them with the jerseys
+        # (both on, the community's on top); one from 0.96.0 on remembers each and the order they were switched on in.
+        old = S.PACK_ICE not in remembered
+        self.art_on[S.PACK_ICE] = bool(remembered.get(S.PACK_ICE, self.art_on[S.LOOKS]))
+        self.art_on[S.BRIGHT_ICE] = bool(remembered.get(S.BRIGHT_ICE, self.art_on[S.LOOKS])) if not old else self.art_on[S.LOOKS]
+        saved_order = self.settings.get(S.ICE_ORDER)
+        self.ice_order = P.ice_order(saved_order if isinstance(saved_order, list) else None,
+                                     {k for k in P.DEFAULT_ICE_ORDER if self.art_on[k]})
         if S.PHOTOS_DEFAULT not in self.settings:       # 0.65: the switch starts off for everyone, once; ticking it again is kept
             self.photos = False
             self.settings[S.PHOTOS_DEFAULT] = True
@@ -309,6 +316,7 @@ class UpdateController:
         self.settings['steps'] = dict(self.steps)
         self.settings['steps'][S.PHOTOS] = self.photos
         self.settings['steps'].update(self.art_on)
+        self.settings[S.ICE_ORDER] = list(self.ice_order)
         self.settings['steps'][S.EDITS] = self.use_edits
         self.settings['steps'].update({S.SKIP_INTRO: self.skip_intro, S.NO_LOGIN: self.no_login})
         S.save(self.settings)
@@ -702,6 +710,8 @@ class UpdateController:
                         self.photos = on
                     else:
                         self.art_on[k] = on
+                    if k in P.DEFAULT_ICE_ORDER:        # the centre ice switched on second lies over the first
+                        self.ice_order = [i for i in self.ice_order if i != k] + ([k] if on else [])
                     if on:
                         self.marks.pop(k, None)
                 if on:
@@ -990,7 +1000,8 @@ class UpdateController:
         def work():
             default = restore.default_slot(rpcs3, slot.title_id) if parts else None
             result = pipeline.update(rpcs3.savedata, slot.folder, steps, name, self.say,
-                                     art_rpcs3=art, art_parts=shown, my_edits=mine[0] or None, team_edits=mine[1] or None,
+                                     art_rpcs3=art, art_parts=shown, ice_order=list(self.ice_order), my_edits=mine[0] or None,
+                                     team_edits=mine[1] or None,
                                      targets=targets, disc=slot if getattr(slot, 'disc', False) else None,
                                      in_place=in_place, restore_parts=parts, default=default,
                                      rpcs3=None if rpcs3.plain else rpcs3)
@@ -1327,7 +1338,8 @@ class UpdateController:
         def work():
             return export.run(None, source, rpcs3=rpcs3, steps=steps, targets=targets, name=name, photos=photos,
                               game_patch=patch, intro=intro, login=login, my_edits=mine[0] or None,
-                              team_edits=mine[1] or None, progress=self.say, games=games, art_parts=shown)
+                              team_edits=mine[1] or None, progress=self.say, games=games, art_parts=shown,
+                              ice_order=list(self.ice_order))
 
         def context():
             return [f"export from {label}{'' if not isinstance(source, str) or os.path.exists(source) else '  (missing)'}",

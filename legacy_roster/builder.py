@@ -34,7 +34,7 @@ class Data:
 
     def __init__(self, nhl_players=None, ratings_list=None, iihf=None, season_year=2026, leagues=None, nhl_logos=None,
                  nhl_last=None, drafts=None, schedule=None, calendar=None, contracts=None, ratings_full=None,
-                 league_schedules=None, real_lines=None, club_lines=None, equipment=None, retired=None):
+                 league_schedules=None, real_lines=None, club_lines=None, equipment=None, retired=None, skins=None):
         self.nhl_players = nhl_players or []   # flat list, see datasource.flatten_nhl()
         self.ratings_list = ratings_list           # [{'name','team','position','birth','ovr','attrs'}] or None
         self.ratings_full = ratings_full                # the full ratings (data pack part `ratings_full`), with the ratings step
@@ -53,6 +53,7 @@ class Data:
         self.contracts = contracts or []       # real 2026-27 NHL contracts (contracts.py), only with the NHL step
         self.club_lines = club_lines or {}      # club slot (str) -> {'slots': {slot name: [first, last, birth year]}} (data pack part `club_lines`)
         self.real_lines = real_lines or {}     # NHL team code -> {'slots': {slot name: NHL.com id}} (data pack part `lines`)
+        self.skins = skins                     # skin groups of players by photo (data pack part `skins`, datasource.skins_part)
         self.equipment = equipment             # real sock tucks, pant lengths, neck guards (data pack part `equipment`, datasource.equipment_part)
 
 
