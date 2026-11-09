@@ -686,7 +686,13 @@ def patch_roster(result, source, pack, season):
     gamepatch.divisions_fit(R)
     gamepatch.all_star_fit(R)
     gamepatch.league_fit(R)
-    gamepatch.art_fit(R)                # art ids 900 / 901 and their jersey rows (art/clubart.py)
+    dropped = []
+    gamepatch.art_fit(R, dropped)       # art ids 900 / 901 / 902 and their jersey rows (art/clubart.py)
+    if dropped:                         # a table an older update filled (docs/notes/wgjx-full.md)
+        result.log.append(['ALL', 'summary', "this season's Alternate jerseys taken out to make room for Coachella Valley's, "
+                           "Henderson's and the Vees' jerseys (the list of jersey versions was full)",
+                           ', '.join(sorted({R.team_name(slot) for slot, _art, _variant in dropped})), '',
+                           SECTION_PLAYER_DATA])
     gamepatch.future_fit(R)
     gamepatch.section_fit(R)
     gamepatch.rights_wide(R)            # Vegas's rights fit (a lab roster is built without game_patch)
@@ -1087,7 +1093,7 @@ class Pictures:
         from .art import install, portraits
         from .art import parts as P
         say = say or (lambda msg: None)
-        self.parts = frozenset(parts if parts is not None else (() if own_only else P.LEGACY))
+        self.parts = frozenset(parts if parts is not None else (() if own_only else P.LEGACY)) - P.DISABLED
         self.photos = P.PHOTOS in self.parts
         self.own_only = not self.photos         # photos and logos are off: the player's own pictures only
         self.names_on = P.NAMES in self.parts
@@ -1120,6 +1126,11 @@ class Pictures:
             install.remove_retired(say)     # files of a part taken out again (the test versions' scoreboard)
         except OSError as err:
             say(f"The test scoreboard's files could not be put back now ({err}); the next update tries again.")
+        if self.parts:                      # an update with pictures (not the Roster editor's own pictures alone)
+            try:
+                install.remove_disabled(say)    # the community centre ice is switched off for now: its files go back
+            except (OSError, install.ArtError) as err:
+                say(f"The community centre ice could not be put back now ({err}); the next update tries again.")
         if not (self.parts - {P.PHOTOS}) and self.own_only and not own and not self.looks_for:
             return None, 0, False       # none of the player's own pictures is in this roster
         try:
@@ -1147,6 +1158,10 @@ class Pictures:
             if P.BRIGHT_ICE in self.parts:
                 install_bright_ice(result, self.rpcs3, self.title_id, self.targets, say,
                                    keep=own_ice | (by_pack if pack_wins else set()))
+            if P.PACK_ICE in self.parts:          # the national teams' shared ice of this season's set (the `ice` pack)
+                chosen = {int(s) for s, e in (getattr(result.builder, 'looks_edits', None) or {}).items()
+                          if ((e or {}).get('ice') or {}).get('use')}
+                install_season_ice(result, self.rpcs3, self.title_id, self.targets, say, keep=chosen)
             if P.TEAM_MASKS in self.parts:
                 install_team_masks(result, self.rpcs3, self.title_id, self.targets, say)
             art = (0, 0, 0)
@@ -1311,6 +1326,25 @@ def install_bright_ice(result, rpcs3, title, targets, say, keep=()):
                                  skipped=skipped)
     except Exception as err:
         say(f"New centre ice: left out ({err})")
+    finally:
+        pack.close()
+    for art, why in skipped:
+        result.log.append(['', "Centre ice not installed", f"arena {art}", why, '', SECTION_PICTURES])
+
+
+def install_season_ice(result, rpcs3, title, targets, say, keep=()):
+    """The centres of this season's set that come in the `ice` pack (art/brightice.py SEASON_ARTS: the national teams'
+    shared IIHF ice), with the "This season's centre ice" switch; `keep`: art ids whose centre the player chose."""
+    from .art import brightice
+    pack = _extra('ice', "This season's centre ice", say, result)
+    if pack is None:
+        return
+    skipped = []
+    try:
+        brightice.install_season(rpcs3, title, pack, say, also=[t for t in targets if t != title], keep=keep,
+                                 skipped=skipped)
+    except Exception as err:
+        say(f"This season's centre ice for the national teams: left out ({err})")
     finally:
         pack.close()
     for art, why in skipped:

@@ -9,6 +9,15 @@ Background in [ARCHITECTURE.md](ARCHITECTURE.md), setup in [DEVELOPING.md](DEVEL
 **NHL rosters.** Every update downloads today's rosters from NHL.com, so trades, call-ups and
 signings are in the next roster a player builds. Nothing to do.
 
+**Lines** (owner, 2026-11-09). The lines job on the file server (`tools/lines_job.py`, its container in `deploy/lines/`)
+refreshes the published data pack's `lines` (every NHL team: announced lines, the rest from its last 5 games) and the
+Extraliga's `club_lines` (newest match line-ups) every day at 10:00 UTC, and replaces the pack by itself when every guard
+passes. Both this program and NHL 19 read that pack, so players get the lines at their next Update. The other clubs'
+lines stay as the last maintainer's build left them. To check it: `archive/status.json` beside the job (result, teams
+kept and why, problems) and `docker logs nhl-legacy-lines`. To stop it, roll a pack back or deploy new code:
+`deploy/lines/README.md`. Background: docs/notes/lines-job.md. `tools/publish_packs.py` keeps every team's lines the
+server has newer than the local pack (it writes them into the local pack first), so a publish never sends older lines.
+
 Everything else comes from the **data pack** (`legacy_roster/data/datapack.json.gz`, committed)
 and only changes when a maintainer refreshes it and puts it on the file server ("Shipping new data").
 
@@ -20,7 +29,8 @@ python tools/build_datapack.py --refresh iihf                 # IIHF roster PDFs
 python tools/build_datapack.py --refresh liiga,extraliga,shl,del,nl,norway   # European clubs
 python tools/build_datapack.py --refresh ahl,chl              # AHL and the junior leagues (or ohl, qmjhl, whl)
 python tools/build_datapack.py --refresh nhl                  # offline NHL snapshot
-python tools/build_datapack.py --refresh lines                # every NHL team's real lines from its last 5 games (~2 min; do it with `nhl`, refresh again before a release)
+python tools/build_datapack.py --refresh lines                # every NHL team's lines, announced + its last 5 games (~2 min; the server's lines job does this daily: "Lines" above)
+python tools/build_datapack.py --refresh extraliga_lines      # the Extraliga clubs' newest match line-ups (after club_lines; the job too)
 python tools/build_datapack.py --refresh contracts --db <file>      # the 2026-27 contracts (private/, see below)
 python tools/build_datapack.py --refresh ratings_full --db <file>   # the full current ratings, types, tendencies (same file)
 python tools/build_datapack.py                                # rebuild from the caches only

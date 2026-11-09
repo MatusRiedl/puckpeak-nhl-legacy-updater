@@ -60,6 +60,12 @@ def hits_in(name, text):
             yield f"{name}:{n}: {m.group(0)!r} in {line.strip()[:140]}"
 
 
+def pack_hits(text, name='datapack.json.gz'):
+    """The hits in a data pack's JSON text (one entry per line, so a hit names its place); tools/lines_job.py runs it
+    before the server's pack is replaced."""
+    return list(hits_in(name, text.replace('{"', '\n{"').replace(', "', ',\n"')))
+
+
 def check(files=True):
     """Every hit as a 'where: what' line. `files` False: the data pack and the picture packs only."""
     found = []
@@ -71,7 +77,7 @@ def check(files=True):
             found += hits_in(rel, text)
     if os.path.isfile(DATA_PACK):
         with gzip.open(DATA_PACK, 'rt', encoding='utf-8') as f:
-            found += hits_in('datapack.json.gz', f.read().replace('{"', '\n{"').replace(', "', ',\n"'))
+            found += pack_hits(f.read())
     if os.path.isdir(PACKS):
         for name in sorted(os.listdir(PACKS)):
             if not name.endswith('.zip'):

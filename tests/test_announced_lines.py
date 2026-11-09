@@ -63,4 +63,11 @@ def test_two_players_of_one_name_are_told_apart_by_number():
     by_name = {D.matching.norm('Elias Pettersson'): [(40, 40), (25, 25)]}
     assert D.who(listed('d1', 'ld', 'Elias Pettersson', 25), by_name, {}) == 25
     assert D.who(listed('f1', 'c', 'Elias Pettersson', 40), by_name, {}) == 40
-    assert D.who(listed('d1', 'ld', 'Elias Nils Pettersson', 25), by_name, {25: 25}) == 25
+    assert D.who(listed('d1', 'ld', 'Elias Nils Pettersson', 25), by_name, {25: (25, 'pettersson')}) == 25
+
+
+def test_a_player_the_roster_lacks_never_takes_the_id_of_a_team_mate_with_his_number():
+    by_name = {D.matching.norm('Oliver Ekman-Larsson'): [(8475171, 95)]}
+    by_number = {95: (8475171, D.matching.norm('Ekman-Larsson'))}
+    assert D.who(listed('f3', 'rw', 'Vinni Lettieri', 95), by_name, by_number) is None
+    assert D.who(listed('d2', 'ld', 'Oliver Ekman-Larsson', 95), by_name, by_number) == 8475171

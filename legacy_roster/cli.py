@@ -454,7 +454,7 @@ def _photo_parts(chosen=None):
     ices when this season's jerseys are in it (as since 0.80.0; 0.96.0: the window has a switch for each)."""
     from .art import parts
     chosen = set(parts.LEGACY if chosen is None else chosen)
-    return frozenset(chosen | ({parts.PACK_ICE, parts.BRIGHT_ICE} if parts.LOOKS in chosen else set()))
+    return frozenset(chosen | ({parts.PACK_ICE, parts.BRIGHT_ICE} if parts.LOOKS in chosen else set())) - parts.DISABLED
 
 
 def _ice_order(argv=None):
@@ -472,6 +472,9 @@ def _art_parts(args):
     extra = {p for p, flag in ((parts.NAMES, args.names), (parts.LOOKS, args.looks), (parts.ARENAS, args.arenas),
                                (parts.PACK_ICE, args.pack_ice), (parts.BRIGHT_ICE, args.bright_ice),
                                (parts.TEAM_MASKS, args.team_masks)) if flag}
+    if args.bright_ice and parts.BRIGHT_ICE in parts.DISABLED:
+        print("--bright-ice: the community centre ice is not available for now (it is being fixed); left out.")
+    extra -= parts.DISABLED
     if not extra and not args.photos:
         return None
     return _photo_parts(extra | (parts.LEGACY if args.photos else set()))

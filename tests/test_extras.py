@@ -161,6 +161,7 @@ def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own, order=None)
     covered): looks.install_looks is a stand-in that writes the centre and rink files a look names (looks.look_paths) and
     puts back the ones it no longer makes, as the real one does. Returns how many files each installer wrote."""
     from legacy_roster.art import looks, lookpack, photopack
+    monkeypatch.setattr(parts, 'DISABLED', frozenset())     # how the community centre ice works when it is switched on again
     path = str(tmp_path / 'ice-m1.zip')
     if not os.path.exists(path):
         ice_pack(tmp_path, arts=('7', '22'), ident='m1').close()
@@ -190,7 +191,7 @@ def update_pictures(r, monkeypatch, tmp_path, looks_on, ice_on, own, order=None)
             writer.drop(tuple(key.split('/')))
         writer.save()
     monkeypatch.setattr(looks, 'install_looks', fake_install_looks)
-    monkeypatch.setattr(brightice, 'install_bright', lambda *a, **k: wrote.__setitem__('ice', INSTALL_BRIGHT(*a, **k)))
+    monkeypatch.setattr(brightice, 'install_bright', lambda *a, **k: wrote.__setitem__('ice', wrote['ice'] + INSTALL_BRIGHT(*a, **k)))
     builder = SimpleNamespace(bad_pictures={}, mask_looks={}, logos={}, data=None,
                               looks_edits={7: {'ice': {'use': 'file:C:/mine.png'}}} if own else {})
     chosen = {p for p, on in ((parts.LOOKS, looks_on), (parts.PACK_ICE, looks_on), (parts.BRIGHT_ICE, ice_on)) if on}
@@ -308,13 +309,16 @@ def test_every_installed_file_belongs_to_exactly_one_part():
     assert parts.belongs('looks:abc', parts.PACK_ICE, centre) and not parts.belongs('looks:abc', parts.LOOKS, centre)
     assert parts.belongs('looks:abc', parts.PACK_ICE, rink) and not parts.belongs('ice:#2:7:x', parts.PACK_ICE, centre)
     assert parts.belongs('ice:#2:7:x', parts.BRIGHT_ICE, centre)
+    national = 'rendering/icesurface/centerlogo_501_cm.rpsgl'     # this season's national ice, from the `ice` pack
+    assert parts.belongs('seasonice:#2:501:x', parts.PACK_ICE, national)
+    assert not any(parts.belongs('seasonice:#2:501:x', p, national) for p in parts.ALL if p != parts.PACK_ICE)
     assert parts.belongs('arenas:#1:3:x', parts.ARENAS) and not parts.belongs('arenas:#1:3:x', parts.PHOTOS)
     assert parts.belongs('names:abc', parts.NAMES) and parts.belongs('menus:#3hide', parts.NAMES)
     assert parts.belongs('https://photo/a.png#4', parts.PHOTOS) and parts.belongs('crests:x', parts.PHOTOS)
     assert parts.belongs('mask:#1:200:abc', parts.PHOTOS) and parts.belongs('teammask:#1:2:b', parts.TEAM_MASKS)
     assert not any(parts.belongs('overlay:#1:overlay_0.big:x:sn:y', p) for p in parts.ALL)    # a retired part's
-    assert parts.packs_for({parts.NAMES}) == [] and parts.packs_for(parts.LEGACY) == ['photos', 'looks']
-    assert parts.packs_for(set(parts.ALL)) == ['photos', 'looks', 'arenas', 'ice', 'masks']
+    assert parts.packs_for({parts.NAMES}) == [] and parts.packs_for(parts.LEGACY) == ['photos', 'looks', 'ice']
+    assert parts.packs_for(set(parts.ALL)) == ['photos', 'looks', 'ice', 'arenas', 'masks']
     assert set(packs.NAMES) - {'portpatch'} == set(parts.PACK_OF.values())   # the port's patch is no picture part
 
 
@@ -369,14 +373,15 @@ def test_the_test_versions_scoreboard_is_put_back_by_the_next_pictures_install(b
     assert install.remove_parts([parts.PHOTOS], QUIET) == 1
 
 
-def test_the_command_lines_jerseys_bring_both_centre_ices_as_the_window_does(monkeypatch):
+def test_the_command_lines_jerseys_bring_this_seasons_centre_ice_and_never_the_greyed_community_ice(monkeypatch, capsys):
     from legacy_roster import cli
     flags = dict(names=False, looks=False, pack_ice=False, arenas=False, bright_ice=False, team_masks=False, photos=False)
     ask = lambda **on: cli._art_parts(SimpleNamespace(**{**flags, **on}))
     assert ask() is None
-    assert ask(photos=True) == parts.LEGACY | {parts.BRIGHT_ICE}
-    assert ask(looks=True) == {parts.LOOKS, parts.PACK_ICE, parts.BRIGHT_ICE}
-    assert ask(arenas=True) == {parts.ARENAS} and ask(bright_ice=True) == {parts.BRIGHT_ICE}
+    assert ask(photos=True) == parts.LEGACY
+    assert ask(looks=True) == {parts.LOOKS, parts.PACK_ICE}
+    assert ask(arenas=True) == {parts.ARENAS} and ask(bright_ice=True) is None
+    assert 'not available for now' in capsys.readouterr().out
     assert ask(pack_ice=True) == {parts.PACK_ICE}
     assert cli._ice_order(['x', '--bright-ice', '--pack-ice']) == ['bright_ice', 'pack_ice']
     assert cli._ice_order(['x', '--pack-ice', '--bright-ice']) == ['pack_ice', 'bright_ice']
@@ -385,7 +390,7 @@ def test_the_command_lines_jerseys_bring_both_centre_ices_as_the_window_does(mon
     monkeypatch.setattr(packs, 'manifest', lambda: {})
     monkeypatch.setattr(packs, 'sync', lambda *a, wanted=None, **k: (asked.append(set(wanted)), ([], None))[1])
     cli._download_packs()                       # `packs download` and export-files --photos
-    assert asked == [set(parts.packs_for(parts.LEGACY | {parts.BRIGHT_ICE}))] and 'ice' in asked[0]
+    assert asked == [set(parts.packs_for(parts.LEGACY))] and 'ice' in asked[0]     # the national teams' ice is in it
 
 
 @pytest.mark.parametrize('order,winner', [(['pack_ice', 'bright_ice'], 'ice'), (['bright_ice', 'pack_ice'], 'looks')])
@@ -422,7 +427,53 @@ def test_this_seasons_two_switches_make_the_jerseys_and_the_centres_apart():
     assert [m.centre for m in jerseys] == ['game', 'game', 'C:/mine.png'] and jerseys[0].pack == (kit,)
     centres = looks.split_looks(made, False, True)                     # jerseys off: only the pack's centre, no kits
     assert [(m.art, m.centre, m.pack) for m in centres] == [(7, 'pack:c/7#1', ())]
-    assert parts.packs_for({parts.LOOKS, parts.PACK_ICE}) == ['looks']      # one download for both
+    assert parts.packs_for({parts.LOOKS}) == ['looks']
+    assert parts.packs_for({parts.LOOKS, parts.PACK_ICE}) == ['looks', 'ice']      # the national teams' ice comes in `ice`
     assert parts.ice_order(['bright_ice', 'pack_ice'], {parts.PACK_ICE, parts.BRIGHT_ICE}) == ['bright_ice', 'pack_ice']
     assert parts.ice_order(None, {parts.PACK_ICE, parts.BRIGHT_ICE}) == ['pack_ice', 'bright_ice']
     assert parts.ice_order(['bright_ice', 'pack_ice'], {parts.PACK_ICE}) == ['pack_ice']
+
+
+# --- the community centre ice is greyed out (owner, 2026-11-06) ----------------------------------------------------
+def test_the_community_centre_ice_is_off_its_files_go_back_and_this_seasons_national_ice_stays(base_dir, tmp_path,
+                                                                                                monkeypatch):
+    """With the community centre ice in DISABLED nothing of it is installed even when asked for, the files an earlier
+    version put in go back to the game's own at the next update with pictures, and the national teams' shared ice (art
+    501, this season's set) comes with "This season's centre ice", undone by that row's Restore."""
+    assert parts.BRIGHT_ICE in parts.DISABLED
+    r = fake_rpcs3(base_dir, tmp_path, monkeypatch)
+    Files.files = {}
+    monkeypatch.setattr(lab, 'Disc', Files)
+    monkeypatch.setattr(brightice, 'centre_file', lambda disc, art, entry, blob: f"ICE {art}".encode())
+    monkeypatch.setattr(brightice, 'rink_file', lambda disc, art: f"ICE {art}".encode())
+    pack = ice_pack(tmp_path, arts=('7', '22', '501'), ident='d1')
+    pack.close()
+    path = str(tmp_path / 'ice-d1.zip')
+    monkeypatch.setattr(packs, 'path', lambda name: path if name == 'ice' else None)
+    seven = loose(r, *centre_key(7))
+    os.makedirs(os.path.dirname(seven), exist_ok=True)
+    with open(seven, 'wb') as f:
+        f.write(b"the game's own")                                    # a loose file that was there before
+    writer = install._Writer([r.game_folder(TITLE)])
+    writer.write(centre_key(7), b'ICE 7', 'ice:#2:7:old')               # what 0.96.0's community switch put in
+    writer.write(centre_key(22), b'ICE 22', 'ice:#2:22:old')
+    writer.save()
+    monkeypatch.setattr(pipeline, 'install_looks', lambda *a, **k: 0)
+    monkeypatch.setattr(install, 'install', lambda *a, **k: (0, 0, 0))
+    builder = SimpleNamespace(bad_pictures={}, mask_looks={}, looks_edits={})
+    run = lambda: pipeline.Pictures(r, TITLE, parts={parts.PACK_ICE, parts.BRIGHT_ICE}).put_in(
+        SimpleNamespace(art=({}, {}, None), builder=builder, log=[], data=b''), QUIET)
+    assert parts.BRIGHT_ICE not in pipeline.Pictures(r, TITLE, parts={parts.BRIGHT_ICE}).parts
+    run()
+    games = install.load_manifest()['games'][r.game_folder(TITLE)]
+    assert open(seven, 'rb').read() == b"the game's own" and not os.path.exists(loose(r, *centre_key(22)))
+    assert set(games) == {'/'.join(centre_key(501))}
+    assert games['/'.join(centre_key(501))]['source'].startswith(parts.SEASON_ICE_TAG)
+    assert open(loose(r, *centre_key(501)), 'rb').read() == b'ICE 501'
+    again = ExtraPack.open('ice')
+    try:
+        assert brightice.install_season(r, TITLE, again, QUIET) == 0      # a second time writes nothing
+    finally:
+        again.close()
+    assert install.remove_disabled(QUIET) == 0
+    assert install.remove_parts([parts.PACK_ICE], QUIET) == 1 and not os.path.exists(loose(r, *centre_key(501)))

@@ -7,11 +7,14 @@
 Writes manifest.json (packs.FORMAT; per pack: file, size, sha256, built), copies each zip under a name of its own
 (<name>-<sha12>.zip: a player halfway through a download keeps the old file), then the data pack, then the manifest
 last (as manifest.json.tmp, renamed on the server), so a manifest never names a file that is not there yet. The packs
-the new and the previous manifest name stay; older ones are removed. Needs ssh and scp (OpenSSH). Refuses when
+the new and the previous manifest name stay; older ones are removed. The server's daily lines job (tools/lines_job.py)
+rewrites the data pack there: each team's lines the server's pack has newer than this one's are kept, written into the
+local pack first (lines_job.take_newer), so a publish never sends older lines. Needs ssh and scp (OpenSSH). Refuses when
 tools/clean_check.py --server finds a word that must not ship. Host and folder are given on the command line only: they never
 go into a committed file.
 """
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -23,8 +26,11 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from legacy_roster import datasource, packs  # noqa: E402
+import clean_check  # noqa: E402
+import lines_job  # noqa: E402
 
 PACKS = os.path.join(ROOT, 'private', 'packs')
 
@@ -90,6 +96,23 @@ def main():
         subprocess.run(['scp', '-q', local, f"{host}:{remote}"], check=True)
 
     q = shlex.quote
+    # the server's daily lines job (tools/lines_job.py) may have newer lines than this pack: keep them
+    live = subprocess.run(['ssh', host, f"cat {q(folder + '/datapack.json.gz')}"], capture_output=True, check=False)
+    try:
+        server_pack = json.loads(gzip.decompress(live.stdout)) if live.returncode == 0 and live.stdout else None
+    except (OSError, ValueError):
+        server_pack = None
+    if server_pack:
+        merged, taken = lines_job.take_newer(pack, server_pack)
+        if taken:
+            hits = clean_check.pack_hits(json.dumps(merged, ensure_ascii=False))
+            if hits:
+                sys.exit("the server's newer lines hold words that must not ship: nothing was sent\n" + "\n".join(hits))
+            print(f"lines: kept the server's newer lines of {len(taken)} teams ({', '.join(t.split(':')[1] for t in taken[:12])}"
+                  f"{' ...' if len(taken) > 12 else ''})")
+            if not args.dry_run:
+                with open(datasource.BUNDLED_PACK, 'wb') as f:      # the local pack becomes what goes out
+                    f.write(datasource.pack_bytes(merged))
     old = ssh(f"cat {q(folder + '/manifest.json')}", check=False)
     try:
         before = json.loads(old.stdout).get('packs', {}) if old.returncode == 0 else {}

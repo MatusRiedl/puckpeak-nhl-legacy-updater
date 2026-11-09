@@ -44,7 +44,8 @@ def update_context(rpcs3, slot, targets, steps, parts, in_place, photos=False, e
     uses (each one marked "missing" when it is not there: a tester's "[WinError 3]" named no folder)."""
     def where(path):
         return f"{path}{'' if path and os.path.exists(path) else '  (missing)'}" if path else "(none)"
-    lines = [f"roster: {getattr(slot, 'name', '?')} in {where(getattr(slot, 'folder', None))}",
+    folder, path = getattr(slot, 'folder', None), getattr(slot, 'path', None)   # folder: the name only (savedata.Slot)
+    lines = [f"roster: {getattr(slot, 'name', '?')} in {folder}{'' if not path or os.path.exists(path) else '  (missing)'}",
              f"version {getattr(slot, 'title_id', '?')}, saved for {', '.join(targets or [])}, "
              f"{'in place' if in_place else 'as a new roster'}",
              f"steps: {', '.join(steps) or '(none)'}; restore: {', '.join(sorted(parts)) or '(none)'}; "
@@ -124,6 +125,8 @@ class UpdateController:
         old = S.PACK_ICE not in remembered
         self.art_on[S.PACK_ICE] = bool(remembered.get(S.PACK_ICE, self.art_on[S.LOOKS]))
         self.art_on[S.BRIGHT_ICE] = bool(remembered.get(S.BRIGHT_ICE, self.art_on[S.LOOKS])) if not old else self.art_on[S.LOOKS]
+        for k in P.DISABLED:            # greyed out for now (art/parts.py DISABLED): off whatever was remembered
+            self.art_on[k] = False
         saved_order = self.settings.get(S.ICE_ORDER)
         self.ice_order = P.ice_order(saved_order if isinstance(saved_order, list) else None,
                                      {k for k in P.DEFAULT_ICE_ORDER if self.art_on[k]})
@@ -706,6 +709,8 @@ class UpdateController:
                            or self.export_mode and not self.export_games()):
                     return
                 for k in S.row_parts(S.GROUP if key == S.PICTURES else (key,)):    # the group row switches all its parts together
+                    if k in P.DISABLED:
+                        continue                # greyed out: stays off
                     if k == S.PHOTOS:
                         self.photos = on
                     else:
@@ -1660,7 +1665,7 @@ class UpdateController:
         else:
             sub = X.photos_will(sum(self.pack_sizes.get(n) or X.PICTURE_SIZES.get(n, 0) for n in wanted))
         count = sum(1 for kid in kids if kid['on'])
-        every = len(kids)
+        every = sum(1 for k in S.GROUP if k not in P.DISABLED)
         if offered and on and count < every:
             sub = f"{count} of {every} parts on. " + sub
         return {'key': S.PICTURES, 'title': X.PHOTOS_TITLE, 'sub': sub, 'warn': None, 'hint': self._named(X.PHOTOS_HINT), 'featured': True,
@@ -1678,7 +1683,9 @@ class UpdateController:
         here = all(packs.have(n) for n in names)
         running = on and bool(names) and self.fetch == 'running' and not here
         size = sum(self.pack_sizes.get(n) or X.PICTURE_SIZES.get(n, 0) for n in names)
-        if export and not offered:
+        if key in P.DISABLED:
+            sub = X.PICTURE_DISABLED
+        elif export and not offered:
             sub = X.PHOTOS_EXPORT
         elif plain and not export:
             sub = X.PHOTOS_NEEDS_RPCS3
@@ -1697,7 +1704,7 @@ class UpdateController:
         else:
             sub = X.photos_will(size)
         return {'key': key, 'title': title, 'sub': sub, 'warn': None, 'hint': self._named(hint),
-                'on': on, 'enabled': not self.busy and offered, 'restore': offered and not export,
+                'on': on, 'enabled': not self.busy and offered and key not in P.DISABLED, 'restore': offered and not export,
                 'restore_enabled': restorable, 'restoring': key in self.marks,
                 'bar': round(self.fetch_at, 3) if running else None,
                 'action': {'label': "Apply names", 'call': 'apply_names', 'tip': X.NAMES_TIP,

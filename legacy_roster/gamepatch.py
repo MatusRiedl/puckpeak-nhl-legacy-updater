@@ -1932,21 +1932,70 @@ def art_rows(R, art):
     return [{f: W.get(i, f) for f in W.fields} for i in range(W.cur_rec) if W.get(i, ROW_ART) == art]
 
 
-def art_fit(R):
-    """Give Coachella Valley, Henderson and the Vees the art ids of their own (layout.CLUB_ART) in the roster `R` for the patched
-    game, in place: the created-team flag off and the jersey rows of their donor club (layout.CLUB_DONOR: the donor's rows
-    for the versions listed there) under their art id and slot. Their files are art/clubart.py's. Returns how many teams
-    changed."""
-    W, changed = R.f['wgjx'], 0
+ROW_WORD, ROW_DEFAULT, ROW_VARIANT = 'gZuU', 'MSFy', 'TccF'     # wgjx locstring, isdefault, variant
+ALTERNATE_WORD = 2                          # locstring of an Alternate version (art/looks.py ALTERNATE)
+
+
+def _club_rows_missing(R):
+    """[(slot, art, row)]: the donor rows art_fit still has to add, in the order it adds them."""
+    out = []
     for slot in in_the_roster(R, L.CLUB_ART):
         art = L.CLUB_ART[slot]
         donor, variants = L.CLUB_DONOR[slot]
-        wanted = [row for row in art_rows(R, donor) if row['TccF'] in variants]
-        have = {row['TccF'] for row in art_rows(R, art)}
-        for row in wanted:
-            if row['TccF'] not in have:
-                W.add_record(dict(row, **{ROW_ART: art, ROW_TEAM: slot}))
-                changed += 1
+        have = {row[ROW_VARIANT] for row in art_rows(R, art)}
+        out += [(slot, art, row) for row in art_rows(R, donor) if row[ROW_VARIANT] in variants and row[ROW_VARIANT] not in have]
+    return out
+
+
+def make_room(R, need, dropped=None):
+    """Free `need` rows of table wgjx (it holds W.max_rec, 749) for art_fit by taking out Alternate rows this program added
+    for this season's thirds (art/looks.alternate_rows, 0.92.0). They are the run of Alternate rows (locstring 2, not a
+    default) at the very end of the table, each one of a team whose own rows come earlier; the last one added goes first (the
+    clubs of the higher slots before the NHL). Needed by a roster an older version filled: 0.92.0 left room for 4 rows
+    (Coachella Valley, Henderson), the Vees need 2 more since 0.95.0 (a tester's "wgjx: table full (749)",
+    docs/notes/wgjx-full.md). Deterministic. Returns how many rows went; `dropped` (a list) gets their (team slot, art id,
+    variant)."""
+    W = R.f['wgjx']
+    short = need - (W.max_rec - W.cur_rec)
+    if short <= 0:
+        return 0
+    clubs = set(L.CLUB_ART.values())
+    end = W.cur_rec
+    while end > 0 and W.cur_rec - end < short:
+        i = end - 1
+        art = W.get(i, ROW_ART)
+        if (W.get(i, ROW_WORD) != ALTERNATE_WORD or W.get(i, ROW_DEFAULT) or art in clubs
+                or not any(W.get(j, ROW_ART) == art for j in range(i))):
+            break
+        end = i
+    gone = [(W.get(i, ROW_TEAM), W.get(i, ROW_ART), W.get(i, ROW_VARIANT)) for i in range(W.cur_rec - 1, end - 1, -1)]
+    for i in range(end, W.cur_rec):
+        for f in W.fields:
+            W.set(i, f, 0)
+    W.cur_rec = end
+    if dropped is not None:
+        dropped += gone
+    return len(gone)
+
+
+def art_fit(R, dropped=None):
+    """Give Coachella Valley, Henderson and the Vees the art ids of their own (layout.CLUB_ART) in the roster `R` for the patched
+    game, in place: the created-team flag off and the jersey rows of their donor club (layout.CLUB_DONOR: the donor's rows
+    for the versions listed there) under their art id and slot. Their files are art/clubart.py's. When the table has no room
+    for those rows, this season's Alternate rows an older update added make it (`make_room`; `dropped` gets them); a roster
+    whose own rows leave none still cannot take them (a LayoutError that says so). Returns how many teams changed."""
+    W, changed = R.f['wgjx'], 0
+    missing = _club_rows_missing(R)
+    make_room(R, len(missing), dropped)
+    if len(missing) > W.max_rec - W.cur_rec:
+        raise L.LayoutError(f"This roster's list of jersey versions is full ({W.cur_rec} of {W.max_rec}), so there is no "
+                            "room for Coachella Valley's, Henderson's and the Penticton Vees' jerseys the 32-team game "
+                            "needs. Update another roster, or unpatch the game in Game patch and update this one.")
+    for slot, art, row in missing:
+        W.add_record(dict(row, **{ROW_ART: art, ROW_TEAM: slot}))
+        changed += 1
+    for slot in in_the_roster(R, L.CLUB_ART):
+        art = L.CLUB_ART[slot]
         if R.T.get(slot, 'artid') != art or R.T.get(slot, CREATED) != 0:
             R.T.set(slot, 'artid', art)
             R.T.set(slot, CREATED, 0)

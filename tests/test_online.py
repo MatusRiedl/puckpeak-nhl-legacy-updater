@@ -747,6 +747,9 @@ def test_my_card_matches_and_the_board_come_from_the_server(server, tmp_path, mo
     view = host.snapshot()['ranks']
     assert (view['card']['rating'], view['card']['tier'], len(view['history'])) == (1080, 'Rookie', 5)
     assert [r['name'] for r in view['top']] == ['HostPlayer', 'Bo', 'Cy'] and view['me'] is None
+    # the rating card's bar runs from the tier's low end to the next tier
+    assert view['tiers'] and all(set(t) == {'name', 'min'} for t in view['tiers'])
+    assert any(t['name'] == 'Rookie' for t in view['tiers'])
 
 
 def test_the_result_of_the_new_match_shows_once_and_follows_the_second_report(server, tmp_path, monkeypatch):

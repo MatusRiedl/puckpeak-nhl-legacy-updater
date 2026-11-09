@@ -52,7 +52,6 @@ import argparse
 import datetime
 from collections import Counter
 import functools
-import gzip
 import json
 import os
 import sys
@@ -63,8 +62,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from legacy_roster import contracts, datasource  # noqa: E402
 from legacy_roster.layout import API_TO_SLOT  # noqa: E402
-from providers import (czech, dailyfaceoff, hockeytech, hokejcz_lines, iihf, liiga, nhl_facts, nhl_lines, penny_del, sportality, swiss,  # noqa: E402
+from providers import (czech, hockeytech, hokejcz_lines, iihf, liiga, nhl_facts, penny_del, sportality, swiss,  # noqa: E402
                        wiki_logo)
+import lines_job  # noqa: E402  (the lines' fetching, shared with the server's daily job)
 
 PRIVATE = os.path.join(ROOT, 'private')        # the makers of three parts, kept out of git (DEVELOPING.md)
 sys.path.insert(2, PRIVATE)
@@ -422,15 +422,24 @@ def main():
         pack['retired'] = [{'first': p['first'], 'last': p['last'], 'birth': p['birth']} for p in json.load(f)['players']]
     pack['sources']['retired'] = {'label': "Retired players", 'date': file_date(RETIRED), 'count': len(pack['retired'])}
 
-    # the NHL teams' real lines, worked out from their last five games (providers/nhl_lines.py; slots hold NHL.com ids)
+    old = datasource.read_pack(args.out) if os.path.exists(args.out) else None
+
+    # the NHL teams' real lines, worked out from their last five games (providers/nhl_lines.py; slots hold NHL.com ids),
+    # laid over the pack being replaced the way the server's lines job does (lines_job.lay_nhl: a team whose fetch failed
+    # or names a player twice keeps its entry, a category the fetch lacks whole keeps the older one)
     cache = os.path.join(CACHE, 'lines.json')
     if 'lines' in refresh:
         os.makedirs(CACHE, exist_ok=True)
         with open(cache, 'w', encoding='utf-8') as f:
-            json.dump(dailyfaceoff.merge(dailyfaceoff.lines(SEASON), nhl_lines.lines(SEASON)), f, ensure_ascii=False)
+            json.dump(lines_job.fetch_nhl(SEASON, print), f, ensure_ascii=False)
     if os.path.exists(cache):
         with open(cache, encoding='utf-8') as f:
-            pack['lines'] = json.load(f)
+            fetched = json.load(f)
+        pack['lines'], laid = lines_job.lay_nhl((old or {}).get('lines'), fetched, letters=False)
+        for code, why in laid['nhl_kept'].items():
+            print(f"lines: {code} kept from the pack being replaced ({why})")
+        for code, older in laid['nhl_older'].items():
+            print(f"lines: {code} keeps its older {'/'.join(older)}")
         pack['sources']['lines'] = {'label': "announced lines, and NHL.com's last games", 'date': file_date(cache),
                                     'count': len(pack['lines'])}
 
@@ -445,7 +454,7 @@ def main():
     if 'extraliga_lines' in refresh:
         os.makedirs(CACHE, exist_ok=True)
         with open(cache, 'w', encoding='utf-8') as f:
-            json.dump(hokejcz_lines.lines(SEASON, os.path.join(ROOT, 'tools', 'club_slots.json')), f, ensure_ascii=False)
+            json.dump(lines_job.fetch_extraliga(SEASON, print), f, ensure_ascii=False)
     base, match = {}, {}
     for path, into in ((base_cache, base), (cache, match)):
         if os.path.exists(path):
@@ -542,7 +551,6 @@ def main():
         pack['sources']['skins'] = {'label': "Skin groups of players (from their photos)", 'date': file_date(marks),
                                     'count': len(players)}
 
-    old = datasource.read_pack(args.out) if os.path.exists(args.out) else None
     for key in PRIVATE_PARTS:                 # no private maker and no cache: keep what the pack has
         if key not in pack and old and key in old:
             pack[key], pack['sources'][key] = old[key], old['sources'][key]
@@ -554,10 +562,11 @@ def main():
     if old:
         check_drops(old, pack, args.accept_drops)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    raw = json.dumps(pack, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
-    with gzip.GzipFile(args.out, 'wb', mtime=0) as f:
-        f.write(raw)
-    print(f"{args.out}: {os.path.getsize(args.out) / 1024:.0f} KB ({len(raw) / 1024:.0f} KB of JSON)")
+    data = datasource.pack_bytes(pack)            # the same writer as the server's lines job: the same pack, the same bytes
+    with open(args.out, 'wb') as f:
+        f.write(data)
+    raw = len(json.dumps(pack, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
+    print(f"{args.out}: {len(data) / 1024:.0f} KB ({raw / 1024:.0f} KB of JSON)")
     for key, src in pack['sources'].items():
         print(f"   {key}: {src['count']} entries, dated {src['date']}")
 

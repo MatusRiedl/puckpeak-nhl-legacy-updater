@@ -7,6 +7,7 @@
 """
 import gzip
 import hashlib
+import io
 import json
 import os
 import ssl
@@ -278,6 +279,15 @@ def find_missing(R, players, progress=None, fresh=False):
 def read_pack(path):
     with gzip.open(path, 'rt', encoding='utf-8') as f:
         return json.load(f)
+
+
+def pack_bytes(pack):
+    """The pack as its file holds it (tools/build_datapack.py, tools/lines_job.py): compact JSON, gzip with no time and the
+    name datapack.json, so the same pack is always the same bytes."""
+    buf = io.BytesIO()
+    with gzip.GzipFile(filename='datapack.json.gz', mode='wb', fileobj=buf, mtime=0) as f:
+        f.write(json.dumps(pack, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
+    return buf.getvalue()
 
 
 def usable(pack):

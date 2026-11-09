@@ -734,6 +734,18 @@ def remove_parts(parts, say=print):
     return n
 
 
+def remove_disabled(say=print):
+    """Put back the files of parts the window shows greyed out (art/parts.py DISABLED: the community centre ice since
+    2026-11-06), in every game folder the list knows; nothing is said when there are none. RPCS3 must be closed. Returns how
+    many files were handled."""
+    from . import parts as P
+    m = load_manifest()
+    if not any(P.belongs(e.get('source'), p, k) for files in m['games'].values() for k, e in files.items()
+               for p in P.DISABLED):
+        return 0
+    return remove_parts(sorted(P.DISABLED), say)
+
+
 def remove_retired(say=print):
     """Put back the files of parts the program no longer has (art/parts.py RETIRED_TAGS: the new scoreboard of the test
     versions 0.78.0 / 0.80.0), in every game folder the list knows. Says nothing when there are none; leaves them while

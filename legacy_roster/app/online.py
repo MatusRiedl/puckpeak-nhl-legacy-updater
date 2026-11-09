@@ -1118,6 +1118,8 @@ class OnlineController:
         return {'card': self.card, 'history': self.history or [], 'top': rows[:BOARD_ROWS],
                 'me': me if me and me not in rows[:BOARD_ROWS] else None, 'highlights': board.get('highlights') or [],
                 'placement': board.get('placement') or 5, 'hidden': self.hidden(), 'tab': self.ranks_tab,
+                'tiers': [{'name': t.get('name'), 'min': t.get('min')} for t in board.get('tiers') or []
+                          if t.get('name') and t.get('min') is not None],
                 'stats': stats_view(self.card), 'box': self.box_view()}
 
     def _box_match(self):

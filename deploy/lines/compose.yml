@@ -1,0 +1,32 @@
+# The daily lines job beside the file server (README.md). Its own compose project in <pack server folder>/lines: the
+# file server's own compose file is not changed. No port, not on the `web` network: it only fetches the lines and
+# replaces ../files/datapack.json.gz (the folder is mounted, not the file: a file mount would keep the old file after
+# the rename).
+name: nhl-legacy-lines
+services:
+  lines:
+    build:
+      context: .
+      args:
+        BASE: ${BASE:-python:3.13-slim}
+    image: nhl-legacy-lines:latest
+    container_name: nhl-legacy-lines
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    cpus: 0.25
+    mem_limit: 256m
+    pids_limit: 64
+    volumes:
+      - ../files:/files
+      - ./archive:/archive
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

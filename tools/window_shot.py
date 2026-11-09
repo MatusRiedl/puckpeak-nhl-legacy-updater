@@ -445,7 +445,8 @@ def make_online(c, state):
         friend.update(role='host', progress='hosting', ready=True)
         on.lobby, on.code = {'code': 'KDMQRS', 'state': 'playing', 'reason': None, 'members': [friend, me], 'roster': mine}, 'KDMQRS'
         on.launched = 'KDMQRS'
-        on.log = {'name': 'GuestPlayer', 'bound': True, 'signaling': state == 'online-ingame', 'refused': None, 'fatal': False}
+        on.log = {'name': 'GuestPlayer', 'bound': True, 'signaling': state == 'online-ingame', 'refused': None, 'fatal': False,
+                  'old': False}
     if state in ('online-you', 'online-chat', 'online-board', 'online-result', 'online-stats', 'online-box'):
         shot_ranks(on, state)
         if state == 'online-chat':
@@ -480,7 +481,9 @@ def shot_ranks(on, state):
                              'l': 3 + k // 2, 'streak': 1, 'peak': r, 'last': None, 'delta7': 0} for k, (n, r, t) in enumerate(names)],
                 'ranked': 23, 'highlights': [{'kind': 'climber', 'title': 'Climber of the week', 'name': 'IceKing', 'value': '+64'},
                                              {'kind': 'streak', 'title': 'Hot streak', 'name': 'Friend_77', 'value': 'W4'}],
-                'recent': [], 'tiers': [], 'placement': 5, 'updated': 0}
+                'recent': [], 'tiers': [{'name': 'Minor League', 'min': 0}, {'name': 'Rookie', 'min': 1000},
+                                        {'name': 'Pro', 'min': 1100}, {'name': 'Top 6', 'min': 1200}],
+                'placement': 5, 'updated': 0}
     on.ranks_tab = {'online-board': 'board', 'online-stats': 'stats', 'online-box': 'box'}.get(state, 'mine')
     on.boxes = {'B1/9': ('confirmed', {'id': 'B1/9', 'at': 0, 'status': 'confirmed', 'why': None, 'sides': [
         {'name': 'GuestPlayer', 'team': 'Montreal Canadiens', 'score': 4, 'home': True,

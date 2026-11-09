@@ -3,6 +3,25 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.97.0 (2026-11-09)
+
+**A new Multiplayer tab, in three columns.** Left: you and a short checklist (roster, game patch, server, RPCS3 version), each
+with the button that fixes it. Middle: host a lobby or join one with a code, the public lobbies, then the two players, Ready,
+chat and what to press in the game. Right: your rating with a bar to the next tier, and your matches, stats, box scores and the
+leaderboard. On a smaller window the right column moves below the other two.
+
+**Real lines every day.** The real line-ups (NHL and Extraliga) are now refreshed every morning on our server, so each Update gets that day's lines; no new version is needed for them.
+
+**Community centre ice switched off for now.** It showed a grey square around the logo for some players. Its switch is greyed out
+and cannot be turned on; your next update with pictures puts the game's own centres back where it had laid them (or this season's,
+if that switch is on). It comes back once it is fixed. **This season's centre ice** stays and now also gives the national teams
+their IIHF centre ice (before, that came with the community switch).
+
+**Fixed: "wgjx: table full (749)" when updating for the patched game.** A roster that version 0.92.0 had updated for the
+32-team game could not be updated again: its list of jersey versions was full, and the Penticton Vees (new in 0.95.0) need two
+more. The program now takes out as many of the third jerseys it added earlier as it needs, starting with the clubs of the
+smaller leagues, and the List of changes names those teams. Nothing was saved when the error came, so no roster was damaged.
+
 ## 0.96.0 (2026-11-05)
 
 **Fixed: NHL Legacy Native forgot that it was patched.** After you patched the port and started the program again, it said "not

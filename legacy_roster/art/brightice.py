@@ -21,6 +21,7 @@ from . import parts, rpsgl
 
 CENTRE = 'rendering/icesurface/centerlogo_{a}_cm.rpsgl'
 RINK = 'rendering/icesurface/icesurface_{a}_bm.rpsgl'
+SEASON_ARTS = (501,)        # this season's set, not the community's: the national teams' shared IIHF ice (row pack_ice)
 RINK_ARTS = (22,)           # Utah: the disc's rink picture still shows Arizona's coyote at centre ice
 DRAWING = '#2'
 FIELDS = ('width', 'height', 'mips', 'format', 'size')
@@ -60,10 +61,20 @@ def _drawn_by_looks(writer, rel):
                for d in writer.game_dirs)
 
 
-def install_bright(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=None):
+def install_season(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=None):
+    """The centres of `pack` that are this season's set (SEASON_ARTS), with the switch "This season's centre ice" (tag
+    parts.SEASON_ICE_TAG, so that row's Restore undoes them). Returns how many files were written."""
+    return install_bright(rpcs3, title_id, pack, say, also=also, keep=keep, skipped=skipped, arts=SEASON_ARTS,
+                          tag=parts.SEASON_ICE_TAG, label="This season's centre ice")
+
+
+def install_bright(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=None, arts=None, tag=parts.ICE_TAG,
+                   label="New centre ice"):
     """Write the centres of `pack` as loose files into the game folder(s) (RPCS3 closed), with kept copies of anything
     replaced; a centre the pack no longer holds goes back as the game had it. `keep`: art ids whose centre the player
-    chose in Jerseys & ice (left to `looks`). `skipped` (a list) gets (art id, why). Returns how many files were written."""
+    chose in Jerseys & ice (left to `looks`). `skipped` (a list) gets (art id, why). `arts`: only these art ids (None:
+    the community's, every art id but SEASON_ARTS); `tag`: the source tag the files carry. Returns how many files were
+    written."""
     from . import install
     from .lab import Disc
     install.check(rpcs3, title_id)
@@ -74,17 +85,17 @@ def install_bright(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=N
     written, wanted = 0, set()
     try:
         for art, entry in sorted((pack.index.get('centres') or {}).items(), key=lambda kv: int(kv[0])):
-            if int(art) in keep:
+            if int(art) in keep or (int(art) not in arts if arts is not None else int(art) in SEASON_ARTS):
                 continue
             rel = CENTRE.format(a=art)
             wanted.add(rel)
             try:
-                source = f"{parts.ICE_TAG}{DRAWING}:{art}:{entry['id']}"
+                source = f"{tag}{DRAWING}:{art}:{entry['id']}"
                 if writer.current(tuple(rel.split('/')), source):
                     continue
                 data = centre_file(disc, art, entry, pack.read(entry['file']))
             except (rpsgl.RpsglError, KeyError, ValueError, TypeError) as err:     # TypeError: a pack of the old kind
-                say(f"New centre ice: centre ice {art} left as it is ({err})")
+                say(f"{label}: centre ice {art} left as it is ({err})")
                 wanted.discard(rel)
                 if skipped is not None:
                     skipped.append((art, str(err)))
@@ -93,7 +104,7 @@ def install_bright(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=N
             written += 1
         for art in RINK_ARTS:
             rel = RINK.format(a=art)
-            if CENTRE.format(a=art) not in wanted or _drawn_by_looks(writer, rel):
+            if arts is not None or CENTRE.format(a=art) not in wanted or _drawn_by_looks(writer, rel):
                 continue
             wanted.add(rel)
             source = f"{parts.ICE_TAG}{DRAWING}:rink:{art}"
@@ -109,9 +120,9 @@ def install_bright(rpcs3, title_id, pack, say=print, also=(), keep=(), skipped=N
                 continue
             writer.write(tuple(rel.split('/')), data, source)
             written += 1
-        for key in writer.stale(parts.ICE_TAG, wanted):
+        for key in writer.stale(tag, wanted):
             writer.drop(tuple(key.split('/')))
     finally:
         writer.save()
-    say(f"New centre ice: {written} files made" if written else "New centre ice: everything is installed already")
+    say(f"{label}: {written} files made" if written else f"{label}: everything is installed already")
     return written

@@ -12,6 +12,11 @@ export function Toggle({ on, disabled, onChange, label, gold }) {
     class=${cls('toggle', on && 'on', gold && 'gold')} disabled=${disabled} onClick=${() => onChange(!on)}></button>`;
 }
 
+// a small chip: tone good | caution | bad | info | gold
+export function Tag({ tone = 'info', title, children }) {
+  return html`<span class=${cls('tag', tone)} title=${title}>${children}</span>`;
+}
+
 export function Checkbox({ on, disabled, onChange, title, children }) {
   return html`<div role="checkbox" aria-checked=${!!on} tabindex="0" title=${title}
     class=${cls('check', on && 'on', disabled && 'disabled')}

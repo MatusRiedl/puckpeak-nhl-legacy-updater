@@ -236,14 +236,18 @@ def lines(season_year, teams=None, log=print):
     """{team code: {'date', 'games': [ids], 'slots'}} for the NHL teams (all, or the codes in `teams`)."""
     cache, out = {}, {}
     for abbr in sorted(teams or API_TO_SLOT):
-        picked = last_games(abbr, season_year)
-        reads = []
-        for game_id, _date in picked:
-            if game_id not in cache:
-                cache[game_id] = read_game(game_id)
-                time.sleep(0.1)
-            if abbr in cache[game_id]:
-                reads.append(cache[game_id][abbr])
+        try:
+            picked = last_games(abbr, season_year)
+            reads = []
+            for game_id, _date in picked:
+                if game_id not in cache:
+                    cache[game_id] = read_game(game_id)
+                    time.sleep(0.1)
+                if abbr in cache[game_id]:
+                    reads.append(cache[game_id][abbr])
+        except (OSError, ValueError, KeyError) as err:     # one team failing leaves it out (the pack keeps its old lines)
+            log(f"lines: {abbr}: {err}")
+            continue
         if not reads:
             log(f"lines: {abbr} has no finished game yet")
             continue

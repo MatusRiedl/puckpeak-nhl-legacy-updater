@@ -40,7 +40,7 @@ def page(code):
 
 
 def roster_ids(code, season_year):
-    """{(normalised name): id} and {number: id} of the team's NHL.com roster."""
+    """{(normalised name): [(id, number)]} and {number: (id, normalised last name)} of the team's NHL.com roster."""
     d = datasource.http_json(f"{datasource.NHL_API}/roster/{code}/current")
     by_name, by_number = {}, {}
     for kind in ('forwards', 'defensemen', 'goalies'):
@@ -48,19 +48,20 @@ def roster_ids(code, season_year):
             first, last = p['firstName']['default'], p['lastName']['default']
             by_name.setdefault(matching.norm(first + last), []).append((p['id'], p.get('sweaterNumber')))
             if p.get('sweaterNumber') is not None:
-                by_number[p['sweaterNumber']] = p['id']
+                by_number[p['sweaterNumber']] = (p['id'], matching.norm(last))
     return by_name, by_number
 
 
 def who(p, by_name, by_number):
-    """The NHL.com id of a listed player: by full name (two of one name: by number), else by his number when the last
-    name agrees."""
+    """The NHL.com id of a listed player: by full name (two of one name: by number), else by his number when the
+    roster's player of that number has his last name (a middle name the roster leaves out). A player the roster lacks
+    gets None, never the id of a team-mate who wears his number (2026-11-09: Lettieri #95 read as Ekman-Larsson #95)."""
     same = by_name.get(matching.norm(p['name']), [])
     found = same[0][0] if len(same) == 1 else next((i for i, n in same if n == p['number']), None)
     if found is None and p['number'] in by_number:
-        last = matching.norm(p['name'].split()[-1])
-        if matching.norm(p['name']).endswith(last):
-            found = by_number[p['number']]
+        ident, last = by_number[p['number']]
+        if last and matching.norm(p['name']).endswith(last):
+            found = ident
     return found
 
 

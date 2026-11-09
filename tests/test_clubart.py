@@ -55,6 +55,50 @@ def test_art_fit_once_and_unart_put_every_byte_back(patched):
     assert gamepatch.unshifted(out) == plain or Roster(gamepatch.unshifted(out)).f['wgjx'].cur_rec == R.f['wgjx'].cur_rec
 
 
+def _first_rows(W):
+    first = {}
+    for i in range(W.cur_rec):
+        first.setdefault(W.get(i, 'LQDG'), i)
+    return first
+
+
+def test_a_table_an_older_update_filled_makes_room_from_this_seasons_thirds(patched):
+    """0.92.0 left this season's Alternate rows room for 4 club rows (Coachella Valley, Henderson); since 0.95.0 the Vees need
+    2 more. A tester's patched update stopped with "wgjx: table full (749)" (docs/notes/wgjx-full.md)."""
+    out, _plain = patched
+    R = Roster(out)
+    gamepatch.unart(R)
+    W = R.f['wgjx']
+    own, first = W.cur_rec, _first_rows(W)
+    need = len(gamepatch._club_rows_missing(R))
+    added = []
+    for art in sorted(first):                       # Alternate rows as looks.alternate_rows adds them, at the end
+        if W.cur_rec >= W.max_rec - need + 2:       # 2 rows short, as the Vees' were
+            break
+        W.add_record(dict({f: W.get(first[art], f) for f in W.fields}, gZuU=2, MSFy=0, TccF=20, XOdd=20))
+        added.append(art)
+    dropped = []
+    assert gamepatch.art_fit(R, dropped) and gamepatch.check_art_fit(R) == []
+    assert W.cur_rec == W.max_rec and [art for _slot, art, _v in dropped] == added[::-1][:2]     # the last added first
+    filled = R.f.build()
+    gamepatch.unart(R)
+    assert W.cur_rec == W.max_rec - need and W.cur_rec == own + len(added) - 2   # the roster's own rows are all there
+    again = []
+    assert gamepatch.art_fit(R, again) and again == [] and R.f.build() == filled              # the next update: the same
+
+
+def test_a_table_full_of_the_rosters_own_rows_says_so(patched):
+    out, _plain = patched
+    R = Roster(out)
+    gamepatch.unart(R)
+    W = R.f['wgjx']
+    row = {f: W.get(0, f) for f in W.fields}
+    while W.cur_rec < W.max_rec:
+        W.add_record(row)
+    with pytest.raises(L.LayoutError, match='jersey versions is full'):
+        gamepatch.art_fit(R)
+
+
 def test_verify_allows_the_art_ids_on_the_patched_roster_only(patched, base_bytes):
     out, plain = patched
     source = Roster(base_bytes)
