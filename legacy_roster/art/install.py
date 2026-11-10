@@ -169,9 +169,7 @@ def _dds_bytes(template, img):
     if img.size != (h.width, h.height):
         raise ValueError(f"the picture must be {h.width} x {h.height}")
     if h.fourcc == 'DXT5':
-        buf = io.BytesIO()
-        img.save(buf, 'DDS', pixel_format='DXT5')
-        body = buf.getvalue()[128:]
+        body = dds.encode_level(img, 'DXT5')        # Pillow's blocks, the poor ones encoded again (cleaner edges)
     else:
         # plain 32-bit pixels: byte k of each pixel is the channel whose mask starts at bit 8k
         shift = {(m & -m).bit_length() - 1: 'RGBA'[c] for c, m in enumerate(h.masks) if m}
@@ -664,7 +662,7 @@ def install(rpcs3, title_id, portraits, logos, say=print, workers=WORKERS, pack=
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {pool.submit(fn): (what, rels, url, source) for what, fn, rels, url, source in jobs}
             for k, fut in enumerate(concurrent.futures.as_completed(futures), 1):
-                what, rels, url, source = futures[fut]
+                what, rels, url, source = futures.pop(fut)       # popped: a finished picture's bytes are not kept to the end
                 try:
                     made = fut.result()
                     why = "no head found in it" if made is None else ""

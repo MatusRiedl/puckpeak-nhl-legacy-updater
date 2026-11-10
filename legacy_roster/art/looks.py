@@ -604,17 +604,18 @@ def centre_logo(logo, arena, colour=(32, 32, 32), size=1024):
     draw.ellipse((cx - r, cx - r, cx + r, cx + r), fill=RING + (255,))
     r2 = r - 8 * scale
     draw.ellipse((cx - r2, cx - r2, cx + r2, cx + r2), fill=ICE + (255,))
-    if logo is not None:
-        box = int(2 * r2 * 0.80)
-        k = min(box / logo.width, box / logo.height)
-        mark = logo.convert('RGBA').resize((max(1, round(logo.width * k)), max(1, round(logo.height * k))), Image.LANCZOS)
-        canvas.alpha_composite(mark, (cx - mark.width // 2, cx - mark.height // 2))
     left, right = split_arena((arena or '').translate({ord(c): None for c in '®™℠'}).strip())     # no marks on the ring
     size_px = min((_fit_size(t, scale) for t in (left, right) if t), default=0)       # both halves in one size
     for text, mid in ((left, -32), (right, 32)):
         _arc_word(canvas, text, mid, True, colour, scale, size_px)
         _arc_word(canvas, text, mid, False, colour, scale, size_px)
-    return finish_centre(canvas.resize((size, size), Image.LANCZOS))
+    ring = canvas.resize((size, size), Image.LANCZOS)
+    if logo is not None:                    # the logo is resampled once, straight from its own pixels to its final size
+        box = int(2 * (DISC_RADIUS - 8) * 0.80 * size / 1024)
+        k = min(box / logo.width, box / logo.height)
+        mark = logo.convert('RGBA').resize((max(1, round(logo.width * k)), max(1, round(logo.height * k))), Image.LANCZOS)
+        ring.alpha_composite(mark, ((size - mark.width) // 2, (size - mark.height) // 2))
+    return finish_centre(ring)
 
 
 def finish_centre(img):
@@ -1657,7 +1658,7 @@ def shaded_sock(picture, shade):
 
 
 # --- choosing and installing the looks -------------------------------------------------------------------------------
-LOOKS_DRAWING = '#8'               # a change in how the pictures are drawn redraws every installed look once
+LOOKS_DRAWING = '#9'             # a change in how the pictures are drawn redraws every installed look once
 # '#8' (2026-10-27): the pack's own number sheets (put_sheet), rings carved inside the glyphs (recolour_numbers), Utah's /
 # Seattle's / Vegas's other versions in the pack's kit
 # '#4' (2026-10-18): the pack's own menu pictures for the pack kits; '#5': the DXT5 blocks and alpha-weighted mips of

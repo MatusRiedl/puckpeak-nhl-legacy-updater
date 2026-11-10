@@ -80,7 +80,7 @@ Its COORDINATION.md is imported through the git-ignored CLAUDE.md. Never put its
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
    The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
-   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, 0.96.0 on 2026-11-05, 0.97.0 on 2026-11-09, each with the owner's go-ahead). Every further commit,
+   and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, 0.96.0 on 2026-11-05, 0.97.0 on 2026-11-09, 0.97.1 on 2026-11-10, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name
    goes in, and that `python tools/clean_check.py` finds nothing.
@@ -228,6 +228,8 @@ progress messages are shown to players too, and the progress bar recognises them
 wording (`progress.py`).
 
 ## Current state
+
+**Version 0.97.1 (2026-11-10, released with the owner's go-ahead: tag `v0.97.1`, GitHub release with the exe, the Linux tar.gz (Ubuntu / Fedora / Arch passed) and `SHA256SUMS.txt`; the look pack `looks-48820d343839.zip` was published the same day; notes docs/notes/native-resolution.md, PLAN.md top). A tester's "MemoryError" in `dds.encode_level` after the save was the PC's memory taken by another emulator (a lab run of the full update stayed near 330 MB); `install.py`'s photo pool now pops finished futures anyway:** the native-resolution sweep. The look pack's jersey colour maps (`j/`) and menu shirts (`m/`) are made again by the private warp code (one sampling pass from the source's own pixels, `private/build_looks.py --redo-jerseys`, resumable with `REDO_CACHE`) and stored lossless (candidate `private/looks_candidate/looks_native.zip`, 157.5 MB, **not published**: `publish_packs.py --only looks` needs the owner's go; pack and app go out together). App side: `rpsgl.OPAQUE_SLACK` 1 (DXT1 error 4.9 -> 0.5), `looks.centre_logo` one resample, `install._dds_bytes` uses `dds.encode_level`, `LOOKS_DRAWING` '#9' (every look redraws once). Played in the lab (EU 1.00, 7 teams) 2026-11-10; the lab was put back.
 
 **Version 0.97.0 (2026-11-09, released with the owner's go-ahead: GitHub release with the exe, the Linux tar.gz and `SHA256SUMS.txt`)** carries everything below since 0.96.0: the Multiplayer tab in three columns as NHL 19's (plan docs/plans/multiplayer-three-columns.md), the community centre ice greyed out, the `wgjx` table-full fix and the lines job's code. Redeploy the lines job from this commit (`deploy/lines/README.md`).
 

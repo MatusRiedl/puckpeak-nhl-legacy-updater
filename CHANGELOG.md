@@ -3,6 +3,18 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.97.1 (2026-11-10)
+
+**Sharper jerseys, crests and centre ice.** The jerseys, the Select Jerseys pictures and the logos on them were being shrunk and
+stretched several times on the way into the game, which made crests (HV71's, for one) look blocky and blotchy. Each picture is now
+made once, straight from its full-size original, and stored without quality loss; the colour compression the game's file format needs
+is done more carefully; the centre-ice logo and the player photos are drawn more cleanly too. The game's own jersey files are a fixed
+size, so this is the best they can show. The jersey pack is bigger to download (about 157 MB instead of 94 MB), and the first update
+after this version redraws the jerseys once, which takes a while.
+
+The pictures step also holds less in memory while it installs the photos. If it ever stops with "MemoryError", close other big
+programs (another emulator, for one) and press Update again.
+
 ## 0.97.0 (2026-11-09)
 
 **A new Multiplayer tab, in three columns.** Left: you and a short checklist (roster, game patch, server, RPCS3 version), each

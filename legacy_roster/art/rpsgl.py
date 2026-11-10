@@ -19,7 +19,7 @@ import struct
 import zlib
 
 CHUNK = 0x20000
-OPAQUE_SLACK = None     # DXT1: a block Pillow got more than this far off is encoded again (None: Pillow's as they are)
+OPAQUE_SLACK = 1        # DXT1: a block Pillow got more than this far off is encoded again (None: Pillow's as they are; 0-2 measured equal, mean error 0.5 against 4.9)
 
 
 class RpsglError(ValueError):
