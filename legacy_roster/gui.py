@@ -142,7 +142,7 @@ class App:
         except datasource.Offline:
             self.pack = {}
 
-        root.title(f"Puck Peak Legacy Updater {__version__}")
+        root.title(f"Blueline {__version__}")
         # as tall as the content likes, but never taller than the screen (768-line laptops)
         room = T.screen_height(root) - 90
         root.geometry(f"1000x{max(MIN_HEIGHT, min(780, room))}")
@@ -1243,7 +1243,7 @@ def main(note=None):
     if T.missing_files():
         root.withdraw()
         messagebox.showerror(
-            "Puck Peak Legacy Updater",
+            "Blueline",
             "Some of this program's files are missing from the system's temporary folder. An antivirus "
             "or a cleaning program may have removed them.\n\n"
             "Close this message and start the program again. If it keeps happening, "

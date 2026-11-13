@@ -13,10 +13,12 @@ import urllib.request
 
 from .. import __version__, datasource, savedata
 
-REPO = "MatusRiedl/puckpeak-nhl-legacy-updater"
+REPO = "MatusRiedl/nhl-legacy-pc-online-blueline"
 # a test (or a fork) can point the check at its own JSON, a release made like GitHub's
 RELEASE_URL = os.environ.get('LEGACY_ROSTER_RELEASE_URL') or f"https://api.github.com/repos/{REPO}/releases/latest"
-EXE_ASSET = 'PuckPeakLegacyUpdater.exe'
+EXE_ASSET = 'BluelineLegacy.exe'                # the name since 0.98.0 (owner, 2026-11-13)
+PREV_EXE_ASSET = 'PuckPeakLegacyUpdater.exe'     # 0.80.1 to 0.97.1: their check looks only for it (and the one below), so the
+                                                 # release carries the exe under this name too (packaging/build.ps1)
 OLD_EXE_ASSET = 'NHLLegacyRosterUpdater.exe'     # the name until 0.80.0; 0.80.1's release carries the exe under both
 SUMS_ASSET = 'SHA256SUMS.txt'
 CHUNK = 256 * 1024
@@ -62,7 +64,7 @@ def from_json(data, fetch_text=None):
     if version is None:
         return None
     assets = {a.get('name'): a for a in data.get('assets') or [] if isinstance(a, dict)}
-    name = EXE_ASSET if EXE_ASSET in assets else OLD_EXE_ASSET
+    name = next((n for n in (EXE_ASSET, PREV_EXE_ASSET) if n in assets), OLD_EXE_ASSET)
     exe = assets.get(name)
     digest = _digest_of(exe)
     if exe and not digest and SUMS_ASSET in assets and fetch_text:

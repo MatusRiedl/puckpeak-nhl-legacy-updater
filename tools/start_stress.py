@@ -1,6 +1,6 @@
 """Start the window again and again and count the starts that never got their data (the blue / black window).
 
-    python tools/start_stress.py --exe dist\\PuckPeakLegacyUpdater.exe --runs 30
+    python tools/start_stress.py --exe dist\\BluelineLegacy.exe --runs 30
     python tools/start_stress.py --source --runs 5                       # .venv's python -m legacy_roster
     python tools/start_stress.py --exe ... --fail ready-hang --runs 1    # the way out of a failed start, on purpose
 
@@ -89,7 +89,7 @@ def one(command, home, fail, wait):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('--exe', help="the built program (dist\\PuckPeakLegacyUpdater.exe)")
+    ap.add_argument('--exe', help="the built program (dist\\BluelineLegacy.exe)")
     ap.add_argument('--source', action='store_true', help="run from source with .venv's python")
     ap.add_argument('--runs', type=int, default=30)
     ap.add_argument('--fail', choices=sorted(EXPECTED), help="fail on purpose")
@@ -98,7 +98,7 @@ def main():
     if args.source:
         command = [os.path.join(ROOT, '.venv', 'Scripts', 'python.exe'), '-m', 'legacy_roster']
     else:
-        command = [args.exe or os.path.join(ROOT, 'dist', 'PuckPeakLegacyUpdater.exe')]
+        command = [args.exe or os.path.join(ROOT, 'dist', 'BluelineLegacy.exe')]
         if not os.path.exists(command[0]):
             sys.exit(f"{command[0]} is not there: build it first or use --source")
     wait = args.wait or (90 if args.fail else 30)

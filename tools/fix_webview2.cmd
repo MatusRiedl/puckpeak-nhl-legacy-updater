@@ -4,7 +4,7 @@ set "FIX_SELF=%~f0"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression ([IO.File]::ReadAllText($env:FIX_SELF))"
 exit /b
 #>
-# Puck Peak Legacy Updater: check and repair Microsoft's WebView2 Runtime (the part of Windows that draws the window).
+# Blueline: check and repair Microsoft's WebView2 Runtime (the part of Windows that draws the window).
 # Double-click it. It asks for administrator rights, checks WebView2, asks before changing anything, reinstalls it,
 # and writes webview2-report.txt on the Desktop. FIX_DRYRUN=1: check and report only, change nothing.
 

@@ -50,11 +50,16 @@ export function KofiButton() {
 }
 
 export function Header({ meta }) {
+  // the BLUELINE wordmark | "brought to you by" Puck Peak, then the game line: the same header as Overtime, the NHL 19 app (owner, 2026-11-13)
   return html`<header class="header">
-    <img class="logo" src="img/logo.png" alt="Puck Peak" draggable="false" onClick=${() => call('open_site')}/>
-    <div class="tagline">${meta.tagline} · <a onClick=${() => call('open_site')}>${meta.site_label}</a></div>
-    <div class="titleline"><b>LEGACY UPDATER</b><span class="sep">|</span><span>NHL Legacy Edition on RPCS3 and NHL Legacy Native</span>
-      <span class="sep">|</span><span>version ${meta.version}</span></div>
+    <div class="brand">
+      <div class="wordmark">${meta.brand}</div>
+      <div class="vsep"></div>
+      <div class="by" title=${meta.site_label} onClick=${() => call('open_site')}>Brought to you by
+        <img class="logo" src="img/logo.png" alt="Puck Peak" draggable="false"/></div>
+    </div>
+    <div><div class="crumb"><span class="light">${meta.subtitle}</span>
+      <span class="sep">|</span><span class="ver">version ${meta.version}</span></div></div>
   </header>`;
 }
 

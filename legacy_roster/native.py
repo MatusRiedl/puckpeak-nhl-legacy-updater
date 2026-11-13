@@ -3,7 +3,7 @@
 The port reads no loose files of its own folders: its launcher joins the update and the mods into data/hdd0 with hard
 links when PLAY is pressed, or `NHLLauncher.exe --compose` runs (no window; seen 2026-11-02: exit 0, logs/compose.log). Every
 file we write is in one mod, mods/Puck Peak. Two mods with the same file: the one higher in the Mods tab wins, and the list
-is [launcher] mod_order, then the rest by name (seen 2026-11-02; the port's README says the other way). So "Imported from
+is [launcher] mod_order, then the rest by name (seen 2026-11-02; 1.0.1's README says so too, 1.0.0's said the other way). So "Imported from
 update folder", which holds whatever the player's RPCS3 had there, would beat ours by its name, and we go first.
 
 Nothing here writes into data/, and nhl_settings.ini changes only in the one line `mod_order`.

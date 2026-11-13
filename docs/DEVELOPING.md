@@ -332,7 +332,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 Creates `.venv` if needed, installs PyInstaller, pywebview, CustomTkinter, Pillow and certifi there (certifi's
 `cacert.pem` goes into the exe as `legacy_roster\data\cacert.pem`, see "Things that are not
 obvious"), and writes
-`dist\PuckPeakLegacyUpdater.exe` (window: `legacy_roster\web` added as data, `--collect-all` webview, pythonnet,
+`dist\BluelineLegacy.exe` (window: `legacy_roster\web` added as data, `--collect-all` webview, pythonnet,
 clr_loader and customtkinter; about 26 MB: no picture pack goes inside, `build.ps1` refuses a zip in
 `legacy_roster\data` and any `tools\clean_check.py` hit); since 0.85.0 no copy under the old name
 `NHLLegacyRosterUpdater.exe`. No command-line exe since 0.80.1. It carries Pillow for

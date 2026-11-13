@@ -605,7 +605,7 @@ def cmd_art_test(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog='PuckPeakLegacyUpdater', description=f"{APP_NAME} {__version__}")
+    ap = argparse.ArgumentParser(prog='BluelineLegacy', description=f"{APP_NAME} {__version__}")
     sub = ap.add_subparsers(dest='cmd', required=True)
     for name, fn, text in (('list', cmd_list, "show the roster saves in a savedata folder"),
                            ('update', cmd_update, "build an updated roster and save it as a new roster save"),

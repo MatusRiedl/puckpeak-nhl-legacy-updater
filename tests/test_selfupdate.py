@@ -65,6 +65,17 @@ def test_the_new_exe_name_first_and_the_old_one_still_works():
     assert U.from_json(only_old).can_install()
 
 
+def test_blueline_takes_its_own_name_then_the_puck_peak_name():
+    """0.98.0 named the exe BluelineLegacy.exe; its release also carries PuckPeakLegacyUpdater.exe for 0.80.1 to 0.97.1."""
+    both = release_json(digest='bb' * 32)
+    both['assets'].append({'name': U.PREV_EXE_ASSET, 'browser_download_url': 'http://x/prev', 'size': 3,
+                           'digest': 'sha256:' + 'cc' * 32})
+    assert U.EXE_ASSET == 'BluelineLegacy.exe' and U.from_json(both).exe_url == 'http://x/exe'
+    only_prev = release_json(digest='cc' * 32)
+    only_prev['assets'][0]['name'] = U.PREV_EXE_ASSET
+    assert U.from_json(only_prev).exe_url == 'http://x/exe' and U.from_json(only_prev).can_install()
+
+
 def test_due_at_every_start_and_not_when_switched_off():
     assert U.due({}) and U.due({'check_updates': True})
     assert U.due({'update_checked': 10 ** 12})          # a look a moment ago (0.50.2 and older waited 12 hours)

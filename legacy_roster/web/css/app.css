@@ -37,15 +37,21 @@ a:hover { color: #8fdcff; text-decoration: underline; }
 .backdrop .floor { position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
   background: linear-gradient(to bottom, transparent, rgba(2, 6, 12, .55)); }
 
-/* --- header ---------------------------------------------------------------------------------- */
-.header { position: relative; z-index: 1; text-align: center; padding: 14px 0 6px; flex: none; }
-.header .logo { display: block; margin: 0 auto; height: 46px; cursor: pointer; filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
-.header .tagline { margin-top: 5px; font-size: 13px; font-weight: 600; color: var(--accent-hi); }
-.header .tagline a { color: var(--accent-hi); }
-.header .titleline { display: inline-flex; align-items: center; gap: 10px; margin-top: 7px; padding-top: 6px;
-  border-top: 1px solid rgba(76, 195, 240, .28); font-size: 12px; color: var(--muted); }
-.header .titleline b { color: #fff; letter-spacing: .6px; font-weight: 700; }
-.header .titleline .sep { color: #2f5677; }
+/* --- header: the BLUELINE wordmark | "brought to you by" Puck Peak, then the game line (as Overtime, the NHL 19 app) --- */
+.header { position: relative; z-index: 1; text-align: center; padding: 14px 0 4px; flex: none; }
+.header .brand { display: inline-flex; align-items: center; gap: 22px; }
+.header .wordmark { font-family: var(--font); font-weight: 700; font-style: italic; font-size: 40px; line-height: 1;
+  letter-spacing: .08em; text-transform: uppercase; padding-right: .1em;
+  background: linear-gradient(180deg, #ffffff 0%, #e3e8ee 45%, #9ea9b6 100%); -webkit-background-clip: text;
+  background-clip: text; color: transparent; filter: drop-shadow(0 4px 10px rgba(0,0,0,.55)); user-select: none; }
+.header .vsep { width: 1px; height: 40px; background: rgba(76, 195, 240, .32); }
+.header .by { text-align: left; font-size: 10.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer; }
+.header .logo { display: block; height: 26px; margin-top: 4px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+.header .crumb { display: inline-flex; align-items: baseline; gap: 10px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.header .crumb .light { color: var(--text); font-weight: 400; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; }
+.header .crumb .sep { color: #2f5677; }
+.header .crumb .ver { font-variant-numeric: tabular-nums; }
 .linkrow { display: flex; align-items: stretch; gap: 10px; flex: none; min-width: 0; }
 .linkrow .discord { flex: 1 1 0; width: auto; min-width: 0; }
 .linkrow .kofi { flex: none; width: auto; }
@@ -74,12 +80,15 @@ a:hover { color: #8fdcff; text-decoration: underline; }
 .kofi:focus-visible { outline: 2px solid rgba(255,255,255,.8); outline-offset: 2px; }
 .compact .kofi { padding: 5px 12px; }
 .compact .kofi .t { font-size: 13.5px; }
-.compact .header { padding: 8px 0 2px; }
+.compact .header { padding: 6px 0 0; }
 .compact .discord { padding: 6px 12px; font-size: 13.5px; }
 .compact .discord svg { width: 18px; height: 18px; }
-.compact .header .logo { height: 28px; }
-.compact .header .tagline { display: none; }
-.compact .header .titleline { margin-top: 4px; padding-top: 3px; }
+.compact .header .brand { gap: 12px; }
+.compact .header .wordmark { font-size: 22px; }
+.compact .header .vsep { height: 22px; }
+.compact .header .by { display: inline-flex; align-items: center; gap: 8px; font-size: 9.5px; }
+.compact .header .logo { height: 14px; margin-top: 0; }
+.compact .header .crumb { display: none; }
 
 /* --- tabs: [L1] Update | Roster editor [R1] ------------------------------------------------- */
 .tabs { position: relative; z-index: 1; display: flex; justify-content: center; align-items: center; gap: 10px;

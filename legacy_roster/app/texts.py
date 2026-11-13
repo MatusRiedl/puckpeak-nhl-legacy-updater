@@ -132,6 +132,8 @@ MISFIT_STALE = ("Your game has update 1.01, and the game patch in RPCS3 is from 
                 "Patch again in Game patch.")
 MISFIT_PORT = ("NHL Legacy Native has changed, and the game patch does not fit this version yet. Press Unpatch in Game patch, "
                "then update this roster.")
+MISFIT_PORT_AGAIN = ("NHL Legacy Native has a new version, and the game patch in it is for the old one. Press Patch again in "
+                     "Game patch.")
 FIT_NO_STEP = "Switch on at least one thing to update, then press Update roster."
 UNPATCHED = "Done: the game patch is out. Rosters marked \"32 teams\" do not open now: update one, and it is made for the game as it is."
 NO_LOGIN_TIP = "No sign-in boxes when the game starts. Online modes still sign in when you open them."
@@ -244,7 +246,7 @@ NHL_NOTE = "Today's rosters from NHL.com"
 MISSING_FILES = ("Some of this program's files are missing from the system's temporary folder. An antivirus "
                  "or a cleaning program may have removed them.\n\n"
                  "Close this message and start the program again. If it keeps happening, "
-                 "allow PuckPeakLegacyUpdater in your antivirus.")
+                 "allow BluelineLegacy in your antivirus.")
 
 
 def friendly_date(when, now=None):

@@ -54,8 +54,9 @@ NO_PRESS = True                     # the intro skip also skips Press Start (art
 PRESS_SOURCE = 'press:' + pressstart.PRESS_VERSION
 SCREENS_SOURCE = 'online:' + onlinestart.FILES_VERSION      # the Welcome back panel and the matchmaking screen (set_online)
 MENU_SOURCE = 'menus:' + menus.MENUS_VERSION + menus.HIDE   # the main menu with the start's cave: the same tag the Photos install writes
-PORT_PACK = 'portpatch'             # packs.py: index.json {'version', 'stamp', 'image'} and the patch file
+PORT_PACK = 'portpatch'             # packs.py: index.json {'version', 'stamp', 'image', 'builds'} and a patch file per build
 PORT_FILE = 'XINPUT1_4.dll'         # next to NHLLegacy.exe, which takes it before the system's copy and is passed on to that
+PORT_FIRST_STAMP = 0x6ae7cb75       # NHL Legacy Native 1.0.0, the one build the pack had before 0.98.0
 PORT_LAUNCHER = "Close the NHL Legacy launcher first: the game patch can only be put in or taken out while it is closed."
 PORT_OTHER = ("This version of NHL Legacy Native is not the one the game patch was made for. It plays the game without the patch "
               "until the program has a patch for it.")
@@ -424,11 +425,26 @@ def _port_pack(rpcs3):
     if path is None:
         raise PatchError("The game patch could not be downloaded from our server. Check your connection and try again; "
                          "if it keeps failing, tell us on Discord.")
+    exe = savedata.exe_id(rpcs3.exe)
     with zipfile.ZipFile(path) as z:
-        index, body = json.loads(z.read('index.json')), z.read(PORT_FILE)
-    if (int(index['stamp'], 16), int(index['image'], 16)) != savedata.exe_id(rpcs3.exe):
-        raise PatchError(PORT_OTHER)
-    return body, index['version']
+        index = json.loads(z.read('index.json'))
+        name = next((b['file'] for b in port_builds(index) if (int(b['stamp'], 16), int(b['image'], 16)) == exe), None)
+        if name is None:
+            raise PatchError(PORT_OTHER)
+        return z.read(name), index['version'], exe[0]
+
+
+def port_builds(index):
+    """The builds of NHLLegacy.exe a portpatch pack has a file for: [{'stamp', 'image', 'file'}]. Since 0.98.0 `builds` lists
+    every one; the top-level stamp / image / XINPUT1_4.dll (1.0.0's) stay for older programs, which read only those."""
+    return index.get('builds', []) + [dict(stamp=index['stamp'], image=index['image'], file=PORT_FILE)]
+
+
+def _port_stamp(entry):
+    """The exe build (its time stamp) the installed patch file was made for: the list's source says it since 0.98.0; before,
+    the only build was 1.0.0."""
+    parts = entry['source'].split(':')
+    return int(parts[3], 16) if len(parts) > 3 else PORT_FIRST_STAMP
 
 
 def _port_entry(rpcs3):
@@ -455,10 +471,10 @@ def install_patch(rpcs3, titles, roster=None, intro=True, login=False, say=print
     meta, db = db_files(disc, roster)
     write_db(rpcs3, titles, meta, db)
     if port:
-        body, version = port
+        body, version, stamp = port
         writer = install._Writer([rpcs3.folder], store=STORE)
         try:
-            writer.write((PORT_FILE,), body, f"patch:{version}:" + hashlib.sha1(body).hexdigest())
+            writer.write((PORT_FILE,), body, f"patch:{version}:{hashlib.sha1(body).hexdigest()}:{stamp:08x}")
         finally:
             writer.save()
         set_screens(rpcs3, titles, True, disc, say)     # they do nothing until a lobby's start asks for them
@@ -772,8 +788,10 @@ def _port_state(rpcs3):
     the build the file was made for."""
     entry = _port_entry(rpcs3)
     rights = installed_rights(rpcs3, savedata.NATIVE_TITLE)
-    return {'patched': bool(entry and rights and rpcs3.patchable), 'version': entry['source'].split(':')[1] if entry else None,
-            'game': gamepatch.VERSIONS[-1], 'stale': bool(entry and not rpcs3.patchable), 'intro': False, 'login': False,
+    exe = savedata.exe_id(rpcs3.exe)
+    fits = bool(entry and rpcs3.patchable and exe and _port_stamp(entry) == exe[0])     # a 1.0.0 file left under 1.0.1: stale
+    return {'patched': bool(fits and rights), 'version': entry['source'].split(':')[1] if entry else None,
+            'game': gamepatch.VERSIONS[-1], 'stale': bool(entry and not fits), 'intro': False, 'login': False,
             'news': bool(entry), 'online': bool(entry), 'rights': rights if entry else None}
 
 

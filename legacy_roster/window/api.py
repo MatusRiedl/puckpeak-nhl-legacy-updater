@@ -7,7 +7,7 @@ import os
 import threading
 import time
 
-from .. import __version__, datasource
+from .. import BRAND, SUBTITLE, __version__, datasource
 from ..app import jobs, texts as X
 from . import startlog
 
@@ -44,7 +44,7 @@ class Api:
             raise RuntimeError("failed on purpose (LEGACY_ROSTER_FAIL)")
         began = time.monotonic()
         message = self._host.first()
-        message['meta'] = {'version': __version__, 'tagline': X.TAGLINE, 'site_label': X.SITE_LABEL}
+        message['meta'] = {'version': __version__, 'brand': BRAND, 'subtitle': SUBTITLE, 'site_label': X.SITE_LABEL}
         self._host.start_pushing()
         startlog.note(f"the data was ready after {time.monotonic() - began:.2f}s, sent", 'first')
         startlog.ready_done.set()

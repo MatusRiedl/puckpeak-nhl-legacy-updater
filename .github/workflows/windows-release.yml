@@ -27,8 +27,8 @@ jobs:
         id: unsigned
         uses: actions/upload-artifact@v4
         with:
-          name: PuckPeakLegacyUpdater-unsigned
-          path: dist/PuckPeakLegacyUpdater.exe
+          name: BluelineLegacy-unsigned
+          path: dist/BluelineLegacy.exe
       - name: Sign with SignPath
         id: sign
         if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
@@ -46,17 +46,17 @@ jobs:
         shell: pwsh
         run: |
           # signing changes the file: the update check compares the download with these sums
-          $exe = Get-ChildItem signed -Recurse -Filter PuckPeakLegacyUpdater.exe | Select-Object -First 1
+          $exe = Get-ChildItem signed -Recurse -Filter BluelineLegacy.exe | Select-Object -First 1
           "{0}  {1}" -f (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower(), $exe.Name | Set-Content -Encoding ascii signed\SHA256SUMS.txt
           Get-AuthenticodeSignature $exe.FullName | Format-List Status, StatusMessage, SignerCertificate
       - name: Upload the signed exe
         if: ${{ steps.sign.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
-          name: PuckPeakLegacyUpdater-signed
+          name: BluelineLegacy-signed
           path: signed
       - name: Say what happened
         shell: pwsh
         run: |
-          if ('${{ steps.sign.outcome }}' -eq 'success') { Write-Host "Signed. Download PuckPeakLegacyUpdater-signed and attach it to the release." }
+          if ('${{ steps.sign.outcome }}' -eq 'success') { Write-Host "Signed. Download BluelineLegacy-signed and attach it to the release." }
           else { Write-Host "NOT signed: SignPath is not set up for this repository yet (docs/MAINTAINING.md, Signing)." }

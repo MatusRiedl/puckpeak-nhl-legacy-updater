@@ -1,12 +1,15 @@
 # Start here (for AI agents and new developers)
 
-**Puck Peak Legacy Updater** (called NHL Legacy Roster Updater before 0.80.1) keeps the rosters of *NHL Legacy Edition* (PS3, played on the
+**Blueline** (`BluelineLegacy.exe`, since 0.98.0; Puck Peak Legacy Updater before, NHL Legacy Roster Updater before 0.80.1) keeps the rosters of *NHL Legacy Edition* (PS3, played on the
 RPCS3 emulator) up to date. Players start a Windows exe, pick `rpcs3.exe`, choose a roster and
 what to update, and get that roster updated (a backup first) or a **new** roster save named with the date
 and time. It is built for the NHL Legacy community. Explain changes to the project owner in plain words, without jargon, and
 leave decisions about publishing, credits and game-design trade-offs to them.
 
-The window carries the look and logo of **Puck Peak**, the owner's other NHL project. Keep it.
+The window carries the look and logo of **Puck Peak**, the owner's other NHL project. Keep it. Since 0.98.0 the header is Overtime's
+(the NHL 19 app): the BLUELINE wordmark, "Brought to you by" the Puck Peak logo, the game line and version (`BRAND`, `SUBTITLE`,
+`EXE_NAME` in `legacy_roster/__init__.py`; `shell.js` `Header`). The release carries the exe also as `PuckPeakLegacyUpdater.exe`
+(`selfupdate.PREV_EXE_ASSET`), the data folder keeps the name `NHLLegacyRosterUpdater`.
 
 **Shared servers** (the boxes, their ports and who may change what) follow the rules in the owner's private infra repo.
 Its COORDINATION.md is imported through the git-ignored CLAUDE.md. Never put its path or its contents into a tracked file.
@@ -79,7 +82,7 @@ Its COORDINATION.md is imported through the git-ignored CLAUDE.md. Never put its
    comes back); `data/hdd0` is the launcher's (it is hard-linked to `data/update` and the mods) and is never written by
    us, and `NHLLegacy.exe` is never changed.
 6. **No git commit or push, and nothing published, without the owner's explicit go-ahead.**
-   The project is public at https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater (0.6.0
+   The project is public at https://github.com/MatusRiedl/nhl-legacy-pc-online-blueline (0.6.0
    and 0.7.0 released on 2026-10-04, 0.8.0 on 2026-10-05, 0.8.1 on 2026-10-06, 0.50.0 to 0.50.3 on 2026-10-23, 0.50.4 to 0.51.2 on 2026-10-24, 0.52.0 on 2026-10-25, 0.80.0 and 0.80.1 on 2026-10-27, 0.90.0 on 2026-10-29, 0.91.0 on 2026-10-30, 0.92.0 on 2026-11-01, 0.95.0 and 0.95.1 on 2026-11-03, 0.95.2 on 2026-11-04, 0.96.0 on 2026-11-05, 0.97.0 on 2026-11-09, 0.97.1 on 2026-11-10, each with the owner's go-ahead). Every further commit,
    push or release needs the go-ahead again. Before pushing, check that no base roster (`work/`),
    picture pack (`private/packs/`, a zip in `legacy_roster/data/`), anything from `private/`, personal path or user name

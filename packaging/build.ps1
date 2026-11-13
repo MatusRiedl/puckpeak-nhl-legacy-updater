@@ -1,8 +1,10 @@
 # Build the Windows program into dist\ :
-#   PuckPeakLegacyUpdater.exe           the window (double-click; with arguments it is the command line, as
+#   BluelineLegacy.exe                  the window (double-click; with arguments it is the command line, as
 #                                       `python -m legacy_roster`); its pictures (photos, logos, this season's jerseys and
 #                                       centre ice) are not inside: it downloads them (legacy_roster\packs.py)
-#   SHA256SUMS.txt                      its checksum
+#   PuckPeakLegacyUpdater.exe           the same file under the name before 0.98.0: the update check of 0.80.1 to 0.97.1
+#                                       looks only for that name (app\selfupdate.PREV_EXE_ASSET); attach both to the release
+#   SHA256SUMS.txt                      their checksums
 # Since 0.85.0 only this one exe (owner): the copy named NHLLegacyRosterUpdater.exe that 0.80.1 / 0.81.0 carried for the
 # update check of 0.80.0 and older is gone; those copies get "Open the download page" (app\selfupdate.OLD_EXE_ASSET).
 # No command-line exe and no Mac program since 0.80.1 (owner); the Linux program: packaging/build.sh.
@@ -19,8 +21,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$running = Get-Process -Name PuckPeakLegacyUpdater, NHLLegacyRosterUpdater, NHLLegacyRosterUpdater-Photos, NHLLegacyRosterUpdater-cli -ErrorAction SilentlyContinue
-if ($running) { throw "Close PuckPeakLegacyUpdater first: Windows does not let a running program be replaced." }
+$running = Get-Process -Name BluelineLegacy, PuckPeakLegacyUpdater, NHLLegacyRosterUpdater, NHLLegacyRosterUpdater-Photos, NHLLegacyRosterUpdater-cli -ErrorAction SilentlyContinue
+if ($running) { throw "Close BluelineLegacy (Blueline) first: Windows does not let a running program be replaced." }
 
 $py = Join-Path $root '.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) {
@@ -63,7 +65,7 @@ foreach ($old in 'NHLLegacyRosterUpdater-Photos.exe', 'NHLLegacyRosterUpdater-cl
 }
 & $py -m PyInstaller @common --windowed --add-data "$web;legacy_roster\web" `
     --collect-all webview --collect-all pythonnet --collect-all clr_loader --collect-all customtkinter `
-    --name PuckPeakLegacyUpdater packaging\launcher.py
+    --name BluelineLegacy packaging\launcher.py
 if ($LASTEXITCODE -ne 0) { throw "building the window program failed" }
 
 if ($Sign) {
@@ -74,10 +76,13 @@ if ($Sign) {
     if (-not $tool -or -not $how) {
         Write-Host "Not signed: signtool.exe (Windows SDK) or a certificate (SIGN_PFX / SIGN_THUMBPRINT) is missing."
     } else {
-        & $tool.FullName sign @how /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "Puck Peak Legacy Updater" dist\PuckPeakLegacyUpdater.exe
+        & $tool.FullName sign @how /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "Blueline" dist\BluelineLegacy.exe
         if ($LASTEXITCODE -ne 0) { throw "signing the program failed" }
     }
 }
+
+# the copy for older programs' update check (made after signing, so it is signed too)
+Copy-Item -Force dist\BluelineLegacy.exe dist\PuckPeakLegacyUpdater.exe
 
 # checksums of the programs, to attach to the release (the update check compares the download with them)
 Get-ChildItem dist\*.exe | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |

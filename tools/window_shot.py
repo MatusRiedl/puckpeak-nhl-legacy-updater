@@ -679,7 +679,7 @@ def main():
     os.environ['LOCALAPPDATA'] = os.environ['XDG_DATA_HOME'] = work    # settings, caches and reports stay here
     here = os.getcwd()
     try:
-        from legacy_roster import __version__, pipeline, savedata
+        from legacy_roster import BRAND, SUBTITLE, __version__, pipeline, savedata
         from legacy_roster.app import settings as S
         from legacy_roster.app import texts as X
         exe = pretend_rpcs3(work, args.disc, full=args.state == 'full')
@@ -708,7 +708,7 @@ def main():
         tab, details = drive(args, c, work)
         time.sleep(0.3)
         message = host.first()
-        message['meta'] = {'version': __version__, 'tagline': X.TAGLINE, 'site_label': X.SITE_LABEL}
+        message['meta'] = {'version': __version__, 'brand': BRAND, 'subtitle': SUBTITLE, 'site_label': X.SITE_LABEL}
         if args.show_path:
             if (message['slices'].get('update', {}).get('rpcs3') or {}).get('path'):
                 message['slices']['update']['rpcs3']['path'] = args.show_path

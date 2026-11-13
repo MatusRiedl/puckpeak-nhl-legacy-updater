@@ -4,7 +4,7 @@
 # box gets at most 2 cores and 2 GB of memory, no ports and no folders of the machine.
 #   bash build_in_docker.sh <source.tgz> <out folder>
 # <source.tgz>: the files git would publish, packed (git ls-files); <out folder> receives
-# PuckPeakLegacyUpdater-<version>-linux.tar.gz and a picture of the window per system (window-<system>.png).
+# BluelineLegacy-<version>-linux.tar.gz and a picture of the window per system (window-<system>.png).
 # Fails when the build fails or the new window does not open on one of the systems (packaging/linux_check.sh).
 set -euo pipefail
 src=$(readlink -f "$1")

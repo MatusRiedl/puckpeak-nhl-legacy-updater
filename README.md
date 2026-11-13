@@ -1,11 +1,13 @@
 <div align="center">
 
-# 🏒 Puck Peak Legacy Updater
+# 🏒 Blueline (NHL Legacy)
+
+*Brought to you by Puck Peak. Called Puck Peak Legacy Updater before 0.98.0.*
 
 ### The ultimate toolkit for **NHL Legacy Edition** on PS3 / RPCS3 and **NHL Legacy Native** on PC.
 *One click and your 2014 game plays the 2026-27 season.*
 
-[**⬇ Download the latest version**](https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater/releases/latest)
+[**⬇ Download the latest version**](https://github.com/MatusRiedl/nhl-legacy-pc-online-blueline/releases/latest)
 &nbsp;·&nbsp; [Quick start](QUICKSTART.md) &nbsp;·&nbsp; [What's new](CHANGELOG.md)
 
 [![Join the Puck Peak Discord](https://img.shields.io/badge/Discord-Join_Puck_Peak-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://gg.puckpeak.com)
@@ -41,7 +43,7 @@ Questions, news and help: **[gg.puckpeak.com](https://gg.puckpeak.com)**
 
 ## 🚀 Get started
 
-1. Download `PuckPeakLegacyUpdater.exe` (about 26 MB, Windows) or `PuckPeakLegacyUpdater-<version>-linux.tar.gz` (Linux) from the release page.
+1. Download `BluelineLegacy.exe` (about 26 MB, Windows) or `BluelineLegacy-<version>-linux.tar.gz` (Linux) from the release page.
 2. In **Setup**, show it where `rpcs3.exe` or NHL Legacy Native's `NHLLauncher.exe` is and pick a roster. In **Update**, switch on what you want and press **Update roster**.
 3. Start the game. That is all.
 
@@ -116,8 +118,8 @@ The Linux program has the same window and tabs as the Windows one. On Linux, RPC
 `~/.config/rpcs3` (`~/.var/app/net.rpcs3.RPCS3/config/rpcs3` for the Flatpak). The program finds that folder by
 itself; if it does not, press **Find RPCS3** in Setup and pick your RPCS3 AppImage, the `rpcs3` program or that folder.
 
-- **Download:** `PuckPeakLegacyUpdater-<version>-linux.tar.gz` from the release page. Unpack it and start
-  `PuckPeakLegacyUpdater` in the folder (on a Steam Deck in Desktop Mode). Nothing to install: it brings its own web
+- **Download:** `BluelineLegacy-<version>-linux.tar.gz` from the release page. Unpack it and start
+  `BluelineLegacy` in the folder (on a Steam Deck in Desktop Mode). Nothing to install: it brings its own web
   engine. 64-bit Linux from 2022 or newer (Ubuntu 22.04, Debian 12, Fedora, Arch, SteamOS 3).
 - **Mac:** there is no Mac program (since 0.80.1). Run it from source (below) with Python 3.10 or newer and
   `pip install pywebview pillow`, or use **Export files to a folder** on another PC.
@@ -406,7 +408,7 @@ The window has ten tabs in one row: **Setup**, **Update** and **Game patch**, th
 **Roster**, **Lines**, **Strategy**, **Jerseys & ice**, **Calendar** and **Front office**, and **Draft & Pro** (above).
 Ctrl+1 to Ctrl+9 and Ctrl+0 open a tab; Ctrl+PgUp and Ctrl+PgDn go to the tab on the left or right.
 
-1. Download `PuckPeakLegacyUpdater.exe` (Linux: the `-linux.tar.gz`) from the Releases page and start it.
+1. Download `BluelineLegacy.exe` (Linux: the `-linux.tar.gz`) from the Releases page and start it.
 2. **Setup: Your game.** Pick the file `rpcs3.exe` in your RPCS3 folder, or `NHLLauncher.exe` of NHL Legacy
    Native. The program finds your saves from there, also when RPCS3 keeps its hard disk somewhere else or has several users. If
    RPCS3 is running, or you have used the program before, this is already filled in. **Downloads**
@@ -465,14 +467,14 @@ team, with a search box. The same list is saved as a spreadsheet file next to it
 - **"Could not connect safely"?** Check that the date and time on your PC are right. An antivirus
   that checks web traffic can also cause it: turn its web or HTTPS scanning off for a moment.
 - **"Some of this program's files are missing"?** An antivirus or a cleaning program removed them
-  while the program started. Start it again, and allow `PuckPeakLegacyUpdater.exe` in your antivirus.
+  while the program started. Start it again, and allow `BluelineLegacy.exe` in your antivirus.
 - **Real PS3 console:** saves there are signed. Copy the new save over and re-sign it with a save
   tool such as Apollo. This is untested.
 
 ## Command line
 
 The command line does the same without a window: from source on any system (`python -m legacy_roster ...`), or the
-Linux program with arguments (`./PuckPeakLegacyUpdater ...`). There is no separate command-line exe since 0.80.1.
+Linux program with arguments (`./BluelineLegacy ...`). There is no separate command-line exe since 0.80.1.
 
 ```
 python -m legacy_roster list   --rpcs3 "C:\RPCS3\rpcs3.exe"

@@ -17,7 +17,7 @@ Recycle Bin, `savedata.trash_save`), never adds a
 team and never moves a team to another league (hard limits of the game).
 
 ```
- PuckPeakLegacyUpdater(.exe) ─► window/ + app/ ──┐   (the page in web/; gui.py = old window, fallback)
+ BluelineLegacy(.exe) ─► window/ + app/ ──┐   (the page in web/; gui.py = old window, fallback)
  python -m legacy_roster <args> ► cli.py ─────────┤
                                                   ▼
                                     pipeline.update()
@@ -35,8 +35,8 @@ team and never moves a team to another league (hard limits of the game).
 
 | File | Built from | What it is |
 |---|---|---|
-| `PuckPeakLegacyUpdater.exe` (also published as `NHLLegacyRosterUpdater.exe`, the name before 0.80.1, for older copies' update check) | `packaging/launcher.py` | The window (about 26 MB). No pictures inside since 0.32.0: it downloads the picture packs (see "Photos and logos"). `legacy_roster.__main__.main()` opens the window when started without arguments and runs the command line when given some (but as a windowed program it has no console to print to). Since 0.6.0 the only window program (owner, 2026-10-04): 0.4–0.5 also had a plain one without the pictures. |
-| `PuckPeakLegacyUpdater-<version>-linux.tar.gz` | `packaging/launcher.py`, `packaging/build.sh` in a box | The Linux program, a folder: the same window with its own web engine (Qt WebEngine, PySide6, `window/main.linux_engine`); with arguments the command line, which prints to the terminal. MAINTAINING.md "The Linux program". |
+| `BluelineLegacy.exe` (also published as `NHLLegacyRosterUpdater.exe`, the name before 0.80.1, for older copies' update check) | `packaging/launcher.py` | The window (about 26 MB). No pictures inside since 0.32.0: it downloads the picture packs (see "Photos and logos"). `legacy_roster.__main__.main()` opens the window when started without arguments and runs the command line when given some (but as a windowed program it has no console to print to). Since 0.6.0 the only window program (owner, 2026-10-04): 0.4–0.5 also had a plain one without the pictures. |
+| `BluelineLegacy-<version>-linux.tar.gz` | `packaging/launcher.py`, `packaging/build.sh` in a box | The Linux program, a folder: the same window with its own web engine (Qt WebEngine, PySide6, `window/main.linux_engine`); with arguments the command line, which prints to the terminal. MAINTAINING.md "The Linux program". |
 
 No Mac program and no command-line exe since 0.80.1 (owner); `packaging/launcher_cli.py` stays for building one by
 hand. The Windows exe is a PyInstaller **one-file** build (`packaging/build.ps1`). On every start the exe unpacks

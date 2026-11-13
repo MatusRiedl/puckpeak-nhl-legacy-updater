@@ -19,8 +19,19 @@ first steps: `bin/EBOOT_v101.elf`, `nhl/out/EBOOT_v101.*.json` and the raw lift 
 py -3.13 -B tools/native_patch/build.py <port clone> <NHLLegacy.exe> <work folder>
 ```
 
-Takes a few minutes. It compares the lift with the raw lift and stops when a word of the patch lands in no replaced function. Copy
-`<work>/portpatch.zip` to `private/packs/`; `tools/publish_packs.py --only portpatch` sends it (owner's go).
+Takes a few minutes. It compares the lift with the raw lift and stops when a word of the patch lands in no replaced function.
+`<work>/portpatch.zip` holds one build's file. The pack players get holds every build (0.98.0: 1.0.0 and 1.0.1):
+
+```
+py -3.13 -B tools/native_patch/build.py --merge <out>/portpatch.zip <work 1.0.0>/portpatch.zip <work 1.0.1>/portpatch.zip
+```
+
+Its `index.json` lists each file under `builds`. 1.0.0's file also stays at the old top-level names (`stamp`, `image`,
+`XINPUT1_4.dll`), because programs before 0.98.0 read only those. `patchinstall._port_pack` picks the file that matches the exe, and
+the list's source records the build (`patch:<version>:<sha1>:<stamp>`). A file left from another build reads stale, so the window
+says Patch again. Copy the merged zip to `private/packs/`; `tools/publish_packs.py --only portpatch` sends it (owner's go). Two
+builds of the same tree differ only in the DLL's time stamp (3 bytes, checked 2026-11-13), so keep the published file of an older
+build when you add one.
 
 **When `gamepatch.TEAMS_VERSION` changes, build it again.** The pack's version is what the program compares, so with an old pack the
 window shows "Patch again" for ever. Check with `python -m legacy_roster game-patch status` on the lab copy.
@@ -34,16 +45,23 @@ has no boot login, so those two entries stay out.
 a new port version means: no patch until this is done, RPCS3 players are not touched.
 
 1. New `BUILDS` row: `table` (the `function_table` in `.rdata`: rows of guest address, host function, name), `tramp_off`, and
-   the addresses of `helpers` and `data`. None are exported. Find a helper by small functions in the raw lift that call one helper
-   only: the call all of those have in common in the exe is that helper (`llvm-objdump -d`). Read `data` and `tramp_off` from those
-   helpers' code.
+   the addresses of `helpers` and `data`. None are exported.
+   - **When a known build exists** (how 1.0.1 was done, 2026-11-13): find the table by the old table's first guest addresses.
+     If it has the same rows, the lift is the same. Then disassemble the same lifted functions in both exes (via the two tables
+     and `.pdata`; capstone) and pair each old helper / data address with the new one at the same place. 1.0.1: 2,135 of 2,135
+     sampled functions had the same instructions, and every helper and data address paired the same way every time. Compare the
+     helpers' own bodies too: their thread-block offsets show `tramp_off` (1.0.1: +0x340, 0x4170 -> 0x44b0). Check that the
+     79,800,000 clock constant is in `.text` 5 times (`console_clock`). docs/notes/native-101.md has the numbers.
+   - **From nothing**: find a helper by small functions in the raw lift that call one helper only: the call all of those have in
+     common in the exe is that helper (`llvm-objdump -d`). Read `data` and `tramp_off` from those helpers' code.
 2. `NATIVE_PATCHED` in `savedata.py`: the new stamp and image.
-3. Build, then play it on the lab copy. The log needs `NHL_PUCKPEAK_LOG=1`: `puckpeak_patch.log` next to the DLL says what was
-   swapped, or which function did not match. `NHL_PUCKPEAK_NOSWAP=1` turns the swap off without removing the file.
+3. Build, merge into the pack (above), then play it on the lab copy. The log needs `NHL_PUCKPEAK_LOG=1`: `puckpeak_patch.log`
+   next to the DLL says what was swapped, or which function did not match. `NHL_PUCKPEAK_NOSWAP=1` turns the swap off without
+   removing the file.
 
-`NHLLauncher.exe` imports the same DLL, so it loads our file too. The first line of the log is that: "not the exe this was made
-for", which is harmless. The launcher stays open behind the game and holds the file, so the program refuses Patch and Unpatch
-while it runs (`savedata.launcher_running`).
+`NHLLauncher.exe` loads our file too (the lab saw its "not the exe this was made for" line in 2026-11; a static read of its import
+table in 2026-11-13 did not find the import, so it may come in through another DLL). That line is harmless. The launcher stays
+open behind the game and holds the file, so the program refuses Patch and Unpatch while it runs (`savedata.launcher_running`).
 
 ## Online
 

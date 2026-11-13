@@ -572,7 +572,9 @@ class UpdateController:
                 or self.usable.get(s.folder) is not None:
             return None
         if self.patch_state.get(s.title_id, {}).get('stale'):
-            return X.MISFIT_PORT if self.rpcs3.native else X.MISFIT_STALE
+            if not self.rpcs3.native:
+                return X.MISFIT_STALE
+            return X.MISFIT_PORT_AGAIN if self.rpcs3.patchable else X.MISFIT_PORT
         patched, made = s.title_id in self._patched(), s.folder in self.patch_rosters
         if patched and made:
             game, own = self.patch_state.get(s.title_id, {}).get('rights'), self.roster_rights.get(s.folder)
@@ -1571,8 +1573,13 @@ class UpdateController:
         out = []
         for t in self.versions:
             if self.patch_state.get(t, {}).get('stale'):
-                state, tone = ("NHL Legacy Native has changed: the patch does not fit it now" if self.rpcs3.native
-                               else "The game has update 1.01, the patch is older: patch again"), 'amber'
+                if not self.rpcs3.native:
+                    state = "The game has update 1.01, the patch is older: patch again"
+                elif self.rpcs3.patchable:
+                    state = "NHL Legacy Native has a new version, the patch is for the old one: patch again"
+                else:
+                    state = "NHL Legacy Native has changed: the patch does not fit it now"
+                tone = 'amber'
             elif t in old:
                 state, tone = "Patched with an older patch: patch again", 'amber'
             elif t in patched:

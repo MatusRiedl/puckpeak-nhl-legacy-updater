@@ -3,6 +3,16 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.98.0 (2026-11-13)
+
+**New name: Blueline.** The program is now called Blueline, brought to you by Puck Peak, with a header like Overtime's, our NHL 19
+app. The Windows program is `BluelineLegacy.exe` (Linux: `BluelineLegacy`). Your settings, edits and backups stay where they were, and
+an older copy updates itself to the new version as before.
+
+**NHL Legacy Native 1.0.1.** The game patch (32 teams, the year 2026) now works on the new version of NHL Legacy Native as well as
+on 1.0.0. If you patched 1.0.0 and then updated NHL Legacy Native to 1.0.1, the Game patch tab says so: press Patch again. Rosters,
+pictures, team names and the editors work on 1.0.1 as before.
+
 ## 0.97.1 (2026-11-10)
 
 **Sharper jerseys, crests and centre ice.** The jerseys, the Select Jerseys pictures and the logos on them were being shrunk and

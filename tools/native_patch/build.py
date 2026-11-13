@@ -1,8 +1,10 @@
 """Builds the game patch of NHL Legacy Native, a stand-in XINPUT1_4.dll (README.md here). Nothing it makes goes into git.
 
     py -3.13 -B tools/native_patch/build.py <port clone> <NHLLegacy.exe> <work folder> [--skip-lift]
+    py -3.13 -B tools/native_patch/build.py --merge <out.zip> <work 1.0.0>/portpatch.zip <work 1.0.1>/portpatch.zip
 
-<work>/dll/XINPUT1_4.dll and <work>/portpatch.zip come out; the zip goes into private/packs by hand."""
+<work>/dll/XINPUT1_4.dll and <work>/portpatch.zip (one build) come out; --merge makes the pack of every build, which goes into
+private/packs by hand."""
 import bisect
 import glob
 import json
@@ -54,6 +56,16 @@ BUILDS = {
                      ps3_hle_call=0x1451abdd0),
         data=dict(vm_base=0x154d776e0, g_vm_ld_gate=0x154ecca90, g_vm_st_gate=0x1571ef800, g_ww_hi=0x154ecca6c,
                   tls_index=0x1599410f8)),
+    # 1.0.1 (2026-11-11): the same lift (105,841 rows, every lifted function the same instructions), helpers moved, the
+    # thread block 0x340 further on (tramp_off). Paired with 1.0.0's by disassembling the same functions: docs/notes/native-101.md.
+    (0x6af40f41, 0x1a614000): dict(
+        table=0x142e3720, code_end=0x1a62e4c, tramp_off=0x44b0,
+        helpers=dict(vm_read8=0x140010850, vm_read16=0x144f723b0, vm_read32=0x144f34020, vm_read64=0x144f37eb0,
+                     vm_write8=0x1443b2610, vm_write16=0x144e1bec0, vm_write32=0x144e1bbc0, vm_write64=0x144c35d70,
+                     ppu_ww_note_st16=0x144f71b10, ps3_indirect_call=0x1443b2330, ppu_stdcx64=0x1443b1f60,
+                     ps3_hle_call=0x14519f3e0),
+        data=dict(vm_base=0x154d08820, g_vm_ld_gate=0x154e638c0, g_vm_st_gate=0x157186640, g_ww_hi=0x154e6389c,
+                  tls_index=0x1598d7f38)),
 }
 
 
@@ -342,7 +354,34 @@ def pack(work, exe):
     return out
 
 
+FIRST = (0x6ae7cb75, 0x1a657000)   # 1.0.0: its file stays the pack's top-level XINPUT1_4.dll, the one programs before 0.98.0 read
+
+
+def merge(out, zips):
+    """One portpatch.zip from the packs of single builds (each made by `pack`): a file per build listed in `builds`, 1.0.0's
+    also under the old top-level names. Every pack must hold the same patch version."""
+    files, versions = {}, set()
+    for p in zips:
+        with zipfile.ZipFile(p) as z:
+            index = json.loads(z.read('index.json'))
+            files[(int(index['stamp'], 16), int(index['image'], 16))] = z.read('XINPUT1_4.dll')
+            versions.add(index['version'])
+    assert len(versions) == 1, versions
+    assert FIRST in files, 'the 1.0.0 file is needed: older programs read only that one'
+    builds = [dict(stamp=f'{s:08x}', image=f'{i:08x}', file=f'XINPUT1_4-{s:08x}.dll') for s, i in sorted(files)]
+    index = dict(version=versions.pop(), stamp=f'{FIRST[0]:08x}', image=f'{FIRST[1]:08x}', builds=builds)
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('index.json', json.dumps(index, sort_keys=True))
+        z.writestr('XINPUT1_4.dll', files[FIRST])
+        for b in builds:
+            z.writestr(b['file'], files[(int(b['stamp'], 16), int(b['image'], 16))])
+    return out
+
+
 def main():
+    if sys.argv[1] == '--merge':                # build.py --merge <out.zip> <pack of a build> <pack of a build> ...
+        print(merge(sys.argv[2], sys.argv[3:]))
+        return
     port, exe_path, work = sys.argv[1:4]
     exe = Exe(exe_path)
     build = BUILDS.get(exe.id)

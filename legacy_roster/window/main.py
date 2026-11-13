@@ -2,7 +2,7 @@
 import os
 import sys
 
-from .. import __version__, datasource
+from .. import APP_NAME, __version__, datasource
 from ..app import texts as X
 from . import startlog, watchdog, webview2
 
@@ -206,17 +206,17 @@ def main(argv=None, after=None):
     startlog.note_processes()
     if '--classic' in argv:
         if not classic(None):
-            webview2.message("Puck Peak Legacy Updater", "The classic window is not part of this program.")
+            webview2.message(APP_NAME, "The classic window is not part of this program.")
         return
     gone = missing_files()
     if gone:
         startlog.note("files missing: " + ", ".join(os.path.relpath(p, WEB) for p in gone[:12]))
-        webview2.message("Puck Peak Legacy Updater", X.MISSING_FILES)
+        webview2.message(APP_NAME, X.MISSING_FILES)
         return
     if not webview2.available():
         if classic("no WebView2 Runtime"):
             return
-        if webview2.message("Puck Peak Legacy Updater",
+        if webview2.message(APP_NAME,
                             "This program needs Microsoft Edge WebView2 Runtime, a free part of Windows from Microsoft.\n\n"
                             "Open the download page now? Install the \"Evergreen Bootstrapper\", then start this "
                             "program again.", ask=True):
@@ -285,7 +285,7 @@ def main(argv=None, after=None):
     width, height, x, y = window_box(webview)
     blank = os.environ.get('LEGACY_ROSTER_FAIL') == 'blank' and not watchdog.retried()          # tools/start_stress.py
     page = 'missing.html' if blank else 'index.html'
-    window = webview.create_window(f"Puck Peak Legacy Updater {__version__}",
+    window = webview.create_window(f"{APP_NAME} {__version__}",
                                    url=os.path.join(WEB, page), js_api=api, width=width, height=height,
                                    x=x, y=y, min_size=MIN_SIZE, background_color=BACKGROUND, text_select=False)
     host.attach(window)
@@ -323,13 +323,13 @@ def main(argv=None, after=None):
         jobs.log_unexpected(err)
         startlog.note(f"pywebview failed: {err}")
         if not classic(f"pywebview failed: {err}"):
-            webview2.message("Puck Peak Legacy Updater",
+            webview2.message(APP_NAME,
                              f"The window could not start: {err}\n\nPlease send us the error log: "
                              f"{datasource.app_dir('logs', 'error.log')}")
         return
     startlog.note("the window was closed")
     if host.fallback and not (watch and watch.outcome == 'again'):
         if not classic(host.fallback):
-            webview2.message("Puck Peak Legacy Updater",
+            webview2.message(APP_NAME,
                              f"The window could not start ({host.fallback}).\n\nPlease send us the start log: "
                              f"{startlog.path()}")

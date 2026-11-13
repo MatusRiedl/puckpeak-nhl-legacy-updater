@@ -346,6 +346,8 @@ def test_only_the_build_the_patch_file_was_made_for_can_be_patched(port):
     assert not savedata.find_rpcs3(str(port)).patchable
     build_of(port)
     assert savedata.find_rpcs3(str(port)).patchable
+    build_of(port, 0x6af40f41, 0x1a614000)                          # 1.0.1 (0.98.0)
+    assert savedata.find_rpcs3(str(port)).patchable
 
 
 def test_patch_and_unpatch_on_the_port(patched_port, port):
@@ -426,6 +428,57 @@ def test_a_port_that_changed_under_the_patch_can_only_be_unpatched(patched_port,
         patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
     patchinstall.remove(patched_port, say=lambda line: None)
     assert not (port / patchinstall.PORT_FILE).exists()
+
+
+V101 = (0x6af40f41, 0x1a614000)
+
+
+def two_builds(folder):
+    """The pack as 0.98.0 publishes it: 1.0.0's file at the old top-level name, a file per build under `builds`."""
+    builds = [{'stamp': '6ae7cb75', 'image': '1a657000', 'file': 'XINPUT1_4-6ae7cb75.dll'},
+              {'stamp': '6af40f41', 'image': '1a614000', 'file': 'XINPUT1_4-6af40f41.dll'}]
+    with zipfile.ZipFile(folder / 'portpatch.zip', 'w') as z:
+        z.writestr('index.json', json.dumps({'version': '0.27', 'stamp': '6ae7cb75', 'image': '1a657000', 'builds': builds}))
+        z.writestr(patchinstall.PORT_FILE, b'for 1.0.0')
+        z.writestr('XINPUT1_4-6ae7cb75.dll', b'for 1.0.0')
+        z.writestr('XINPUT1_4-6af40f41.dll', b'for 1.0.1')
+
+
+def test_each_build_of_the_port_gets_its_own_patch_file(patched_port, port, tmp_path):
+    two_builds(tmp_path / 'packs')
+    title = savedata.NATIVE_TITLE
+    build_of(port, *V101)
+    assert patched_port.patchable
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    assert (port / patchinstall.PORT_FILE).read_bytes() == b'for 1.0.1'
+    st = patchinstall.state(patched_port)[title]
+    assert st['patched'] and not st['stale'] and st['version'] == '0.27'
+    patchinstall.remove(patched_port, say=lambda line: None)
+    build_of(port)
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    assert (port / patchinstall.PORT_FILE).read_bytes() == b'for 1.0.0' and patchinstall.state(patched_port)[title]['patched']
+
+
+def test_a_port_updated_to_101_under_the_patch_is_patched_again(patched_port, port, tmp_path):
+    """A player patched 1.0.0, then copied 1.0.1 over it: the 1.0.0 file is still there. It reads stale and Patch again puts
+    in 1.0.1's."""
+    two_builds(tmp_path / 'packs')
+    title = savedata.NATIVE_TITLE
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    build_of(port, *V101)
+    st = patchinstall.state(patched_port)[title]
+    assert st['stale'] and not st['patched']
+    patchinstall.install_patch(patched_port, [title], roster=b'roster', say=lambda line: None)
+    assert (port / patchinstall.PORT_FILE).read_bytes() == b'for 1.0.1'
+    st = patchinstall.state(patched_port)[title]
+    assert st['patched'] and not st['stale']
+    patchinstall.remove(patched_port, say=lambda line: None)
+    assert not (port / patchinstall.PORT_FILE).exists()
+
+
+def test_a_patch_file_put_in_before_0_98_0_counts_as_one_for_1_0_0():
+    assert patchinstall._port_stamp({'source': 'patch:0.27:abc'}) == 0x6ae7cb75
+    assert patchinstall._port_stamp({'source': 'patch:0.27:abc:6af40f41'}) == 0x6af40f41
 
 
 def test_the_game_patch_tab_patches_a_port_that_fits(window, port, monkeypatch):

@@ -196,12 +196,12 @@ when the pack's layout changes in a way older exes cannot read, raise `PACK_FORM
 5. **Smoke test** the exe (the command line from source, `python -m legacy_roster`):
    - `python -m legacy_roster list --rpcs3 <rpcs3.exe>`: lists the rosters, community rosters "ok";
    - `python -m legacy_roster list --rpcs3 C:\Windows`: "That is not RPCS3…", exit code 1;
-   - start `dist\PuckPeakLegacyUpdater.exe`: the window appears within a few seconds with the
+   - start `dist\BluelineLegacy.exe`: the window appears within a few seconds with the
      Puck Peak logo, font and icon, and finds RPCS3 when it is running or was used before;
    - with a fresh `LOCALAPPDATA` (a temporary folder): the Photos row downloads by itself ("Downloading
      automatically... %", then "Ready"); `python -m legacy_roster packs status` lists the packs; a second start
      without network still has them;
-   - `python tools\start_stress.py --exe dist\PuckPeakLegacyUpdater.exe --runs 30`: every start draws its first tab (0 BAD,
+   - `python tools\start_stress.py --exe dist\BluelineLegacy.exe --runs 30`: every start draws its first tab (0 BAD,
      no WebView2 process left behind); then each of `--fail ready-hang|ready-error|blank|render|js-type|engine|lost-file|lost-always|lost-stall --runs 1`
      must say what it expects (the tool checks start.log's lines; docs/notes/blank-window.md);
    - run one update into a **copy** of a savedata folder (`update --savedata <copy>`), or with
@@ -215,11 +215,11 @@ when the pack's layout changes in a way older exes cannot read, raise `PACK_FORM
    CHANGELOG.md (the release text is made from it) and keep the README's "What it updates" table
    in step.
 8. Publish (only with the owner's go-ahead): commit, tag `vX.Y.Z`, push, then a GitHub Release
-   with `PuckPeakLegacyUpdater.exe` (only this exe since 0.85.0; 0.80.1 / 0.81.0 also carried `NHLLegacyRosterUpdater.exe`),
-   `PuckPeakLegacyUpdater-<version>-linux.tar.gz` and `SHA256SUMS.txt` (made by `build.ps1` in `dist\`; add the
+   with `BluelineLegacy.exe` and the same file as `PuckPeakLegacyUpdater.exe` (both made by `build.ps1`: 0.80.1 to 0.97.1 look only for the second name; before 0.98.0 only one exe since 0.85.0; 0.80.1 / 0.81.0 also carried `NHLLegacyRosterUpdater.exe`),
+   `BluelineLegacy-<version>-linux.tar.gz` and `SHA256SUMS.txt` (made by `build.ps1` in `dist\`; add the
    tar.gz's line to it). The data pack and the
    picture packs go to the file server (`tools/publish_packs.py`), not into the release. **The exe's own update check
-   (`app/selfupdate.py`) needs the exact asset name `PuckPeakLegacyUpdater.exe` (copies of 0.80.0 and older look for
+   (`app/selfupdate.py`) needs the exact asset name `BluelineLegacy.exe` (copies of 0.80.0 and older look for
    `NHLLegacyRosterUpdater.exe`, which releases since 0.85.0 no longer carry) and `SHA256SUMS.txt` (or GitHub's own `digest` of the exe), and a tag like `v0.11.0` (a draft or prerelease is ignored).
    Programs before 0.32.0 still download the data pack from `releases/latest/download/datapack.json.gz` and refuse
    format 2: leave that asset out.** There is no `gh` on the
@@ -233,12 +233,12 @@ The exe is not signed yet, so Windows SmartScreen warns (README "Good to know").
 open-source programme (https://signpath.org/). Written in 0.92.0, **not run**: it needs a push (rule 6) and SignPath's approval.
 
 1. **Apply** (the owner): the project is public, has an OSI licence (LICENSE) and a README; apply as a SignPath Foundation
-   open-source project, then in SignPath create the project, an artifact configuration for `PuckPeakLegacyUpdater.exe`
+   open-source project, then in SignPath create the project, an artifact configuration for `BluelineLegacy.exe`
    (a zip with the exe at its root) and a signing policy (e.g. `release-signing`).
 2. **Repository settings** (GitHub > Settings > Secrets and variables > Actions): secret `SIGNPATH_API_TOKEN`; variables
    `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_POLICY_SLUG`.
 3. **Run** `.github/workflows/windows-release.yml` (Actions tab, by hand). It builds the exe with `packaging/build.ps1`, uploads it,
-   and, when the variables are set, has SignPath sign it and uploads `PuckPeakLegacyUpdater-signed` with a fresh
+   and, when the variables are set, has SignPath sign it and uploads `BluelineLegacy-signed` with a fresh
    `SHA256SUMS.txt` (signing changes the file, so the sums of `dist\` no longer match; the update check compares them).
    Without the variables it stops after the unsigned upload and says so.
 4. The release then carries the signed exe from that artifact instead of the one built on the owner's PC; the release
@@ -259,7 +259,7 @@ named `legacy-linux-*`, at most 2 cores and 2 GB each, no ports, no folders of t
    every library the program links to is inside or part of every Linux), then runs `packaging/linux_check.sh` in plain
    Ubuntu 24.04, Fedora and Arch boxes (`packaging/linux/check/`). Each must say PASS: the new window opened on a
    pretend screen, drew its page (`LEGACY_ROSTER_SMOKE`, `window/main.smoke`) and the screen is not blank, and `--help` runs. `<out>` gets
-   `PuckPeakLegacyUpdater-<version>-linux.tar.gz` and `window-<system>.png`; look at the pictures.
+   `BluelineLegacy-<version>-linux.tar.gz` and `window-<system>.png`; look at the pictures.
 3. Copy the tar.gz back, add its line to `SHA256SUMS.txt`, attach both to the release (step 8 above).
 
 Why not GitHub: 0.80.0's Linux program came from there, needed the system's WebKitGTK, and opened the classic window

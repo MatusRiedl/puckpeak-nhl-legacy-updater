@@ -1,6 +1,6 @@
 # Quick start
 
-**Puck Peak Legacy Updater** brings the rosters of *NHL Legacy Edition* (PS3, played on RPCS3, or
+**Blueline** (brought to you by Puck Peak) brings the rosters of *NHL Legacy Edition* (PS3, played on RPCS3, or
 the PC port NHL Legacy Native) up to today: NHL, European leagues, AHL, juniors and national teams. A free community project
 from [Puck Peak](https://www.puckpeak.com).
 
@@ -28,9 +28,9 @@ from [Puck Peak](https://www.puckpeak.com).
 
 ## How to use it
 
-1. Download from [Releases](https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater/releases/latest):
-   **`PuckPeakLegacyUpdater.exe`** on Windows, **`...-linux.tar.gz`** on Linux (unpack it, start
-   `PuckPeakLegacyUpdater` in the folder). The program is not signed: on Windows choose *More info > Run anyway*.
+1. Download from [Releases](https://github.com/MatusRiedl/nhl-legacy-pc-online-blueline/releases/latest):
+   **`BluelineLegacy.exe`** on Windows, **`...-linux.tar.gz`** on Linux (unpack it, start
+   `BluelineLegacy` in the folder). The program is not signed: on Windows choose *More info > Run anyway*.
 2. **Close the game** if you want photos and logos.
 3. **Setup tab, "Your game":** pick the file `rpcs3.exe` in your RPCS3 folder (on Linux the program
    finds RPCS3 by itself), or `NHLLauncher.exe` of NHL Legacy Native. Neither on this computer? Tick
@@ -63,5 +63,5 @@ from [Puck Peak](https://www.puckpeak.com).
 
 The full manual is in [README.md](README.md). Questions, news and help: our Discord,
 [gg.puckpeak.com](https://gg.puckpeak.com) (the **Join our Discord** button at the top of the Setup tab). Found a problem? Open an
-[issue](https://github.com/MatusRiedl/puckpeak-nhl-legacy-updater/issues) and include the list of
+[issue](https://github.com/MatusRiedl/nhl-legacy-pc-online-blueline/issues) and include the list of
 changes or the error message.
