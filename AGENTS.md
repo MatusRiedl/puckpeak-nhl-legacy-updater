@@ -518,7 +518,7 @@ white name, Pittsburgh gold back / black sleeve digits with a white ring and the
 no line above or under and the hyphen of NUGENT-HOPKINS (`with_marks`). Not played through the exe yet (the owner).
 
 **Version 0.76.0 (2026-10-27, built locally, not committed; plan docs/plans/i-got-access-to-structured-bunny.md, notes docs/notes/community-extras.md):**
-the owner's community "26-27 Extras" folder (`Community data/`, git-ignored) and the split of the one picture switch. (1) **Six
+the owner's community "26-27 Extras" folder (now `private/source/community-26-27/`, git-ignored) and the split of the one picture switch. (1) **Six
 picture switches** (`art/parts.py`: `NAMES`, `PHOTOS`, `LOOKS`, `ARENAS`, `BRIGHT_ICE`, `TEAM_MASKS`; settings keys in
 `app/settings.py`, rows `UpdateController._picture_row` / `texts.PICTURE_ROWS`): team names need no download and default ON, photos +
 logos (~105 MB) are the gold row, the rest are small packs. `pipeline.Pictures(parts=)`, `pipeline.update(art_parts=)` (default
