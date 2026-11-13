@@ -52,6 +52,16 @@
   --good: #5fe08a;
   --good-bg: #0f2a1d;
 
+  /* the Puck Peak design language's shared names (Overtime, Blueline, Faceoff; 0.98.1): green = on / all fine */
+  --on: #1F9E5C;
+  --on-glow: rgba(49, 199, 120, .35);
+  --caution: #F8BF00;
+  --blue-soft: #4790D0;
+  --text-2: var(--muted);
+  --text-3: var(--faint);
+  --text-off: #5b6f85;
+  --line-hi: rgba(255, 255, 255, .16);
+
   /* Puck Peak's blue */
   --accent: #2597c9;
   --accent-hi: #32aee6;

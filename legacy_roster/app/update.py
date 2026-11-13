@@ -5,6 +5,7 @@ import datetime
 import os
 import sys
 import tempfile
+import subprocess
 import threading
 import time
 
@@ -76,6 +77,7 @@ class UpdateController:
         self.problem = None         # why the path picked is not RPCS3 (shown in red)
         self.running = False        # RPCS3 runs (seen at the last scan)
         self.busy = False
+        self.newest = None          # GitHub's answer at start: 'newest', a newer version's number, None (not asked or no answer)
         self.quitting = False       # the new version runs: this window must close, whatever it was doing
         self.scanning = False
         self.checked = {}           # (SYS-DATA path, size, time) -> (None or why it cannot be used, made for the patch,
@@ -168,6 +170,8 @@ class UpdateController:
     def _look_for_update(self, force, wait=2.0):
         release = selfupdate.latest()
         with self.lock:
+            self.newest = release.text if release else 'newest' if selfupdate.answered else None
+            self.changed()
             if release is None and force:
                 self.ask("You have the newest version", [f"Version {__version__} is the latest one."
                          " If you are offline, or GitHub did not answer, try again in a moment."],
@@ -1200,6 +1204,57 @@ class UpdateController:
         if self.rpcs3 and not self.rpcs3.plain and not savedata.running_rpcs3():
             self.rpcs3.start()
 
+    # --- the header's Play NHL Legacy (0.98.1, owner: always there, as in Overtime) ---------------------------------
+    def _play_view(self, export):
+        r = self.rpcs3
+        if export:
+            why = "Export files to a folder is on: play on the PC you export to."
+        elif r is None or r.plain:
+            why = "Find your game first: Setup, step 1."
+        elif self.busy:
+            why = "Wait until the roster is written."
+        else:
+            why = None
+        return {'can': why is None, 'text': X.PLAY, 'why': why or (
+            "Opens NHL Legacy Native's launcher: press PLAY there." if r.native else "Starts NHL Legacy in RPCS3.")}
+
+    def _play_command(self, r, slot):
+        """What Play starts: on RPCS3 the game of the picked roster (else the first one RPCS3 has) with the player's own
+        settings (RPCS3 runs update 1.01 by itself); RPCS3 alone when it does not say where the game is; on the port its
+        launcher (its PLAY joins the mods with the update first). None: nothing to start."""
+        command = r.command()
+        if not command:
+            return None
+        command = [c for c in command if c != '--args']
+        if r.native:
+            return command
+        games = r.games()
+        title = getattr(slot, 'title_id', None)
+        title = title if title in games else next(iter(games), None)
+        disc = r.game_disc(title) if title else None
+        return command + [disc] if disc else command
+
+    def play(self):
+        with self.lock:
+            r, slot = self.rpcs3, self.selected_slot()
+            if r is None or r.plain or self.busy or self.export_mode:
+                return
+        if savedata.running_rpcs3():
+            self.host.log("NHL Legacy is already running.")
+            self.ask("NHL Legacy is already running", [f"{r.name} is open already. Switch to its window."],
+                     [("OK", 'ok', 'primary')], {})
+            return
+        command = self._play_command(r, slot)
+        try:
+            if command is None:
+                raise OSError(f"The program does not know how to start {r.name}. In Setup, pick the program itself "
+                              "(not only its folder).")
+            flags = getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+            savedata.launch(command, cwd=r.launch_dir(), close_fds=True, creationflags=flags)
+            self.host.log(f"Started: {r.name}.")
+        except OSError as err:
+            self.ask("The game could not be started", [str(err)], [("OK", 'ok', 'primary')], {})
+
     def remove_photos(self):
         """Put back every game file the photos and logos replaced."""
         with self.lock:
@@ -1432,7 +1487,9 @@ class UpdateController:
                              'indeterminate': self.scanning and not self.busy},
                 'dialog': self.dialog,
                 'check_updates': self.settings.get('check_updates', True) is not False,
+                'program': self._program_view(),
                 'downloads': self._downloads_view(),
+                'play': self._play_view(export),
             }
 
     def _fresh(self, export):
@@ -1459,11 +1516,18 @@ class UpdateController:
                 'from_file': isinstance(source, str), 'patch': self.export_patch,
                 'game': None if games else X.EXPORT_GAME, 'why': X.EXPORT_WHY}
 
+    def _program_view(self):
+        """"This program"'s one line: a tick once GitHub said this is the newest, the new version's number otherwise."""
+        newest = getattr(self, 'newest', None)
+        if newest == 'newest':
+            return {'tone': 'good', 'text': "Up to date"}
+        return {'tone': 'caution', 'text': f"Version {newest} is out"} if newest else None
+
     def _downloads_view(self):
         """The Setup tab's Downloads card: the pictures (downloaded by themselves) and the player data."""
         running = self.fetch == 'running'
         pictures = (X.PHOTOS_RUNNING.format(pct=int(self.fetch_at * 100)) if running else
-                    X.PHOTOS_READY if self.fetch == 'ready' else
+                    "On this PC" if self.fetch == 'ready' else
                     X.PHOTOS_RETRY if self.fetch == 'failed' else X.photos_will(self.fetch_size))
         try:
             made = datetime.date.fromisoformat(str((self.pack or {}).get('generated') or '')[:10])
@@ -1606,11 +1670,13 @@ class UpdateController:
         full = any(n >= savedata.GAME_LISTS for n, _ in room.values())
         most = savedata.GAME_LISTS
         counts = [{'region': savedata.region(t),
-                   'text': f"{n} of {most}" + (" (full)" if n == most else f", {n - most} not in the game" if n > most else ""),
+                   'text': (f"{n} used, {n - most} not in the game" if n > most else
+                            f"{n} used · full" if n == most else f"{n} used · {most - n} free"),
                    'tone': 'bad' if n >= most else 'amber' if n == most - 1 else 'good'}
                   for t, (n, _) in room.items()]
         near = any(c['tone'] != 'good' for c in counts)       # the note only when it matters (step 2 took the room)
-        return {'counts': counts, 'text': X.ROOM_FULL_SHORT if full else X.ROOM_NOTE if near else None,
+        return {'counts': counts, 'of': f"of {most} save slots each" if len(counts) > 1 else f"of {most} save slots",
+                'text': X.ROOM_FULL_SHORT if full else X.ROOM_NOTE if near else None,
                 'tip': X.ROOM_NOTE, 'tone': 'bad' if full else 'info'}
 
     def _roster_view(self, s, hidden=frozenset()):
@@ -1751,11 +1817,11 @@ class UpdateController:
             text, tone = ("Looking for your rosters..." if self.scanning else
                           "Ready." if ready and any_step else
                           "Pick a roster (Setup) or a roster file first." if not ready and not self.busy else
-                          "Switch on at least one thing to update."), 'muted'
+                          "Switch on at least one thing to update."), 'good' if ready and any_step and not self.scanning else 'muted'
         else:
             text, tone = ("Looking for your rosters..." if self.scanning else
                           "Ready." if ready and any_step else
                           "Start with step 1: find your game." if self.rpcs3 is None else
                           "Switch on at least one thing to update." if slot is not None else
-                          "None of the rosters found can be updated."), 'muted'
+                          "None of the rosters found can be updated."), 'good' if ready and any_step and not self.scanning else 'muted'
         return {'text': text, 'tone': tone}

@@ -102,7 +102,7 @@ def test_the_roster_card_counts_the_ten_rosters_the_game_lists(app):
     from legacy_roster.app import settings as S
     _host, upd, _ed, _uni, sd = app
     room = upd.snapshot()['room']
-    assert room['counts'] == [{'region': 'EU', 'text': '1 of 10', 'tone': 'good'}] and room['text'] is None and 'at most 10' in room['tip']
+    assert room['counts'] == [{'region': 'EU', 'text': '1 used · 9 free', 'tone': 'good'}] and room['text'] is None and 'at most 10' in room['tip']
     for n in range(10, 19):                     # nine more folders: the 10th and later the game does not list
         shutil.copytree(upd.slots[0].path, os.path.join(sd, f'BLES0215302{n:02d}'))
     upd.set_rpcs3(upd.rpcs3.where, quiet=True)

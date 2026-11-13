@@ -71,7 +71,7 @@ def test_the_setup_tabs_discord_button_opens_the_puck_peak_discord():
     with open(os.path.join(WEB, 'js', 'shell.js'), encoding='utf-8') as f:
         assert "call('open_discord')" in f.read()
     with open(os.path.join(WEB, 'js', 'update.js'), encoding='utf-8') as f:
-        assert '<${DiscordButton}/><${KofiButton}/></div>\n      <${RpcsCard}' in f.read()    # above "Where is RPCS3?" (owner, 0.50.2); Ko-fi beside Discord, one row (0.50.4)
+        assert '<${RosterCard} s=${s}/>\n      <div class="linkrow small"><${DiscordButton} small/><${KofiButton}/></div>' in f.read()   # under the rosters, as in Overtime (owner's design kit, 0.98.1); one row with Ko-fi (0.50.4)
     assert Api(host, None).open_kofi() is None and host.opened[-1] == 'https://ko-fi.com/iksperial'
     with open(os.path.join(WEB, 'js', 'shell.js'), encoding='utf-8') as f:
         assert "call('open_kofi')" in f.read()

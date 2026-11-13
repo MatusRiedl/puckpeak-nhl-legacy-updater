@@ -76,14 +76,20 @@ def from_json(data, fetch_text=None):
                    exe.get('browser_download_url') if exe else None, int((exe or {}).get('size') or 0), digest)
 
 
+answered = False    # did GitHub answer the last look? (Setup's "Up to date" tick only then, 0.98.1)
+
+
 def latest(current=__version__, fetch_json=None, fetch_text=None):
     """The newest release when it is newer than `current`, else None (also when GitHub cannot be reached)."""
+    global answered
+    answered = False
     fetch_json = fetch_json or datasource.http_json
     fetch_text = fetch_text or (lambda url: datasource.http_get(url, timeout=20, retries=1).decode('utf-8', 'replace'))
     try:
         release = from_json(fetch_json(RELEASE_URL), fetch_text)
     except Exception:           # offline, rate limited, not published yet: say nothing
         return None
+    answered = True
     have = parse_version(current)
     return release if release and have and release.version > have else None
 

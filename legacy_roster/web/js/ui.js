@@ -7,6 +7,12 @@ export function Button({ kind = 'ghost', small, big, block, disabled, onClick, t
     disabled=${disabled} onClick=${onClick}>${children}</button>`;
 }
 
+// the bin on quiet Delete buttons (the Puck Peak design language: grey until pointed at)
+export function Bin() {
+  return html`<svg class="bin" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5M7 7v4M9 7v4"
+    fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
 export function Toggle({ on, disabled, onChange, label, gold }) {
   return html`<button type="button" role="switch" aria-checked=${!!on} aria-label=${label}
     class=${cls('toggle', on && 'on', gold && 'gold')} disabled=${disabled} onClick=${() => onChange(!on)}></button>`;

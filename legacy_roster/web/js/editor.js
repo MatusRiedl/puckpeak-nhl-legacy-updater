@@ -392,7 +392,7 @@ function EditsWindow({ m }) {
       ${m.items.map((it) => html`<div key=${it.kind + it.key} class="edit-row">
           <span class=${cls('chip', it.kind === 'team' ? 'made' : 'muted')}>${it.kind === 'team' ? 'Team' : 'Player'}</span>
           <span class="n">${it.name}</span><span class="w">${it.what}</span>
-          <${Button} small kind="danger" onClick=${() => call('edits_remove', it.kind, it.key)}>Remove<//></div>`)}
+          <${Button} small kind="danger-quiet" onClick=${() => call('edits_remove', it.kind, it.key)}>Remove<//></div>`)}
     </div>
   <//>`;
 }

@@ -84,6 +84,18 @@ class Api:
         self._host.open_url(X.KOFI)
 
     @_safe
+    def open_app(self, which):
+        """One of the other Puck Peak apps' pages (the header's dock); nothing else opens this way."""
+        url = X.SISTER_APPS.get(str(which))
+        if url:
+            self._host.open_url(url)
+        return {'ok': bool(url)}
+
+    @_safe
+    def play(self):
+        self._update.play()
+
+    @_safe
     def open_error_log(self):
         path = datasource.app_dir('logs', 'error.log')
         import os

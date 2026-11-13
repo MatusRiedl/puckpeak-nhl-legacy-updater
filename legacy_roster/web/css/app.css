@@ -38,7 +38,7 @@ a:hover { color: #8fdcff; text-decoration: underline; }
   background: linear-gradient(to bottom, transparent, rgba(2, 6, 12, .55)); }
 
 /* --- header: the BLUELINE wordmark | "brought to you by" Puck Peak, then the game line (as Overtime, the NHL 19 app) --- */
-.header { position: relative; z-index: 1; text-align: center; padding: 24px 0 6px; flex: none; }
+.header { position: relative; z-index: 4; text-align: center; padding: 24px 0 6px; flex: none; }
 .header .brand { display: inline-flex; align-items: center; gap: 22px; }
 .header .wordmark { font-family: var(--font); font-weight: 700; font-style: italic; font-size: 46px; line-height: 1;
   letter-spacing: .08em; text-transform: uppercase; padding-right: .1em;
@@ -52,11 +52,69 @@ a:hover { color: #8fdcff; text-decoration: underline; }
 .header .crumb .light { color: var(--text); font-weight: 400; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; }
 .header .crumb .sep { color: #2f5677; }
 .header .crumb .ver { font-variant-numeric: tabular-nums; }
+/* the green Play, top right (0.98.1, as Overtime's): always there, grey with a reason until the game is found */
+.playnow { position: absolute; top: 16px; right: 20px; z-index: 2; display: inline-flex; align-items: center; gap: 9px;
+  height: 42px; padding: 0 20px 0 16px; border: 0; border-radius: 4px; overflow: hidden; cursor: default;
+  font-family: var(--font); font-style: italic; font-weight: 700; font-size: 16px; letter-spacing: .1em;
+  text-transform: uppercase; white-space: nowrap; color: #7E8796; background: linear-gradient(180deg, #3a3f49, #2a2e36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 1px rgba(255, 255, 255, .14); }
+.playnow svg { width: 15px; height: 15px; flex: none; }
+.playnow.ready { cursor: pointer; color: #fff; background: linear-gradient(180deg, #3BD487, #22A862);
+  box-shadow: 0 4px 14px rgba(49, 199, 120, .35), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.playnow.ready:hover, .playnow.ready:focus-visible { outline: none; background: linear-gradient(180deg, #4BE296, #27B86C);
+  box-shadow: 0 6px 18px rgba(49, 199, 120, .5), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.playnow.ready:active { transform: translateY(1px); }
+/* the Puck Peak apps, top left, mirroring Play (0.98.1, the owner's dock kit): Blueline greyed (this app) | Overtime | Faceoff */
+/* Puck Peak app dock (the owner's kit, 2026-11-13): Blueline lit with "You are here", the other apps quiet until pointed at */
+.appdock { position: absolute; top: 16px; left: 20px; z-index: 3; display: flex; align-items: stretch; height: 42px; text-align: left; }
+.appdock .dk { --c: #9AA3B2; --glow: transparent; position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 0 14px 0 6px; border: 0; cursor: pointer; font-family: var(--font);
+  font-weight: 700; font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: #fff; white-space: nowrap;
+  transition: filter .15s ease; }
+.appdock .dk img { width: 32px; height: 32px; flex: none; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .5)); }
+/* outer corners round, inner corners square: one bar */
+.appdock .dk:first-child { border-radius: 4px 0 0 4px; }
+.appdock .dk:last-child { border-radius: 0 4px 4px 0; }
+/* each app's colour. The other apps are quiet (grey, icon dimmed) and light up in their colour when pointed at; the app you
+   are in (.here) is always lit in its own colour, with "You are here" under it, and does nothing on click */
+.appdock .dk.blue { --c: #1FA3E8; --glow: rgba(31, 163, 232, .45); --fill: linear-gradient(180deg, #2BB0F0, #1478C2); }
+.appdock .dk.orange { --c: #FF8A3D; --glow: rgba(255, 122, 26, .45); --fill: linear-gradient(180deg, #FF8A3D, #D9520F); }
+.appdock .dk.red { --c: #E8263A; --glow: rgba(232, 38, 58, .45); --fill: linear-gradient(180deg, #F03A4C, #B5182A); }
+.appdock .dk:not(.here) { background: #23272f; color: #B1BAC1; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+.appdock .dk:not(.here) img { filter: grayscale(.85) brightness(.85); opacity: .8; }
+.appdock .dk:not(.here):hover, .appdock .dk:not(.here):focus-visible { outline: none; background: var(--fill); color: #fff;
+  box-shadow: 0 4px 14px var(--glow), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.appdock .dk:hover img, .appdock .dk:focus-visible img, .appdock .dk.here img { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .5)); opacity: 1; }
+.appdock .dk.here { cursor: default; color: #fff; background: var(--fill); box-shadow: 0 4px 14px var(--glow), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.appdock .dk.here::after { content: 'You are here'; position: absolute; left: 0; right: 0; top: calc(100% + 4px); text-align: center;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--c); pointer-events: none; }
+.appdock .dk.here:hover::after { opacity: 0; }   /* the hover card takes its place */
+.appdock .dk:active:not(.here) { transform: translateY(1px); }
+/* the hover card under each button, framed in that app's colour */
+.appdock .tip { position: absolute; top: calc(100% + 18px); left: 0; width: 290px; text-align: left; padding: 10px 12px; border-radius: 4px;
+  background: #161a21; box-shadow: inset 0 0 0 1px var(--c), 0 10px 30px rgba(0, 0, 0, .6); pointer-events: none;
+  opacity: 0; transform: translateY(-4px); transition: opacity .15s ease, transform .15s ease;
+  font-family: var(--font); font-weight: 400; letter-spacing: 0;
+  text-transform: none; white-space: normal; }
+.appdock .dk:hover .tip, .appdock .dk:focus-visible .tip { opacity: 1; transform: none; }
+.appdock .tip strong { display: block; font-family: var(--font); font-weight: 700;
+  font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--c); }
+.appdock .tip span { display: block; margin-top: 5px; font-size: 12.5px; line-height: 1.45; color: #D5DAE3; }
+/* narrow windows: icons only (the card still names the app) */
+@media (max-width: 1250px) { .appdock .dk { padding: 0 8px; } .appdock .dk b { display: none; } .appdock .dk.here::after { display: none; } }
 .linkrow { display: flex; align-items: stretch; gap: 10px; flex: none; min-width: 0; }
 .linkrow .discord { flex: 1 1 0; width: auto; min-width: 0; }
 .linkrow .kofi { flex: none; width: auto; }
 .linkrow .discord .t { white-space: nowrap; }
 .linkrow { container-type: inline-size; }
+/* Discord and Ko-fi at the bottom of the side column, smaller (the Puck Peak design language: they never push step 1 down) */
+.linkrow.small { margin-top: var(--gap); }
+.linkrow.small .discord { padding: 7px 14px; font-size: 13.5px; border-radius: 8px; }
+.linkrow.small .discord svg { width: 18px; height: 18px; }
+.linkrow.small .kofi { padding: 5px 12px; }
+.linkrow.small .kofi .cup { width: 22px; height: 22px; font-size: 12px; }
+.linkrow.small .kofi .t { font-size: 13px; }
+.linkrow.small .kofi .sub { font-size: 11px; }
 @container (max-width: 470px) { .linkrow .discord .sub { display: none; } }
 .discord { display: flex; align-items: center; gap: 10px; flex: none; width: 100%; padding: 10px 16px; border: 0;
   border-radius: 10px; background: #5865f2; color: #fff; font: inherit; font-size: 15px; font-weight: 700;
@@ -89,6 +147,12 @@ a:hover { color: #8fdcff; text-decoration: underline; }
 .compact .header .by { display: inline-flex; align-items: center; gap: 8px; font-size: 9.5px; }
 .compact .header .logo { height: 14px; margin-top: 0; }
 .compact .header .crumb { display: none; }
+.compact .header { min-height: 40px; box-sizing: border-box; }
+.compact .appdock, .compact .playnow { top: 5px; height: 30px; }
+.compact .appdock .dk { font-size: 13px; }
+.compact .appdock .dk img { width: 24px; height: 24px; }
+.compact .appdock .dk.here::after { display: none; }
+.compact .playnow { font-size: 13px; padding: 0 14px 0 12px; }
 
 /* --- tabs: [L1] Update | Roster editor [R1] ------------------------------------------------- */
 .tabs { position: relative; z-index: 1; display: flex; justify-content: center; align-items: center; gap: 10px;
@@ -157,6 +221,15 @@ a:hover { color: #8fdcff; text-decoration: underline; }
 .btn.danger.glow:disabled { box-shadow: none; }
 .btn.pick { border-color: transparent; background: linear-gradient(var(--pick-1), var(--pick-2)); color: var(--pick-text); }
 .btn.pick:hover:not(:disabled) { background: #fff; box-shadow: 0 0 16px rgba(170, 215, 255, .35); }
+/* grey until pointed at: removing something (the confirm question after it keeps the full red) */
+.btn.danger-quiet { border-color: transparent; background: transparent; color: var(--text-2); margin-left: 5px; }
+.btn.danger-quiet:hover:not(:disabled), .btn.danger-quiet:focus-visible { color: #ff6b8f; background: rgba(230, 0, 65, .14);
+  border-color: rgba(255, 107, 143, .35); }
+.btn .bin { width: 14px; height: 14px; flex: none; margin-right: -2px; }
+/* a text action beside a choice, not one more choice */
+.btn.link { border: 0; background: none; padding: 2px 4px; color: var(--blue-soft); text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-color: rgba(71, 144, 208, .45); }
+.btn.link:hover:not(:disabled) { background: none; color: #7db6ea; text-decoration-color: currentColor; }
 .btn.big { padding: 10px 16px; font-size: 15px; font-weight: 700; }
 .btn.block { width: 100%; }
 .btn.amber { border-color: #7a6029; color: var(--amber); background: rgba(224, 178, 90, .1); }
@@ -191,10 +264,11 @@ input.field:disabled { color: var(--faint); }
 
 /* checkbox */
 .check { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; font-weight: 600;
-  color: var(--accent-hi); cursor: pointer; }
-.check .box { width: 18px; height: 18px; border: 1.5px solid var(--accent-hi); display: grid; place-items: center;
+  color: var(--text); cursor: pointer; }
+.check .box { width: 18px; height: 18px; border: 1.5px solid var(--steel-2); display: grid; place-items: center;
   transition: background-color .15s; }
-.check.on .box { background: var(--accent); border-color: var(--accent); }
+.check:hover .box { border-color: var(--steel-1); }
+.check.on .box { background: var(--on); border-color: var(--on); }
 .check .box svg { width: 12px; height: 12px; opacity: 0; transform: scale(.4); transition: opacity .15s, transform .2s var(--ease); }
 .check.on .box svg { opacity: 1; transform: scale(1); }
 .check.disabled { opacity: .5; cursor: default; }
@@ -202,7 +276,7 @@ input.field:disabled { color: var(--faint); }
 /* toggle switch */
 .toggle { position: relative; width: 42px; height: 22px; border-radius: 11px; border: 0; padding: 0; flex: none; cursor: pointer;
   background: var(--off); transition: background-color .2s; }
-.toggle.on { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+.toggle.on { background: var(--on); box-shadow: 0 0 10px var(--on-glow); }
 .toggle.gold.on { background: var(--gold); box-shadow: 0 0 10px var(--gold-glow); }
 .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
   background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.4); transition: transform .22s var(--ease); }
@@ -239,6 +313,7 @@ input.field:disabled { color: var(--faint); }
 .room .count.amber { color: var(--amber); border-color: #7a6029; background: rgba(224, 178, 90, .08); }
 .room .count.bad { color: var(--red); border-color: rgba(224, 90, 106, .5); background: rgba(224, 90, 106, .1); }
 .room .text { flex: 1 1 260px; min-width: 0; }
+.room .of { color: var(--text-2); font-size: 12.5px; }
 .fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
 .roster { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer;
   background: var(--row); border: 1px solid transparent; overflow: hidden; transition: background-color .15s, border-color .15s; }
@@ -362,6 +437,9 @@ input.field:disabled { color: var(--faint); }
 .helpbar .status { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 600; }
 .helpbar .status.good { color: #c9ffd9; }
 .helpbar .status.bad { color: #ffd0d6; }
+.helpbar .done-tick { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 3px;
+  background: rgba(49, 199, 120, .18); color: #9dffc4; font-size: 12px; font-weight: 800; text-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(49, 199, 120, .55); }
 .helpbar .pct { width: 38px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .helpbar .keys { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; }
 .helpbar .key { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
@@ -430,3 +508,11 @@ input.field:disabled { color: var(--faint); }
   /* a result needs room to be read: the rosters keep one whole row meanwhile */
   .col:has(> .result-wrap.open) > .card.rosters { min-height: 196px; }
 }
+
+/* "This program" on one row; the Downloads card's ticks (say it once: a tick, not a sentence) */
+.program { align-items: center; gap: 8px 14px; }
+.program .check { margin-top: 0; }
+.program .state { font-size: 13px; font-weight: 700; }
+.program .state.good { color: var(--good); }
+.program .state.caution { color: var(--caution); }
+.tick { color: var(--good); font-weight: 800; margin-right: 6px; }

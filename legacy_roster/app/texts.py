@@ -7,6 +7,10 @@ SITE = "https://www.puckpeak.com"
 SITE_LABEL = "www.puckpeak.com"
 DISCORD = "https://gg.puckpeak.com"        # the Puck Peak Discord (a redirect)
 KOFI = "https://ko-fi.com/iksperial"       # tips for the development (the button below the Discord one)
+PLAY = "Play NHL Legacy"                   # the header's green button (0.98.1)
+# The other Puck Peak apps, the header's top left (0.98.1, the owner's dock kit; Blueline itself is lit, "You are here"): only these open
+SISTER_APPS = {'overtime': "https://github.com/MatusRiedl/nhl19-pc-online-overtime",
+               'faceoff': "https://github.com/MatusRiedl/nhl27-pc-faceoff"}
 TAGLINE = "NHL & hockey analytics like never before"
 HOW_TO_LOAD = "In the game: Customize > Save/Load/Delete > Load > Rosters, pick it, then save the roster once so it stays active."
 HOW_TO_LOAD_IN_PLACE = ("In the game: start it. If this is not the roster in use, Customize > Save/Load/Delete > Load > Rosters, pick it, "

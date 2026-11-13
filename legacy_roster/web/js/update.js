@@ -1,7 +1,7 @@
 // The Setup, Update and Game patch tabs: where RPCS3 is, which roster (Setup); what to update and how to save (Update);
 // the RPCS3 game patch (Game patch). All three show the Update controller's state (app/update.py).
 import { html, cls, useEffect, useRef, useState } from './lib.js';
-import { Button, Toggle, Checkbox, Segmented, Card, PathText, RegionTag, Flag, TextField, Info } from './ui.js';
+import { Button, Toggle, Checkbox, Segmented, Card, PathText, RegionTag, Flag, TextField, Info, Bin } from './ui.js';
 import { call } from './bridge.js';
 import { DiscordButton, KofiButton } from './shell.js';
 
@@ -40,7 +40,7 @@ function DownloadsCard({ items }) {
     <div class="card-body"><div class="list">
       ${items.map((d) => html`<div key=${d.title} class="step dl"><div class="main">
         <div class="title">${d.title}</div>
-        <div class=${cls('sub', d.tone === 'good' && 'goodtext', d.tone === 'amber' && 'ambertext')}>${d.text}</div>
+        <div class=${cls('sub', d.tone === 'amber' && 'ambertext')}>${d.tone === 'good' && html`<span class="tick">✓</span>`}${d.text}</div>
         ${d.bar != null && html`<div class="bar"><span style=${{ width: `${Math.round(d.bar * 100)}%` }}></span></div>`}
       </div></div>`)}
     </div></div>
@@ -50,9 +50,10 @@ function DownloadsCard({ items }) {
 function ProgramCard({ s, version }) {
   return html`<${Card} title="This program" aside=${version ? `version ${version}` : ''} style=${{ '--i': 2 }}>
     <div class="card-body">
-      <div class="row wrap">
-        <${Checkbox} on=${s.check_updates} onChange=${(v) => call('set_check_updates', v)}>Look for a newer version when this program starts</${Checkbox}>
-        <${Button} small disabled=${s.busy} onClick=${() => call('check_updates_now')}>Check for updates now</${Button}>
+      <div class="row wrap program">
+        <${Checkbox} on=${s.check_updates} onChange=${(v) => call('set_check_updates', v)}>Look for a newer version at start</${Checkbox}>
+        ${s.program && html`<span class=${cls('state', s.program.tone)}>${s.program.tone === 'good' ? '✓ ' : ''}${s.program.text}</span>`}
+        <${Button} kind="link" disabled=${s.busy} onClick=${() => call('check_updates_now')}>Check now</${Button}>
       </div>
     </div>
   </${Card}>`;
@@ -73,7 +74,7 @@ function RosterRow({ r, isNew }) {
     </div>
     ${r.actions && html`<div class="acts" onClick=${(e) => e.stopPropagation()}>
       <${Button} small onClick=${() => call('open_roster_folder', r.folder)}>Open folder</${Button}>
-      <${Button} small kind="danger" disabled=${!r.delete_enabled} onClick=${() => call('ask_delete', r.folder)}>Delete</${Button}>
+      <${Button} small kind="danger-quiet" disabled=${!r.delete_enabled} onClick=${() => call('ask_delete', r.folder)}><${Bin}/>Delete</${Button}>
     </div>`}
   </div>`;
 }
@@ -102,6 +103,7 @@ function RosterCard({ s }) {
         ${s.room && html`<div class=${cls('room', s.room.tone)}>
           ${s.room.counts.map((c) => html`<span key=${c.region} class=${cls('count', c.tone)}
               title=${s.room.tip}><${Flag} region=${c.region}/>${c.text}</span>`)}
+          ${s.room.of && html`<span class="of">${s.room.of}</span>`}
           ${s.room.text && html`<span class="text">${s.room.text}</span>`}</div>`}
         ${s.fresh.length > 0 && html`<div class="fresh">Start fresh:
           ${s.fresh.map((f) => html`<${Button} small key=${f.folder} disabled=${s.busy}
@@ -117,13 +119,13 @@ export function SetupTab({ s, version }) {
   if (!s) return null;
   return html`<div class="columns">
     <div class="col">
-      <div class="linkrow"><${DiscordButton}/><${KofiButton}/></div>
       <${RpcsCard} r=${s.rpcs3} exp=${s.export} busy=${s.busy}/>
       ${s.downloads && html`<${DownloadsCard} items=${s.downloads}/>`}
       <${ProgramCard} s=${s} version=${version}/>
     </div>
     <div class="col">
       <${RosterCard} s=${s}/>
+      <div class="linkrow small"><${DiscordButton} small/><${KofiButton}/></div>
     </div>
   </div>`;
 }
@@ -183,7 +185,7 @@ function StepsCard({ s }) {
     </div>
     <div class="card-foot">
       ${s.later && html`<div class="later">${s.later}</div>`}
-      ${s.restore_all.shown && html`<div><${Button} small kind="danger" className="glow" disabled=${!s.restore_all.enabled}
+      ${s.restore_all.shown && html`<div><${Button} small kind="danger-quiet" disabled=${!s.restore_all.enabled}
           onClick=${() => call('restore_default')}>Restore default: rosters, calendar and pictures</${Button}></div>`}
       ${s.export.on && html`<div class="later">${s.export.why}</div>`}
     </div>

@@ -190,7 +190,7 @@ function App() {
   const noSave = tab === 'calendar' || careers;     // the Calendar changes nothing; a Be a Pro career has its own Save
   return html`<div class=${cls('app', enter && 'enter', short && 'compact')}>
     <${Backdrop}/>
-    <${Header} meta=${meta}/>
+    <${Header} meta=${meta} play=${update && update.play}/>
     <${TabBar} tabs=${TABS} tab=${tab} onTab=${pickTab}/>
     <main class="stage">
       ${pane('setup', html`<${SetupTab} s=${update} version=${meta.version}/>`)}

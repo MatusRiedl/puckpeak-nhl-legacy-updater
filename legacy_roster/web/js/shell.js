@@ -36,10 +36,10 @@ export function Backdrop() {
 const DISCORD_MARK = 'M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z';
 
 // the Discord button, first in the Setup tab (owner, 0.50.2: more visible there than in the header's corner)
-export function DiscordButton() {
+export function DiscordButton({ small }) {
   return html`<button type="button" class="discord" title="gg.puckpeak.com" onClick=${() => call('open_discord')}>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${DISCORD_MARK}/></svg>
-    <span class="t">Join our Discord</span><span class="sub">Updates, patches, help · gg.puckpeak.com</span></button>`;
+    <span class="t">Join our Discord</span>${!small && html`<span class="sub">Updates, patches, help · gg.puckpeak.com</span>`}</button>`;
 }
 
 // the Ko-fi button right under it (owner, 0.50.4): tips for the development, the look of the one in Puck Peak's sidebar
@@ -49,9 +49,42 @@ export function KofiButton() {
     <span class="txt"><span class="t">Buy me a coffee</span><span class="sub">Support the development</span></span></button>`;
 }
 
-export function Header({ meta }) {
+// The header's green Play (0.98.1, as Overtime's): always there, greyed with a reason until the game is found.
+function PlayButton({ play }) {
+  const p = play || { can: false, text: 'Play NHL Legacy', why: 'Find your game first: Setup, step 1.' };
+  return html`<button type="button" class=${cls('playnow', p.can && 'ready')} disabled=${!p.can} title=${p.why || ''}
+      onClick=${() => call('play')}>
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>
+    <span class="label">${p.text}</span>
+  </button>`;
+}
+
+// The Puck Peak apps, top left, mirroring Play (0.98.1, the owner's dock kit): Blueline greyed (this app), Overtime
+// (NHL 19), Faceoff (NHL 27). Order, names and texts are the same in all three apps; each opens its page.
+const APPS = [
+  { id: 'blueline', name: 'Blueline', tone: 'blue', here: true, title: 'Blueline · NHL Legacy on PC',
+    text: 'NHL Legacy Updated and Online with a few clicks. 32 teams, lobbies, edit everything.' },
+  { id: 'overtime', name: 'Overtime', tone: 'orange', title: 'Overtime · NHL 19 on PC',
+    text: 'NHL 19 Updated and Online with a few clicks. 32 teams, lobbies, edit everything.' },
+  { id: 'faceoff', name: 'Faceoff', tone: 'red', title: 'Faceoff · NHL 27 on PC',
+    text: 'Play NHL 27 on PC with steady pacing and more to come.' },
+];
+
+function AppDock() {
+  return html`<div class="appdock">
+    ${APPS.map((a) => html`<button type="button" key=${a.id} class=${cls('dk', a.tone, a.here && 'here')} aria-current=${a.here ? 'page' : null}
+        onClick=${a.here ? null : () => call('open_app', a.id)}>
+      <img src=${`img/app-${a.id}.png`} alt="" draggable="false"/><b>${a.name}</b>
+      <span class="tip" role="tooltip"><strong>${a.title}</strong><span>${a.text}</span></span>
+    </button>`)}
+  </div>`;
+}
+
+export function Header({ meta, play }) {
   // the BLUELINE wordmark | "brought to you by" Puck Peak, then the game line: the same header as Overtime, the NHL 19 app (owner, 2026-11-13)
   return html`<header class="header">
+    <${AppDock}/>
+    <${PlayButton} play=${play}/>
     <div class="brand">
       <div class="wordmark">${meta.brand}</div>
       <div class="vsep"></div>
@@ -91,10 +124,13 @@ export function TabBar({ tabs, tab, onTab }) {
 
 export function HelpBar({ status, progress, detailsOpen, onDetails, hint }) {
   const value = progress ? progress.value : 0;
-  const shown = progress && (progress.active || value > 0);
+  // the bar and % only while something runs; at rest a green tick when all is well (the Puck Peak design language)
+  const shown = progress && (progress.active || progress.indeterminate || (value > 0 && value < 1));
+  const good = !shown && status && status.tone === 'good';
   return html`<footer class="helpbar">
-    <${ProgressBar} value=${value} active=${progress && progress.active} indeterminate=${progress && progress.indeterminate}/>
-    <span class="pct">${shown ? Math.round(value * 100) + '%' : ''}</span>
+    ${shown && html`<${ProgressBar} value=${value} active=${progress.active} indeterminate=${progress.indeterminate}/>
+      <span class="pct">${progress.indeterminate ? '' : Math.round(value * 100) + '%'}</span>`}
+    ${good && html`<span class="done-tick" aria-hidden="true">✓</span>`}
     <span class=${cls('status', status && status.tone)} title=${status && status.text}>${status ? status.text : ''}</span>
     <span class="keys">
       ${hint && html`<span class="key"><span class="keycap">Enter</span>${hint}</span>`}

@@ -3,6 +3,19 @@
 What changed in each version, for players. Developers: details in [AGENTS.md](AGENTS.md)
 ("Current state") and [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## 0.98.1 (2026-11-13)
+
+**Play NHL Legacy.** A green button at the top right starts the game: in RPCS3 it boots NHL Legacy straight away, on
+NHL Legacy Native it opens the launcher (press PLAY there). It stays grey until you have found your game in Setup.
+
+**The other Puck Peak apps.** At the top left: Overtime (NHL 19) and Faceoff (NHL 27). Point at one to see what it is,
+click it to open its page. Blueline, the app you are in, is lit and says "You are here".
+
+**The same look as our other apps.** Switches and ticks are green when on. The bar at the bottom shows progress only while
+something runs, and a green tick when all is ready. Delete and Restore default stay grey until you point at them. Setup
+says it shorter: ticks for what is downloaded, "2 used · 8 free of 10 save slots", "Up to date" next to "Check now", and
+Discord and Ko-fi sit at the bottom, under your rosters.
+
 ## 0.98.0 (2026-11-13)
 
 **New name: Blueline.** The program is now called Blueline, brought to you by Puck Peak, with a header like Overtime's, our NHL 19
